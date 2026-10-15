@@ -25,6 +25,36 @@ struct Data {
     report: Option<engine::Report>,
     review: Option<Review>,
     update: Option<String>,
+    // Running package metadata stays unchanged until restart. Only a successful
+    // native install may set this; subsequent checks must not offer it again.
+    installed_update: Option<String>,
+}
+impl Data {
+    fn begin_update_check(&mut self) -> bool {
+        if self.installed_update.is_some() {
+            return false;
+        }
+        self.update = None;
+        true
+    }
+    fn can_install(&self, version: &str, consent: bool) -> bool {
+        consent && self.installed_update.is_none() && self.update.as_deref() == Some(version)
+    }
+    fn finish_install(&mut self, version: String) {
+        self.update = None;
+        self.installed_update = Some(version);
+    }
+    fn approve_restart(&self, consent: bool) -> Result<(), String> {
+        if !consent {
+            return Err(
+                "Explicit restart consent is required. Save or export your report first.".into(),
+            );
+        }
+        if self.installed_update.is_none() {
+            return Err("Install an update successfully before restarting to finish it.".into());
+        }
+        Ok(())
+    }
 }
 #[derive(Default)]
 struct AppState {
@@ -335,6 +365,63 @@ async fn submit_review(
     lock(&s)?.review = None;
     Ok(r.payload_hash)
 }
+#[derive(Clone, serde::Serialize)]
+struct UpdateProgress {
+    phase: &'static str,
+    downloaded: u64,
+    total: Option<u64>,
+}
+impl Default for UpdateProgress {
+    fn default() -> Self {
+        Self {
+            phase: "downloading",
+            downloaded: 0,
+            total: None,
+        }
+    }
+}
+impl UpdateProgress {
+    fn chunk(&mut self, bytes: usize, total: Option<u64>) {
+        self.downloaded = self.downloaded.saturating_add(bytes as u64);
+        self.total = total;
+    }
+}
+fn update_error(error: &tauri_plugin_updater::Error) -> &'static str {
+    use tauri_plugin_updater::Error;
+    // Never expose upstream URLs, paths, signature bytes or arbitrary server text.
+    match error {
+        Error::Reqwest(_) | Error::Network(_) =>
+            "Update download failed. Check your internet connection and retry.",
+        Error::Minisign(_) | Error::Base64(_) | Error::SignatureUtf8(_)
+        | Error::SignedVersionMismatch { .. } | Error::MissingSignedVersion =>
+            "Update signature verification failed. Nothing was installed. Retry later or contact support; unsigned updates are never allowed.",
+        #[cfg(target_os = "macos")]
+        Error::Io(error) if error.kind() == std::io::ErrorKind::ReadOnlyFilesystem =>
+            "The update cannot be installed on this read-only volume or disk image. Move Dashcam Card Scanner to Applications, open it there, then retry.",
+        Error::Io(_) | Error::TempDirNotOnSameMountPoint | Error::TempDirNotFound
+        | Error::FailedToDetermineExtractPath =>
+            "Update installation failed. Check that the app location is writable and there is enough free disk space, then retry.",
+        Error::PreviousAppNotRestored(_) =>
+            "Update installation failed and the previous app could not be restored automatically. Do not restart; contact support to recover the app.",
+        Error::ReleaseNotFound | Error::Serialization(_) | Error::TargetNotFound(_)
+        | Error::TargetsNotFound(_) =>
+            "Update information is unavailable for this platform. Retry later.",
+        _ => "Update could not be installed. Retry later or contact support; no unsigned fallback is allowed.",
+    }
+}
+
+#[tauri::command]
+fn app_version(app: tauri::AppHandle) -> String {
+    app.package_info().version.to_string()
+}
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle, consent: bool, s: State<'_, AppState>) -> Result<(), String> {
+    let _busy = begin(&s)?;
+    lock(&s)?.approve_restart(consent)?;
+    // Tauri relaunches the current trusted installed bundle; no renderer path,
+    // process plugin permission or shell helper is involved.
+    app.restart();
+}
 fn updater_ready() -> bool {
     let c: serde_json::Value =
         serde_json::from_str(include_str!("../tauri.conf.json")).unwrap_or_default();
@@ -348,7 +435,9 @@ async fn check_update(
     s: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
     let _busy = begin(&s)?;
-    lock(&s)?.update = None;
+    if !lock(&s)?.begin_update_check() {
+        return Ok(None);
+    }
     if !updater_ready() {
         return Err("Updates are disabled in this review build: official public verification key is not provisioned. Unsigned updates are never installed.".into());
     }
@@ -357,7 +446,7 @@ async fn check_update(
         .map_err(|_| "Updater unavailable")?
         .check()
         .await
-        .map_err(|_| "Update check failed")?;
+        .map_err(|error| format!("Update check failed. {}", update_error(&error)))?;
     let version = update.map(|u| u.version);
     lock(&s)?.update = version.clone();
     Ok(version)
@@ -370,24 +459,43 @@ async fn install_update(
     s: State<'_, AppState>,
 ) -> Result<(), String> {
     let _busy = begin(&s)?;
-    if !consent || !updater_ready() || lock(&s)?.update.as_ref() != Some(&version) {
+    if !updater_ready() || !lock(&s)?.can_install(&version, consent) {
         return Err("Check updates and approve this version first.".into());
     }
+
     let update = app
         .updater()
         .map_err(|_| "Updater unavailable")?
         .check()
         .await
-        .map_err(|_| "Update recheck failed")?
+        .map_err(|error| format!("Update recheck failed. {}", update_error(&error)))?
         .filter(|u| u.version == version)
         .ok_or("Update changed; check again.")?;
+    let progress = Mutex::new(UpdateProgress::default());
+    let _ = app.emit("update-progress", progress.lock().unwrap().clone());
     update
-        .download_and_install(|_, _| {}, || {})
+        .download_and_install(
+            |bytes, total| {
+                let mut p = progress.lock().unwrap();
+                p.chunk(bytes, total);
+                let _ = app.emit("update-progress", p.clone());
+            },
+            || {
+                let mut p = progress.lock().unwrap();
+                // The plugin verifies the signature after this callback and
+                // before touching the installation. This is not success yet.
+                p.phase = "installing";
+                let _ = app.emit("update-progress", p.clone());
+            },
+        )
         .await
-        .map_err(|_| {
-            "Update failed verification or installation; no unsigned fallback is allowed."
-        })?;
-    lock(&s)?.update = None;
+        .map_err(|error| update_error(&error))?;
+    // Do not mark installed on download completion, signature failure, or a
+    // failed bundle replacement. The running package version remains unchanged.
+    lock(&s)?.finish_install(version);
+    let mut p = progress.lock().unwrap();
+    p.phase = "installed";
+    let _ = app.emit("update-progress", p.clone());
     Ok(())
 }
 pub fn run() {
@@ -408,7 +516,9 @@ pub fn run() {
             begin_verification,
             submit_review,
             check_update,
-            install_update
+            install_update,
+            app_version,
+            restart_app
         ])
         .run(tauri::generate_context!())
         .expect("Application runtime failed");
@@ -416,6 +526,120 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn updater_requires_reviewed_version_and_explicit_install_consent() {
+        let mut d = Data::default();
+        assert!(!d.can_install("0.1.3", true));
+        d.update = Some("0.1.3".into());
+        assert!(!d.can_install("0.1.3", false));
+        assert!(!d.can_install("0.1.4", true));
+        assert!(d.can_install("0.1.3", true));
+        assert!(d.begin_update_check());
+        assert!(!d.can_install("0.1.3", true));
+    }
+    #[test]
+    fn installed_update_survives_checks_and_cannot_be_reinstalled() {
+        let mut d = Data {
+            update: Some("0.1.3".into()),
+            ..Data::default()
+        };
+        d.finish_install("0.1.3".into());
+        assert!(!d.begin_update_check());
+        assert_eq!(d.installed_update.as_deref(), Some("0.1.3"));
+        assert!(d.update.is_none());
+        assert!(!d.can_install("0.1.3", true));
+    }
+    #[test]
+    fn restart_requires_successful_install_and_fresh_consent() {
+        let mut d = Data::default();
+        assert!(d.approve_restart(false).is_err());
+        assert!(d.approve_restart(true).is_err());
+        d.update = Some("0.1.3".into());
+        // An available or downloaded update is not an installed update.
+        assert!(d.approve_restart(true).is_err());
+        d.finish_install("0.1.3".into());
+        assert!(d.approve_restart(false).is_err());
+        assert!(d.approve_restart(true).is_ok());
+    }
+    #[test]
+    fn restart_busy_gate_blocks_active_operations_and_releases_on_error() {
+        let s = AppState::default();
+        let busy = begin(&s).unwrap();
+        assert!(begin(&s).is_err());
+        drop(busy);
+        {
+            let _busy = begin(&s).unwrap();
+            assert!(lock(&s).unwrap().approve_restart(true).is_err());
+        }
+        assert!(begin(&s).is_ok());
+    }
+    #[test]
+    fn update_progress_preserves_unknown_total_and_saturates() {
+        let mut p = UpdateProgress::default();
+        assert_eq!(
+            serde_json::to_value(&p).unwrap(),
+            serde_json::json!({
+                "phase": "downloading", "downloaded": 0, "total": null
+            })
+        );
+        p.chunk(12, None);
+        p.chunk(8, Some(20));
+        assert_eq!(p.downloaded, 20);
+        assert_eq!(p.total, Some(20));
+        p.downloaded = u64::MAX;
+        p.chunk(1, None);
+        assert_eq!(p.downloaded, u64::MAX);
+        for phase in ["installing", "installed"] {
+            p.phase = phase;
+            assert_eq!(serde_json::to_value(&p).unwrap()["phase"], phase);
+        }
+    }
+    #[test]
+    fn updater_errors_are_actionable_without_upstream_secrets_or_paths() {
+        use tauri_plugin_updater::Error;
+        assert!(update_error(&Error::Network(
+            "https://private.invalid/?secret=token".into()
+        ))
+        .contains("internet"));
+        assert!(
+            update_error(&Error::SignatureUtf8("SECRET_SIGNATURE".into()))
+                .contains("signature verification failed")
+        );
+        assert!(
+            update_error(&Error::Io(std::io::Error::other("/private/secret"))).contains("writable")
+        );
+        assert!(update_error(&Error::PreviousAppNotRestored(PathBuf::from(
+            "/private/secret"
+        )))
+        .contains("Do not restart"));
+        for error in [
+            Error::Network("secret".into()),
+            Error::SignatureUtf8("secret".into()),
+            Error::Io(std::io::Error::other("secret")),
+        ] {
+            assert!(!update_error(&error).contains("secret"));
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn only_confirmed_read_only_errors_suggest_moving_to_applications() {
+        use tauri_plugin_updater::Error;
+        let readonly = Error::Io(std::io::Error::from_raw_os_error(30));
+        assert!(update_error(&readonly).contains("Applications"));
+        let denied = Error::Io(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
+        assert!(!update_error(&denied).contains("disk image"));
+        assert!(!update_error(&denied).contains("Applications"));
+    }
+    #[test]
+    fn updater_uses_only_the_official_compiled_https_feed() {
+        let c: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert!(updater_ready());
+        assert_eq!(c["plugins"]["updater"]["endpoints"], serde_json::json!([
+            "https://github.com/vortexopenclaw/dashcam-card-scanner/releases/latest/download/latest.json"
+        ]));
+    }
     #[test]
     fn export_never_writes_source_or_overwrites() {
         let source = tempfile::Builder::new()
