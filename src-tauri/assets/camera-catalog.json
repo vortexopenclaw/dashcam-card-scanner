@@ -1,6 +1,42 @@
 {
   "cameras": [
     {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "Normal/Front",
+        "Normal/Rear",
+        "Normal/.s_Front",
+        "Parking/Front",
+        "Parking/Rear",
+        "Parking/.s_Front",
+        "Lapse/Front",
+        "Lapse/Rear",
+        "Lapse/.s_Front",
+        "Event",
+        "Photo"
+      ],
+      "id": "70mai-x800",
+      "manufacturer": "70mai",
+      "model": "4K Omni X800",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "modes": {
+            "EV": "event",
+            "LA": "parking_timelapse",
+            "NO": "continuous",
+            "PA": "parking_motion_or_impact"
+          },
+          "pattern": "^(NO|PA|LA|EV)(\\d{8})-(\\d{6})-(\\d+)(F|R)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "75b5af38a4803ee8b16bbfc222770e0757f33527500377b9949fbeba8f59471b"
+    },
+    {
       "channelCount": 1,
       "channelSetup": "front",
       "folders": [
@@ -60,40 +96,70 @@
       "sourceSha256": "8829202c2cb1327444528269e7c4223f90d2ac41a558e1bd97159f5f3a9e83f6"
     },
     {
-      "channelCount": 2,
-      "channelSetup": "front + rear",
-      "folders": [
-        "Normal/Front",
-        "Normal/Rear",
-        "Normal/.s_Front",
-        "Parking/Front",
-        "Parking/Rear",
-        "Parking/.s_Front",
-        "Lapse/Front",
-        "Lapse/Rear",
-        "Lapse/.s_Front",
-        "Event",
-        "Photo"
-      ],
-      "id": "70mai-x800",
-      "manufacturer": "70mai",
-      "model": "4K Omni X800",
-      "patterns": [
-        {
-          "channels": {
-            "F": "front",
-            "R": "rear"
-          },
-          "modes": {
-            "EV": "event",
-            "LA": "parking_timelapse",
-            "NO": "continuous",
-            "PA": "parking_motion_or_impact"
-          },
-          "pattern": "^(NO|PA|LA|EV)(\\d{8})-(\\d{6})-(\\d+)(F|R)\\.MP4$"
-        }
-      ],
-      "sourceSha256": "75b5af38a4803ee8b16bbfc222770e0757f33527500377b9949fbeba8f59471b"
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "blackvue-dr590x",
+      "manufacturer": "BlackVue",
+      "model": "DR590X",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "f6b2dbf1a222dcadd8ad285b2d2d24dfad1c45f761604aafcc591a65dd56e35d"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-blackvue-dr650s-2ch",
+      "manufacturer": "BlackVue",
+      "model": "DR650S-2CH",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "c183a515d674272aaff8e84fe429b6b28c124b7559459d0fde286ddbda073f28"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "blackvue-dr750-2ch-lte",
+      "manufacturer": "BlackVue",
+      "model": "DR750-2CH LTE",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "c65e10cbc5b850179d6210b814299516e778460c1d758888f6141f013b34f716"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-blackvue-dr750s-2ch",
+      "manufacturer": "BlackVue",
+      "model": "DR750S-2CH",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "67699096456f2589e8a0e135f498c12fd88a891b2f84f4597eb2fa487afad156"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "blackvue-dr750x-2ch",
+      "manufacturer": "BlackVue",
+      "model": "DR750X-2CH",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "8209f30f5b56dd0d4bbdb712c09748bd9dc90b6b082a1b89a5839dd290238eda"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-blackvue-dr750x-2ch-plus",
+      "manufacturer": "BlackVue",
+      "model": "DR750X-2CH Plus",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "d8984fecf6ef4414b98737280c18a9508fb44a9c343eda603442a448bee92245"
     },
     {
       "channelCount": 3,
@@ -124,6 +190,50 @@
         }
       ],
       "sourceSha256": "0c0eaad022ba6924e5ec3805ef3c4bfbb7b18d11ff2e1996fa381c409ae2a6b2"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-blackvue-dr900s-2ch",
+      "manufacturer": "BlackVue",
+      "model": "DR900S-2CH",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "722f71cbd6a4ecad703a53244d68a0d2e1a75a82ed2ca4b77c35cbcf68dc98cc"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "blackvue-dr900x-2ch",
+      "manufacturer": "BlackVue",
+      "model": "DR900X-2CH",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "83d24a6f4ddb1453e4a372f620a71f3a735ce186344ca6b299c645d1f4d40eb4"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "blackvue-dr900x-2ch-plus",
+      "manufacturer": "BlackVue",
+      "model": "DR900X-2CH Plus",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "a0085c124ff40a2efaf12cc14ec1f37800b6c2f871b79a7cf940db2cc91dac69"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [],
+      "id": "blackvue-dr970x-box-plus",
+      "manufacturer": "BlackVue",
+      "model": "DR970X Box-2CH Plus",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "74200840d0e40e18b772ce8a0acf898b841f981b2edf4733e3811156e7b23607"
     },
     {
       "channelCount": 2,
@@ -181,6 +291,17 @@
         }
       ],
       "sourceSha256": "0e0ca18d08c7686f7c387f2a0d2432e02b94d7e3d37fe1d5b45b9973fa4786be"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "blackvue-dr970x-2ch",
+      "manufacturer": "BlackVue",
+      "model": "DR970X-2CH",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "9932a55791be5991ce77882c08446186a7d7e7a83290ef20643ceee28d6b9334"
     },
     {
       "channelCount": 2,
@@ -261,6 +382,17 @@
       "sourceSha256": "1bab0d61bb8afeb143abb3901439969ff92a86bbfb70fe155b2c81331a773499"
     },
     {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "blueskysea-b4k",
+      "manufacturer": "Blueskysea",
+      "model": "B4K",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "b5245b6d0bea5894a539ffaf9d77e8954be1f1e292c8318ddc1f675b859ca5ae"
+    },
+    {
       "channelCount": 4,
       "channelSetup": "front + rear + left + right",
       "folders": [
@@ -284,6 +416,17 @@
         }
       ],
       "sourceSha256": "9f65822348f2351e3cdff22f05a243a459d0b85681b2445301cfc7028e619660"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "cansonic-ultradash-z3-standard",
+      "manufacturer": "Cansonic",
+      "model": "UltraDash Z3 Standard Edition",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "c4236efa094c8528cba9ed47386a6f4bc4ed924257e305b82c4f17133300164c"
     },
     {
       "channelCount": 3,
@@ -369,6 +512,28 @@
       "sourceSha256": "6f33d16f75c666244291aa385fbf126c37e700f05efea7dbf94c61f26eabe8eb"
     },
     {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "dod-ls500w",
+      "manufacturer": "DOD",
+      "model": "LS500W",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "6f667125cffbdaf5652135f6e3027e9bb92fad83e7fd967fc4022139f0d12153"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "dod-rc500s",
+      "manufacturer": "DOD",
+      "model": "RC500S",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "75b0aa9c585285f8213a6134b95355127736ab541626c316de81aa2b5a92809f"
+    },
+    {
       "channelCount": 1,
       "channelSetup": "front",
       "folders": [
@@ -407,6 +572,17 @@
       "model": "MAXcam 360c",
       "patterns": [],
       "sourceSha256": "1812272ddd62776c58362a2e9060f94d3bc4607b632255f7164195ff616966f5"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "g1w-c",
+      "manufacturer": "G1W",
+      "model": "G1W-C",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "a9677029cd219dee32d9dc7a69c9f5905a7d18bdcdd3cfd8cf1ef58b58c66946"
     },
     {
       "channelCount": 1,
@@ -537,6 +713,61 @@
       "sourceSha256": "0acc9458f8e7f4ac0ba87cc24beeee49cbe44b86aebd2aab5d576a011aa3ba28"
     },
     {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "itronics-itb-100hd",
+      "manufacturer": "Itronics",
+      "model": "ITB-100HD",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "bfffc7408a963361b6b7d419d04ad097397d70037438eea80e4f428446a21002"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "kdlinks-x1",
+      "manufacturer": "KDLinks",
+      "model": "X1",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "fbfddff05238c78403267cfc8542ea308daee0ff62b72917cc20c8e0ed7179fb"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "miofive-s1-ultra",
+      "manufacturer": "Miofive",
+      "model": "S1 Ultra",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "fce9728c322dd1939c658775106a94aee97abce692391a8d87d1044587d2a633"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "neoline-9300s",
+      "manufacturer": "Neoline",
+      "model": "9300s",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "f6e6d17c02b969edcd8234894aa001388b09919eb70268b70c47b7b22ff413e4"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "nexigo-d90-gen3",
+      "manufacturer": "NexiGo",
+      "model": "D90 Gen 3",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "617c01d5cbc34bad9ba5bf8d418a48efe8bb3b2198ccf1e28da2e3c678f78f09"
+    },
+    {
       "channelCount": 2,
       "channelSetup": "front + rear",
       "folders": [
@@ -585,6 +816,83 @@
       "sourceSha256": "838dda95c9515afc445b33d25848a20a7916792e2f01603945639a7fdf972a8d"
     },
     {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "papago-gosafe-200",
+      "manufacturer": "Papago",
+      "model": "GoSafe 200",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "de3642689ebd0167c6e149001ed3b6e80460da1914fb00180f99a0ac13f8545e"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "papago-gosafe-760",
+      "manufacturer": "Papago",
+      "model": "GoSafe 760",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "b225efd2e421da916a5e88b5c7070e2ac06e486bdd77ce543413db2da8103d4e"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "rexing-v1-4k",
+      "manufacturer": "Rexing",
+      "model": "V1 4K",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "cc5c841925c9fbdf7dde218ec85c941885dc647a2ab4036bd92f19a9cedac5b5"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "ring-car-cam",
+      "manufacturer": "Ring",
+      "model": "Car Cam",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "c6f66e1a42d7c78b968a9cd47755b7acc148604ee396996e6c64d6c26cae5658"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "roav-c1-pro",
+      "manufacturer": "Roav",
+      "model": "C1 Pro",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "a5be569a44ee4578317fd9647b50494fba03918166bee5fefe02b7437deb3091"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-rove-r2-4k",
+      "manufacturer": "Rove",
+      "model": "R2-4K",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "80f2c0265a73eb3147b269713588a62bafcb13b4356a6b07e568c529cafce7b7"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-rove-r2-4k-dual",
+      "manufacturer": "Rove",
+      "model": "R2-4K Dual",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "baffdc6f41d5f179d700c3fb42da9d184a964c6cbbf4ef2191634308efd61af3"
+    },
+    {
       "channelCount": 1,
       "channelSetup": "front",
       "folders": [
@@ -615,6 +923,17 @@
       "model": "A7 III",
       "patterns": [],
       "sourceSha256": "14dd3160669944d8c7ff542d7a8da4a4c30f2d1b1cde4341687dd3eceedb4541"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "street-guardian-sg9665gc",
+      "manufacturer": "Street Guardian",
+      "model": "SG9665GC",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "64189e9424baad98d394ca1dab38b16e54813f76863ddb5e515fa87f4d155951"
     },
     {
       "channelCount": 6,
@@ -739,35 +1058,37 @@
       "sourceSha256": "87f7cb6333541ab95cc0d1ef1a5584b06cf2322c1c66b5b6846d2391e37b3fa8"
     },
     {
-      "channelCount": 2,
-      "channelSetup": "front + rear",
-      "folders": [
-        "cont_rec",
-        "evt_rec",
-        "motion_timelapse_rec",
-        "parking_rec",
-        "manual_rec"
-      ],
-      "id": "thinkware-u1000-plus",
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-thinkware-f800-pro",
       "manufacturer": "Thinkware",
-      "model": "U1000 Plus",
-      "patterns": [
-        {
-          "channels": {
-            "F": "front",
-            "R": "rear"
-          },
-          "modes": {
-            "EVT": "driving_event",
-            "MAN": "manual",
-            "MOT": "parking_motion_or_timelapse",
-            "PAK": "parking_event",
-            "REC": "continuous"
-          },
-          "pattern": "^(REC|EVT|MOT|PAK|MAN)_(\\d{8})_(\\d{6})_([FR])\\.MP4$"
-        }
-      ],
-      "sourceSha256": "836bbbf8e5d01c65c825e4aafdcfb5a2b5606e9631aba100d2ec19650013ecb2"
+      "model": "F800 Pro",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "e9edd4eb935c84d73186ba91e8bd14b6aeed4b92c9ff7fef53914509e067310c"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-thinkware-fa200",
+      "manufacturer": "Thinkware",
+      "model": "FA200",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "21518273843e1c186203c3b0385427b790f975c86650cd65f8b967bb3fc48d75"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-thinkware-q800-pro",
+      "manufacturer": "Thinkware",
+      "model": "Q800 Pro",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "caea361b9cf96384e6a85f8cf065f2a6788977e9037ea5deed3f6b15a5819cd8"
     },
     {
       "channelCount": 2,
@@ -808,21 +1129,28 @@
         "evt_rec",
         "motion_timelapse_rec",
         "parking_rec",
-        ".parking_rec_sec",
-        "manual_rec",
-        "sos_rec",
-        "incabin_rec"
+        "manual_rec"
       ],
-      "id": "thinkware-u3000-pro",
+      "id": "thinkware-u1000-plus",
       "manufacturer": "Thinkware",
-      "model": "U3000 Pro",
+      "model": "U1000 Plus",
       "patterns": [
         {
-          "channel_group": 4,
-          "pattern": "^(REC|EVT|MOT|PAK|PAS)_(\\d{8})_(\\d{6})_([A-Z]+(?:_[A-Z]+)?)\\.MP4$"
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "modes": {
+            "EVT": "driving_event",
+            "MAN": "manual",
+            "MOT": "parking_motion_or_timelapse",
+            "PAK": "parking_event",
+            "REC": "continuous"
+          },
+          "pattern": "^(REC|EVT|MOT|PAK|MAN)_(\\d{8})_(\\d{6})_([FR])\\.MP4$"
         }
       ],
-      "sourceSha256": "b6a745da9dd4defec60b134191b37a2e42472c2e47f6bdc00013317bcfd08efc"
+      "sourceSha256": "836bbbf8e5d01c65c825e4aafdcfb5a2b5606e9631aba100d2ec19650013ecb2"
     },
     {
       "channelCount": 2,
@@ -845,6 +1173,30 @@
         }
       ],
       "sourceSha256": "14fb452e2350c9413050099fb9f79ce15044699d9e906db901c32bc797d18a89"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "motion_timelapse_rec",
+        "parking_rec",
+        ".parking_rec_sec",
+        "manual_rec",
+        "sos_rec",
+        "incabin_rec"
+      ],
+      "id": "thinkware-u3000-pro",
+      "manufacturer": "Thinkware",
+      "model": "U3000 Pro",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "pattern": "^(REC|EVT|MOT|PAK|PAS)_(\\d{8})_(\\d{6})_([A-Z]+(?:_[A-Z]+)?)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "b6a745da9dd4defec60b134191b37a2e42472c2e47f6bdc00013317bcfd08efc"
     },
     {
       "channelCount": 1,
@@ -912,6 +1264,35 @@
         "Normal",
         "Event",
         "Parking",
+        "Photo"
+      ],
+      "id": "vantrue-n4",
+      "manufacturer": "Vantrue",
+      "model": "N4",
+      "patterns": [
+        {
+          "channels": {
+            "A": "front",
+            "B": "interior",
+            "C": "rear"
+          },
+          "modes": {
+            "E": "event",
+            "N": "normal",
+            "P": "parking"
+          },
+          "pattern": "^(\\d{4})_(\\d{2})_(\\d{2})_(\\d{6})_([NEP])_([ABC])\\.(MP4|JPG)$"
+        }
+      ],
+      "sourceSha256": "2207e7bdd88d765fdbdf781bce46dafcfaea004783f629f8611ecfbbff8cafac"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "Normal",
+        "Event",
+        "Parking",
         "Photo",
         "GPS"
       ],
@@ -948,35 +1329,6 @@
       "sourceSha256": "31b9c056ed0359a7cd60fb5f55bc0752fd08267baeb1ffc7353f5bf22b223472"
     },
     {
-      "channelCount": 3,
-      "channelSetup": "front + interior + rear",
-      "folders": [
-        "Normal",
-        "Event",
-        "Parking",
-        "Photo"
-      ],
-      "id": "vantrue-n4",
-      "manufacturer": "Vantrue",
-      "model": "N4",
-      "patterns": [
-        {
-          "channels": {
-            "A": "front",
-            "B": "interior",
-            "C": "rear"
-          },
-          "modes": {
-            "E": "event",
-            "N": "normal",
-            "P": "parking"
-          },
-          "pattern": "^(\\d{4})_(\\d{2})_(\\d{2})_(\\d{6})_([NEP])_([ABC])\\.(MP4|JPG)$"
-        }
-      ],
-      "sourceSha256": "2207e7bdd88d765fdbdf781bce46dafcfaea004783f629f8611ecfbbff8cafac"
-    },
-    {
       "channelCount": 4,
       "channelSetup": "front + interior_front + interior_rear + rear",
       "folders": [
@@ -1007,6 +1359,61 @@
       "sourceSha256": "fbdba17f3c1a5db3a4fa7e71a4ce8525f1e2ed2ca63111aa075d6048f30f830a"
     },
     {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "vantrue-ondash-r2",
+      "manufacturer": "Vantrue",
+      "model": "OnDash R2",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "2947504811f24b6e140c62f95a858972836580b1ee2c08989ff4c45be7e45d47"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "vicovation-opia1",
+      "manufacturer": "VicoVation",
+      "model": "Opia1",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "57596c1f0ba76927a8464f789fd021aea9768b5fe0aba036bdf27fa5fc58b121"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "vicovation-opia2",
+      "manufacturer": "VicoVation",
+      "model": "Opia2",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "13744950fdf8ece87b1534cd0aaf22612229a93af9353cc3fb5294578e21bfc6"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "viofo-a119",
+      "manufacturer": "VIOFO",
+      "model": "A119",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "ebc56e027a27d15eace606269c60704e4a2ac8d27dd725193a569d9cdaee0385"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-viofo-a119-mini",
+      "manufacturer": "VIOFO",
+      "model": "A119 Mini",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "f9de44343eec0cf555011d2f05a689547e760648dc8bcaf3024c1abc2e639d91"
+    },
+    {
       "channelCount": 1,
       "channelSetup": "front",
       "folders": [
@@ -1030,6 +1437,28 @@
       "sourceSha256": "9b0f18401f9283e60cb15f0774bebaeedfb48fc39eb7453614c6ed7ae355a8ac"
     },
     {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "viofo-a119-pro",
+      "manufacturer": "VIOFO",
+      "model": "A119 Pro",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "24c4113d8fc2cc53ca6b1e89940bb2e67abcaf9654dd4358b3874f7404c776a1"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-viofo-a119-v3",
+      "manufacturer": "VIOFO",
+      "model": "A119 v3",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "fee4a431ff94392d24daa6e57f62c081d2c797076aaf0a75c38ef5c77c308086"
+    },
+    {
       "channelCount": 1,
       "channelSetup": "front",
       "folders": [
@@ -1044,6 +1473,17 @@
         }
       ],
       "sourceSha256": "bf1992ab9e8a321c66cf5815e4a3dc9f10c8d49630cc3769771105fa7a15e67e"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "viofo-a119s",
+      "manufacturer": "VIOFO",
+      "model": "A119S",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "8e2976352bf6ffecacbad760f232cfb5f2be2d23ab720de133b103904cdf145b"
     },
     {
       "channelCount": 2,
@@ -1152,6 +1592,17 @@
       "sourceSha256": "cd43fe54b09b418693ca8b03f9e607b4e43db34dcad82f8bc851fb891372f3dc"
     },
     {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-viofo-a139",
+      "manufacturer": "VIOFO",
+      "model": "A139",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "31a4d636de7f5b78ebc9599d4636e21af1539b239e55f28e32d53d64f672ecec"
+    },
+    {
       "channelCount": 3,
       "channelSetup": "front + interior + rear",
       "folders": [
@@ -1239,6 +1690,17 @@
         }
       ],
       "sourceSha256": "6040744843166345f153890680ed41bba09b208b60bda134e368cec398561e62"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "viofo-a329",
+      "manufacturer": "VIOFO",
+      "model": "A329",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "1379848c82c0c8f4061fe1e4c01747769d37d1e40cb989b1e67555f61df8578e"
     },
     {
       "channelCount": 3,
@@ -1445,9 +1907,35 @@
         }
       ],
       "sourceSha256": "69beeb9f4577cacc486672b6dc70fa093cf4ee5b2a61183caea5ac0e6abf868a"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "waylens-secure360-wifi",
+      "manufacturer": "Waylens",
+      "model": "Secure360 WiFi",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "b182263cec14ddb448011e0f806a856505821925ec6f84560cade81c760f1bff"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "metadata-only-wolfbox-g900-pro",
+      "manufacturer": "Wolfbox",
+      "model": "G900 Pro",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "9c68ed935d103cfcb9d667fc3db7d5310a5057d57ad59c016129b2694308b29b"
     }
   ],
   "commit": "d160f4a6343163d68b952c742f75c425baaa7f67",
+  "identitySource": {
+    "commit": "bf9f6bb72f1a2e57e12f5b48162e4ba9ece00c07",
+    "source": "https://github.com/vortexopenclaw/dashcam-camera-profiles"
+  },
   "license": "AGPL-3.0-only",
   "restrictedParsing": [
     "vantrue-n4-s.yaml"

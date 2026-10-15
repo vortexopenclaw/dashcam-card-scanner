@@ -139,12 +139,39 @@ mod tests {
     use super::*;
     #[test]
     fn catalog_is_bounded_and_public() {
-        assert_eq!(catalog().len(), 56);
+        assert_eq!(catalog().len(), 100);
         let text = serde_json::to_string(catalog()).unwrap();
         assert!(!text.contains("/Volumes/") && !text.contains("sourceSha256"));
         for c in catalog() {
-            assert!(c.channel_count > 0 && c.channel_count <= 8);
+            assert!(c.channel_count <= 8);
+            if c.channel_count == 0 {
+                assert!(c.channel_setup.is_empty());
+                assert!(c.patterns.is_empty() && c.folders.is_empty());
+            }
         }
+    }
+    #[test]
+    fn selector_only_identity_cannot_supply_exact_recognition() {
+        use crate::engine::{Folder, Sample};
+        let camera = catalog()
+            .iter()
+            .find(|c| c.id == "vantrue-ondash-r2")
+            .unwrap();
+        assert_eq!(camera.channel_count, 0);
+        assert!(camera.patterns.is_empty() && camera.folders.is_empty());
+        let mut report = Report::default();
+        let mut folder = Folder {
+            path: "Normal".into(),
+            ..Folder::default()
+        };
+        folder.samples.push(Sample {
+            local_name: "20251211_184930_01110_N_A.MP4".into(),
+            ..Sample::default()
+        });
+        report.folders.push(folder);
+        let (value, recognized) = recognize(Path::new("/Volumes/OnDash R2"), &report);
+        assert!(recognized.is_none());
+        assert!(value.get("model").is_none());
     }
     #[test]
     fn bare_label_never_identifies() {

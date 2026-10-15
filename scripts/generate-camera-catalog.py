@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """AGPL-3.0-only. Build bounded public profile subset; requires developer PyYAML.
-Usage: python3 scripts/generate-camera-catalog.py /path/to/offloader
-No source paths, sample names, GPS data or free-text notes are copied.
+Usage: python3 scripts/generate-camera-catalog.py /path/to/offloader [/path/to/dashcam-camera-profiles]
+The optional canonical public JSON profiles supplement selector identities only.
+They do not supply executable patterns, exact recognition, or physical-scan proof.
+No source paths, sample names, GPS data, or free-text notes are copied.
 """
 import hashlib
 import json
@@ -42,6 +44,25 @@ for path in sorted((root / 'profiles').glob('*.yaml')):
     folders = [f['path'] for f in d.get('folders', []) if isinstance(f, dict) and isinstance(f.get('path'), str)]
     records.append(dict(id=d.get('id', path.stem), manufacturer=d.get('manufacturer', d.get('brand', path.stem.split('-')[0].title())), model=d.get('model', path.stem), channelCount=len(roles), channelSetup=' + '.join(roles), patterns=patterns, folders=folders, sourceSha256=hashlib.sha256(raw).hexdigest()))
 output = {'source': 'https://github.com/vortexopenclaw/dashcam-offloader', 'commit': subprocess.check_output(['git','-C',str(root),'rev-parse','HEAD'],text=True).strip(), 'license':'AGPL-3.0-only', 'restrictedParsing':skipped, 'cameras':records}
+if len(sys.argv) > 2:
+    canonical = Path(sys.argv[2])
+    known = {camera['id'] for camera in records}
+    for path in sorted((canonical / 'profiles').glob('*.json')):
+        raw = path.read_bytes()
+        profile = json.loads(raw)
+        if profile['id'] in known:
+            continue
+        # Missing channel evidence stays unknown. Variant maxima are not a
+        # confirmed owner setup, so only an unambiguous variant may prefill.
+        variants = profile.get('channel_variants', [])
+        roles = variants[0].get('roles', []) if len(variants) == 1 else []
+        count = variants[0].get('channels', 0) if len(variants) == 1 else 0
+        if not isinstance(count, int) or not 1 <= count <= 8 or len(roles) != count:
+            count, roles = 0, []
+        records.append(dict(id=profile['id'], manufacturer=profile['manufacturer'], model=profile['model'], channelCount=count, channelSetup=' + '.join(roles), patterns=[], folders=[], sourceSha256=hashlib.sha256(raw).hexdigest(), selectorOnly=True))
+        known.add(profile['id'])
+    output['identitySource'] = {'source': 'https://github.com/vortexopenclaw/dashcam-camera-profiles', 'commit': subprocess.check_output(['git', '-C', str(canonical), 'rev-parse', 'HEAD'], text=True).strip()}
+records.sort(key=lambda camera: (camera['manufacturer'].casefold(), camera['model'].casefold(), camera['id']))
 target = Path(__file__).resolve().parents[1] / 'src-tauri/assets/camera-catalog.json'
 target.parent.mkdir(parents=True,exist_ok=True)
 target.write_text(json.dumps(output,indent=2,sort_keys=True)+'\n')
