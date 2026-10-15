@@ -83,18 +83,27 @@ async function reviewConfiguration(p,record,profiles,same){
  if(variants.length&&completeLayout)flags.push(knownLayouts.length?'canonical_channel_layout_known':'canonical_new_channel_layout_candidate');
  return {id:record.id,receivedAt:record.receivedAt,ownerAssertions:p.owner,scannerReportedMeasurements:p.evidence,scannerReportedStructure:p.structure??null,structureEvidenceHash:await structureHash(p),coverage:{scanCompleted:p.structure?.completed??null,mediaCount:p.structure?.mediaCount??null,sampleCount:p.evidence.length,pairedSampleCount:p.evidence.filter(e=>e.sizeBytes!==null&&e.durationSeconds!==null).length,metadataSampleCount:p.evidence.filter(e=>e.width!==null&&e.height!==null&&e.fps!==null).length,status:!p.evidence.length||!p.evidence.some(e=>e.width!==null&&e.height!==null&&e.fps!==null)?'insufficient_measurements':'sampled_not_exhaustive'},canonicalFolderComparison:compareFolders(p,matches),numericEvidenceHash:hash,cohort:JSON.parse(cohort(p)),canonicalMatches:matches.map(x=>({id:x.id,evidence:x.evidence,technicalFacts:x.technical_facts,channelVariants:x.channel_variants,parkingModes:x.recording?.parking_modes})),canonicalChannelComparison:{completeObservedLayout:completeLayout,knownLayouts,status:!variants.length?'upstream_layout_metadata_missing':!completeLayout?'insufficient_observed_channels':knownLayouts.length?'known_layout':'new_layout_candidate',scope:'layout only; does not establish firmware/settings/numeric measurement agreement'},canonicalNumericComparison:'not_normalized_in_upstream_schema; manual comparison required',flags,duplicateEvidence:duplicates,possibleConflicts:conflicts,sanitizedRawReport:p,warning:'Anonymous unverified submission. No automatic acceptance, merge, or public claim.'};
 }
-async function api(suffix,decode=true){
+function pullClient(){
  const {CF_ACCOUNT_ID:account,CF_KV_NAMESPACE_ID:namespace}=process.env;
  if(!/^[a-f0-9]{32}$/.test(account||'')||!/^[a-f0-9]{32}$/.test(namespace||''))throw Error('Set explicit CF_ACCOUNT_ID and dedicated CF_KV_NAMESPACE_ID');
  let token=process.env.CF_API_TOKEN;
- if(!token&&process.env.CF_TOKEN_OP_REF){if(!process.env.CF_TOKEN_OP_REF.startsWith('op://'))throw Error('Invalid 1Password reference');token=execFileSync('op',['read',process.env.CF_TOKEN_OP_REF],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).trim();}
+ if(!token&&process.env.CF_TOKEN_OP_REF){
+  if(!process.env.CF_TOKEN_OP_REF.startsWith('op://'))throw Error('Invalid 1Password reference');
+  const executable=process.env.CF_OP_EXECUTABLE||'op';
+  if(executable!=='op'&&![path.join(process.env.HOME||'','.hermes/bin/op'),'/opt/homebrew/bin/op','/usr/local/bin/op'].includes(executable))throw Error('Unapproved 1Password executable');
+  token=execFileSync(executable,['read',process.env.CF_TOKEN_OP_REF],{encoding:'utf8',timeout:30000,killSignal:'SIGKILL',maxBuffer:65536,stdio:['ignore','pipe','ignore']}).trim();
+ }
  if(!token)throw Error('Set CF_API_TOKEN or CF_TOKEN_OP_REF');
+ // This closure is owned by one pull only. Never persist or globally cache it.
+ return async function api(suffix,decode=true){
  const r=await fetch(`https://api.cloudflare.com/client/v4/accounts/${account}/storage/kv/namespaces/${namespace}${suffix}`,{headers:{Authorization:`Bearer ${token}`},signal:AbortSignal.timeout(30000)});
  if(!r.ok)throw Error(`Cloudflare HTTP ${r.status}`);const bytes=await readBytes(r,2000000);return decode?parse(bytes):bytes;
+ };
 }
 export async function pull(destination,maxPages=5,startCursor=''){
  if(typeof startCursor!=='string'||startCursor.length>4096)throw Error('Invalid cursor');
  if(!Number.isInteger(maxPages)||maxPages<1||maxPages>20)throw Error('pages must be 1..20');
+ const api=pullClient();
  await fs.mkdir(destination,{recursive:true,mode:0o700});let cursor=startCursor,count=0,quarantined=0;const seen=new Set();
  for(let i=0;i<maxPages;i++){
   const response=await api('/keys?'+new URLSearchParams({prefix:'pending/v1/',limit:'100',...(cursor?{cursor}:{})}));
