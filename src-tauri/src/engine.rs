@@ -200,8 +200,8 @@ pub fn filename_template(name: &str) -> String {
         return "unknown".into();
     };
     if ![
-        "mp4", "mov", "avi", "ts", "mkv", "jpg", "jpeg", "png", "dat", "bin", "txt", "log", "nmea",
-        "srt",
+        "mp4", "mov", "m4v", "avi", "ts", "mkv", "jpg", "jpeg", "png", "dat", "bin", "txt", "log",
+        "nmea", "srt",
     ]
     .contains(&c[3].to_ascii_lowercase().as_str())
     {
@@ -318,7 +318,10 @@ pub fn scan(
                 };
                 match dir.open_dir_nofollow(p) {
                     Ok(d) => queue.push((d, label, depth + 1)),
-                    Err(_) => r.skipped += 1,
+                    Err(_) => {
+                        r.skipped += 1;
+                        r.limited = true;
+                    }
                 };
             } else if meta.is_file() {
                 // Cloud placeholders/offline/reparse entries must not trigger hydration.
@@ -472,6 +475,10 @@ mod tests {
         let r = scan(t.path(), &AtomicBool::new(false), |_| {}).unwrap();
         assert_eq!(r.scanned_files, 0);
         assert_eq!(r.skipped, 2);
+        assert!(
+            !r.limited,
+            "intentional link exclusions are not scan failures"
+        );
         assert!(scan(&t.path().join("link"), &AtomicBool::new(false), |_| {}).is_err());
     }
     #[test]

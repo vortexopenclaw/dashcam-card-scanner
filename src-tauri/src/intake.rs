@@ -17,7 +17,7 @@ fn label(s: &str, max: usize) -> bool {
 }
 fn media_type(ext: &str) -> &'static str {
     match ext.to_ascii_lowercase().as_str() {
-        "mp4" | "mov" | "avi" | "ts" | "mkv" => "video",
+        "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv" => "video",
         "jpg" | "jpeg" | "png" => "image",
         _ => "other",
     }
@@ -64,6 +64,7 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
                 ext.to_ascii_lowercase().as_str(),
                 "mp4"
                     | "mov"
+                    | "m4v"
                     | "avi"
                     | "ts"
                     | "mkv"

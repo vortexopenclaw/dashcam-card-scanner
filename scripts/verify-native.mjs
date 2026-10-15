@@ -20,5 +20,21 @@ for(const [codec,encoder,extra] of [['h264','libx264',['-preset','ultrafast']],[
  const gateway=JSON.parse(actual.review.submissionJson);validate(gateway);assert.equal(gateway.evidence[0].sizeBytes,v.fileSizeBytes);assert.equal(gateway.evidence[0].durationSeconds,v.durationSeconds);assert.equal(gateway.evidence[0].bitrateKbps,v.videoBitrate/1000);assert.equal(gateway.evidence[0].containerBitrateKbps,null);
  results.push({codec,native:v,ffprobe:reference,sourceHashUnchanged:true,sourceMtimeUnchanged:true,gatewayValidated:true});
 }
+// Real fragmented MP4 regression: ffprobe sees 3 s, initial moov only 1 s.
+for(const flags of ['frag_keyframe','frag_keyframe+empty_moov']){
+ const source=join(base,flags);mkdirSync(source);const path=join(source,'000001F.mp4');
+ execFileSync(ffmpeg,['-hide_banner','-loglevel','error','-f','lavfi','-i','testsrc2=size=640x360:rate=30:duration=3','-c:v','libx264','-preset','ultrafast','-g','30','-movflags',flags,path],{timeout:120000});
+ const bytes=readFileSync(path);assert(bytes.includes(Buffer.from('mvex')));assert(bytes.includes(Buffer.from('moof')));
+ const reference=JSON.parse(execFileSync(ffprobe,['-v','error','-show_entries','format=duration','-of','json',path],{encoding:'utf8'}));assert.equal(Number(reference.format.duration),3);
+ const actual=JSON.parse(execFileSync('cargo',['run','--quiet','--locked','--manifest-path','src-tauri/Cargo.toml','--example','scan_fixture','--',source],{encoding:'utf8',timeout:120000}));
+ assert.equal(actual.report.probeFailures,1);assert.deepEqual(actual.report.folders.flatMap(f=>f.videos),[]);
+ const gateway=JSON.parse(actual.review.submissionJson);validate(gateway);assert.equal(gateway.evidence[0].sizeBytes,bytes.length);
+ for(const key of ['durationSeconds','bitrateKbps','containerBitrateKbps','fps','width','height'])assert.equal(gateway.evidence[0][key],null);
+ assert.deepEqual(readFileSync(path),bytes);results.push({fragmentFlags:flags,referenceDurationSeconds:3,nativeMetadataUnavailable:true,gatewayValidated:true,sourceUnchanged:true});
+}
+// A real non-fragmented M4V must retain its measurements and video classification.
+const m4vSource=join(base,'m4v');mkdirSync(m4vSource);writeFileSync(join(m4vSource,'000001F.M4V'),readFileSync(join(base,'h264','2026_1015_120000_000001F.MP4')));
+const m4v=JSON.parse(execFileSync('cargo',['run','--quiet','--locked','--manifest-path','src-tauri/Cargo.toml','--example','scan_fixture','--',m4vSource],{encoding:'utf8',timeout:120000}));
+const m4vGateway=JSON.parse(m4v.review.submissionJson);validate(m4vGateway);assert.equal(m4vGateway.structure.mediaCount,1);assert.deepEqual(m4vGateway.structure.folders[0].extensions,[{extension:'M4V',mediaType:'video',count:1}]);assert.deepEqual(m4vGateway.structure.folders[0].filenameTemplates,['SEQUENCEF.M4V']);assert.equal(m4vGateway.evidence[0].durationSeconds,2);assert(m4vGateway.evidence[0].bitrateKbps>0);results.push({container:'M4V',realMediaRoundTrip:true,gatewayValidated:true});
 mkdirSync('verification',{recursive:true});writeFileSync('verification/native-media.json',JSON.stringify(results,null,2)+'\n');
 console.log(JSON.stringify({generatedMediaLocation:base,results},null,2));

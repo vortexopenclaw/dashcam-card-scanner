@@ -52,7 +52,11 @@ fn child<'a>(b: &'a [u8], tag: &[u8; 4]) -> Option<&'a [u8]> {
 }
 pub fn probe<R: Read + Seek>(f: &mut R, file_size: u64) -> Option<Video> {
     let mut pos = 0u64;
+    let mut video = None;
     for _ in 0..256 {
+        if pos == file_size {
+            return video;
+        }
         if file_size.saturating_sub(pos) < 8 {
             return None;
         }
@@ -71,21 +75,33 @@ pub fn probe<R: Read + Seek>(f: &mut R, file_size: u64) -> Option<Video> {
         if size < header || size > file_size - pos {
             return None;
         }
+        // A moov may describe only the initial segment. Never pair that duration
+        // or sample bitrate with the whole fragmented file's size.
+        if &h[4..8] == b"moof" {
+            return None;
+        }
         if &h[4..8] == b"moov" {
+            if video.is_some() {
+                return None;
+            }
             let n = usize::try_from(size - header).ok()?;
             if n > MAX_MOOV {
                 return None;
             }
             let mut data = vec![0; n];
             f.read_exact(&mut data).ok()?;
-            return parse_moov(&data, file_size);
+            video = Some(parse_moov(&data, file_size)?);
         }
         pos += size;
     }
     None
 }
 fn parse_moov(data: &[u8], file_size: u64) -> Option<Video> {
-    for (tag, trak) in boxes(data)? {
+    let children = boxes(data)?;
+    if children.iter().any(|(tag, _)| tag == b"mvex") {
+        return None;
+    }
+    for (tag, trak) in children {
         if &tag != b"trak" {
             continue;
         }
