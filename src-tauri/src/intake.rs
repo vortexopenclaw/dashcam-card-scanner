@@ -61,7 +61,89 @@ pub fn selected_samples(r: &Report) -> Vec<(usize, &crate::engine::Sample)> {
     }
     out
 }
+// Match the same embedded patterns used by local recognition, including candidates
+// whose role maps are incomplete. Missing or conflicting mappings must not become
+// a claim merely because another sibling profile supplies a convenient answer.
+// A validated native camera restricts candidates, but never bypasses pattern matching.
+fn sample_hints(name: &str, recognized_camera_id: Option<&str>) -> (&'static str, &'static str) {
+    static PATTERNS: std::sync::LazyLock<Vec<(String, Vec<regex::Regex>)>> =
+        std::sync::LazyLock::new(|| {
+            let catalog: Value =
+                serde_json::from_str(include_str!("../assets/camera-catalog.json"))
+                    .expect("embedded catalog");
+            catalog["cameras"]
+                .as_array()
+                .expect("embedded cameras")
+                .iter()
+                .map(|c| {
+                    let patterns = c["patterns"]
+                        .as_array()
+                        .expect("embedded patterns")
+                        .iter()
+                        .filter_map(|p| regex::Regex::new(p["pattern"].as_str()?).ok())
+                        .collect();
+                    (
+                        c["id"].as_str().expect("embedded camera id").to_owned(),
+                        patterns,
+                    )
+                })
+                .collect()
+        });
+    if name.len() > 256 {
+        return ("unknown", "unknown");
+    }
+    let hints = crate::recognition::catalog()
+        .iter()
+        .filter(|camera| {
+            recognized_camera_id.is_none_or(|id| id == camera.id)
+                && PATTERNS.iter().any(|(id, patterns)| {
+                    id == &camera.id && patterns.iter().any(|pattern| pattern.is_match(name))
+                })
+        })
+        .map(|camera| crate::recognition::sample_hints(camera, name))
+        .collect::<Vec<_>>();
+    consensus_hints(&hints)
+}
+fn consensus_hints(hints: &[(Option<String>, Option<String>)]) -> (&'static str, &'static str) {
+    fn channel(value: Option<&str>) -> &'static str {
+        match value {
+            Some("front") => "front",
+            Some("rear") => "rear",
+            Some("interior") => "interior",
+            Some("telephoto") => "telephoto",
+            Some("left") => "left",
+            Some("right") => "right",
+            _ => "unknown",
+        }
+    }
+    fn mode(value: Option<&str>) -> &'static str {
+        match value {
+            Some("normal") => "normal",
+            Some("event" | "protected") => "protected",
+            Some("parking") => "parking",
+            _ => "unknown",
+        }
+    }
+    let Some(first) = hints.first() else {
+        return ("unknown", "unknown");
+    };
+    let c = channel(first.0.as_deref());
+    let m = mode(first.1.as_deref());
+    (
+        if hints.iter().all(|h| channel(h.0.as_deref()) == c) {
+            c
+        } else {
+            "unknown"
+        },
+        if hints.iter().all(|h| mode(h.1.as_deref()) == m) {
+            m
+        } else {
+            "unknown"
+        },
+    )
+}
 pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
+    l.validate()?;
     if !label(l.manufacturer.trim(), 64)
         || !label(l.model.trim(), 64)
         || (!l.firmware.trim().is_empty() && !label(l.firmware.trim(), 32))
@@ -69,7 +151,10 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     {
         return Err("Intake requires ASCII camera labels and 1–8 channels.".into());
     }
-    if !["low", "normal", "medium", "high", "maximum", "unknown"].contains(&l.quality.as_str())
+    if ![
+        "low", "normal", "medium", "high", "maximum", "extreme", "other", "unknown",
+    ]
+    .contains(&l.quality.as_str())
         || ![
             "off",
             "buffered",
@@ -78,6 +163,8 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
             "motion",
             "impact",
             "low-power-impact",
+            "radar",
+            "other",
             "unknown",
         ]
         .contains(&l.parking_mode.as_str())
@@ -140,7 +227,8 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
             .map(|v| v.codec.as_str())
             .filter(|c| ["h264", "hevc", "av1", "mjpeg", "mpeg4"].contains(c))
             .unwrap_or("unknown");
-        evidence.push(json!({"folderIndex":index,"channel":"unknown","mode":"unknown","width":v.map(|v|v.width).filter(|n|*n>0 && *n<=16384),"height":v.map(|v|v.height).filter(|n|*n>0 && *n<=16384),"fps":positive(v.and_then(|v|v.nominal_frame_rate),240.),"bitrateKbps":positive(v.and_then(|v|v.video_bitrate),1e9).map(|n|n/1000.),"containerBitrateKbps":Value::Null,"sizeBytes":(sample.file_size_bytes>0 && sample.file_size_bytes<=1_000_000_000_000).then_some(sample.file_size_bytes),"durationSeconds":positive(v.map(|v|v.duration_seconds),86400.),"codec":codec}));
+        let (channel, mode) = sample_hints(&sample.local_name, r.recognized_camera_id.as_deref());
+        evidence.push(json!({"folderIndex":index,"channel":channel,"mode":mode,"width":v.map(|v|v.width).filter(|n|*n>0 && *n<=16384),"height":v.map(|v|v.height).filter(|n|*n>0 && *n<=16384),"fps":positive(v.and_then(|v|v.nominal_frame_rate),240.),"bitrateKbps":positive(v.and_then(|v|v.video_bitrate),1e9).map(|n|n/1000.),"containerBitrateKbps":Value::Null,"sizeBytes":(sample.file_size_bytes>0 && sample.file_size_bytes<=1_000_000_000_000).then_some(sample.file_size_bytes),"durationSeconds":positive(v.map(|v|v.duration_seconds),86400.),"codec":codec}));
     }
     if total_media == 0 {
         return Err(
@@ -148,6 +236,12 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
         );
     }
     let mut owner = json!({"manufacturer":l.manufacturer.trim(),"model":l.model.trim(),"channelCount":l.channel_count,"quality":l.quality,"parkingMode":l.parking_mode});
+    if let Some(s) = &l.quality_label {
+        owner["qualityLabel"] = json!(s);
+    }
+    if let Some(s) = &l.parking_mode_label {
+        owner["parkingModeLabel"] = json!(s);
+    }
     if !l.firmware.trim().is_empty() {
         owner["firmware"] = json!(l.firmware.trim());
     }
@@ -208,6 +302,230 @@ mod tests {
         }
         assert_eq!(chosen[0].1.filename_template, "SEQUENCEF.MP4");
         assert_eq!(chosen[8].1.filename_template, "SEQUENCER.MP4");
+    }
+    #[test]
+    fn native_recognition_context_reaches_intake_without_crossing_json_boundaries() {
+        use crate::engine::{Folder, Sample};
+        let mut report = Report {
+            scanned_files: 9,
+            folders: vec![Folder {
+                path: "Normal".into(),
+                file_count: 9,
+                extensions: [("mp4".into(), 9)].into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        for (token, width, height) in [("A", 3840, 2160), ("B", 1920, 1080), ("C", 2560, 1440)] {
+            for mode in ["N", "E", "P"] {
+                report.folders[0].samples.push(Sample {
+                    local_name: format!("20251211_184930_01110_{mode}_{token}.MP4"),
+                    filename_template: format!("SEQUENCE_{mode}_{token}.MP4"),
+                    video: Some(crate::video::Video {
+                        file_size_bytes: 100,
+                        duration_seconds: 1.,
+                        codec: "h264".into(),
+                        width,
+                        height,
+                        nominal_frame_rate: None,
+                        video_bitrate: None,
+                    }),
+                    ..Default::default()
+                });
+            }
+        }
+        let labels = Labels {
+            manufacturer: "Owner".into(),
+            model: "Unverified".into(),
+            channel_setup: "front-interior-rear".into(),
+            firmware: String::new(),
+            settings: String::new(),
+            channel_count: 3,
+            quality: "unknown".into(),
+            quality_label: None,
+            parking_mode_label: None,
+            parking_mode: "unknown".into(),
+            time_lapse_fps: None,
+        };
+        let unrecognized: Value =
+            serde_json::from_str(&envelope(&report, &labels).unwrap()).unwrap();
+        for evidence in unrecognized["evidence"].as_array().unwrap() {
+            assert_eq!(evidence["channel"], "unknown");
+            assert_eq!(evidence["mode"], "unknown");
+        }
+        let (_, camera) =
+            crate::recognition::recognize(std::path::Path::new("/Volumes/N4 Pro S"), &report);
+        report.recognized_camera_id = Some(camera.unwrap().id.clone());
+        assert_eq!(
+            report.recognized_camera_id.as_deref(),
+            Some("vantrue-n4-pro-s")
+        );
+        let body = envelope(&report, &labels).unwrap();
+        let recognized: Value = serde_json::from_str(&body).unwrap();
+        let chosen = selected_samples(&report);
+        assert_eq!(chosen.len(), 9);
+        for ((_, sample), evidence) in chosen
+            .iter()
+            .zip(recognized["evidence"].as_array().unwrap())
+        {
+            let (channel, mode) =
+                sample_hints(&sample.local_name, report.recognized_camera_id.as_deref());
+            let token = sample
+                .local_name
+                .trim_end_matches(".MP4")
+                .rsplit('_')
+                .next()
+                .unwrap();
+            assert_eq!(
+                channel,
+                match token {
+                    "A" => "front",
+                    "B" => "interior",
+                    "C" => "rear",
+                    _ => unreachable!(),
+                }
+            );
+            let mode_token = sample.local_name.split('_').nth(3).unwrap();
+            assert_eq!(
+                mode,
+                match mode_token {
+                    "N" => "normal",
+                    "E" => "protected",
+                    "P" => "parking",
+                    _ => unreachable!(),
+                }
+            );
+            assert_eq!(evidence["channel"], channel);
+            assert_eq!(evidence["mode"], mode);
+        }
+        assert_eq!(
+            sample_hints("personal_B.MP4", report.recognized_camera_id.as_deref()),
+            ("unknown", "unknown")
+        );
+        assert_eq!(
+            sample_hints("20251211_184930_EF.mp4", Some("missing-camera")),
+            ("unknown", "unknown")
+        );
+        let review = crate::payload::prepare(&report, &labels).unwrap();
+        let serialized = serde_json::to_string(&report).unwrap();
+        for text in [
+            &body,
+            &review.public_json,
+            &review.private_json,
+            &serialized,
+        ] {
+            for forbidden in [
+                "recognizedCameraId",
+                "recognized_camera_id",
+                "vantrue-n4-pro-s",
+                "20251211",
+                "/Volumes/",
+            ] {
+                assert!(!text.contains(forbidden), "leaked {forbidden}");
+            }
+        }
+        let mut injected: Value = serde_json::from_str(&serialized).unwrap();
+        injected["recognizedCameraId"] = json!("vantrue-n4-pro-s");
+        injected["recognized_camera_id"] = json!("vantrue-n4-pro-s");
+        let decoded: Report = serde_json::from_value(injected).unwrap();
+        assert!(decoded.recognized_camera_id.is_none());
+    }
+    #[test]
+    fn existing_n4_hints_map_to_strict_roles_and_modes() {
+        let camera = crate::recognition::catalog()
+            .iter()
+            .find(|c| c.id == "vantrue-n4-pro-s")
+            .unwrap();
+        for (token, channel) in [("A", "front"), ("B", "interior"), ("C", "rear")] {
+            for (token_mode, mode) in [("N", "normal"), ("E", "protected"), ("P", "parking")] {
+                let hint = crate::recognition::sample_hints(
+                    camera,
+                    &format!("20251211_184930_01110_{token_mode}_{token}.MP4"),
+                );
+                assert_eq!(consensus_hints(&[hint.clone(), hint]), (channel, mode));
+            }
+        }
+    }
+    #[test]
+    fn missing_conflicting_or_unsupported_candidate_hints_stay_unknown() {
+        let hint = |c: &str, m: &str| (Some(c.to_owned()), Some(m.to_owned()));
+        assert_eq!(
+            consensus_hints(&[hint("front", "normal"), hint("rear", "normal")]),
+            ("unknown", "normal")
+        );
+        assert_eq!(
+            consensus_hints(&[hint("front", "normal"), (None, None)]),
+            ("unknown", "unknown")
+        );
+        assert_eq!(
+            consensus_hints(&[hint("primary", "timelapse")]),
+            ("unknown", "unknown")
+        );
+        assert_eq!(sample_hints("personal_B.MP4", None), ("unknown", "unknown"));
+        assert_eq!(sample_hints(&"A".repeat(257), None), ("unknown", "unknown"));
+        // These siblings match the N4-shaped basename but have incomplete capture
+        // maps. They must not silently be excluded from the unanimity check.
+        assert_eq!(
+            sample_hints("20251211_184930_01110_N_C.MP4", None),
+            ("unknown", "unknown")
+        );
+    }
+    #[test]
+    fn envelope_carries_only_bounded_consensus_not_local_names_or_identity() {
+        use crate::engine::{Folder, Sample};
+        let name = "20251211_184930_EF.mp4";
+        let report = Report {
+            scanned_files: 1,
+            folders: vec![Folder {
+                path: "RO".into(),
+                file_count: 1,
+                extensions: [("mp4".into(), 1)].into(),
+                filename_templates: ["unknown".into()].into(),
+                samples: vec![Sample {
+                    local_name: name.into(),
+                    filename_template: "unknown".into(),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let labels = Labels {
+            manufacturer: "Owner".into(),
+            model: "Unverified".into(),
+            channel_setup: "front".into(),
+            firmware: String::new(),
+            settings: String::new(),
+            channel_count: 1,
+            quality: "unknown".into(),
+            quality_label: None,
+            parking_mode_label: None,
+            parking_mode: "unknown".into(),
+            time_lapse_fps: None,
+        };
+        let body = envelope(&report, &labels).unwrap();
+        let value: Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(value["evidence"][0]["channel"], "front");
+        assert_eq!(value["evidence"][0]["mode"], "protected");
+        assert_eq!(value["owner"]["model"], "Unverified");
+        let review = crate::payload::prepare(&report, &labels).unwrap();
+        for text in [&body, &review.public_json, &review.private_json] {
+            for forbidden in [
+                name,
+                "20251211",
+                "localName",
+                "local_name",
+                "sourceSha256",
+                "/Volumes/",
+            ] {
+                assert!(!text.contains(forbidden), "leaked {forbidden}");
+            }
+        }
+        let mut unknown = report;
+        unknown.folders[0].samples[0].local_name = "personal_B.MP4".into();
+        let value: Value = serde_json::from_str(&envelope(&unknown, &labels).unwrap()).unwrap();
+        assert_eq!(value["evidence"][0]["channel"], "unknown");
+        assert_eq!(value["evidence"][0]["mode"], "unknown"); // RO is not a parking subtype.
     }
     #[test]
     fn sha256_known_vector() {

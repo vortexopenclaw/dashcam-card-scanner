@@ -4,20 +4,20 @@ Open-source, standalone **Tauri 2** desktop utility for read-only dashcam card r
 
 ## Use
 
-1. Choose the card root or a local folder. Paths remain local.
-2. Scan read-only. Progress, cancellation, skipped entries, unavailable probes and partial scans are shown.
-3. Enter the manufacturer/model. Review the sampled files and assign separate configuration groups when a card contains different channel counts, firmware, quality or parking settings. Unknown settings stay unknown; one group's assertions never apply to the whole card.
+1. Choose the card root or a local folder; scanning starts automatically. Paths remain local. Newly inserted, eligible removable camera cards can be detected while the app is idle, without replacing an active report.
+2. Follow read-only scan progress, or cancel. Skipped entries, unavailable measurements and partial scans are shown.
+3. Confirm editable camera/channel suggestions from the bundled profile catalog, or choose/type a manufacturer and model. Use brand-specific quality/parking suggestions or enter another setting. Ordinary reports need no manual sample assignment. **Advanced: mixed configurations** provides separate groups and batch assignment when a card contains different settings; missing group assertions never inherit another group's values.
 4. Review the human-readable report and, if desired, expand the exact outgoing technical details before approving submission.
-5. Optional submission requires explicit consent, a browser Turnstile challenge and a short-lived one-use ticket bound to the exact reviewed payload. The dedicated intake origin is provisioned, but production intake remains disabled pending a successful browser-approved upload and private readback. The legacy feedback endpoint is never contacted directly.
+5. Optional submission requires explicit consent, a browser Turnstile challenge and a short-lived one-use ticket bound to the exact reviewed payload. The dedicated intake is enabled for controlled owner acceptance testing; successful human-approved upload and private readback remain release gates. The legacy feedback endpoint is never contacted directly.
 6. **More options → Save report to file…** keeps a local copy or supports manual sharing when online submission is unavailable. The app creates a new file outside the source and never overwrites existing files. Saving sends nothing.
 
-Appearance lives only in **Settings**: Match System (default), Dark, or Light. Settings can also remember an optional DashCamTalk username. Including that username requires a separate opt-in on a private submission; local exports and public proposals exclude it. No automatic forum messaging or publication occurs.
+**Settings** is a separate screen with appearance, optional saved DashCamTalk username, and app updates. A nonempty saved username is automatically included in the private submission you review and approve, identifying the contribution for possible credit. It remains excluded from local exports and public proposals; credit/publication is a deliberate maintainer action. No automatic forum messaging occurs.
 
 ### Data formats
 
 - **Public export:** published `dashcam-camera-profiles` card-scan schema **1.0**, folder summaries, filename SHAPES and aggregate `video_summary`. Original names/dates/paths are never exported. Unknown folder components become `folder-N`; known camera directory names are allowlisted. Shape alphabet: `N` digit, `A` uppercase letter, `a` lowercase letter, `?` other character. Extensions have a separate allowlisted count map. No literal channel inference from shapes.
 - **Private paired export:** existing Feedback training envelope, safe directory counts, shapes in the bounded message, codec and individual whole-file byte-size/duration/video-stream bitrate/dimensions/frame-rate measurements in `videoSpecSummaries.storageRateSamples`. No contact or original filenames. This format is export-only. It is tested through an **unmodified** legacy Worker snapshot with mocked storage and read-back of the exact persisted record, not merely HTTP acceptance.
-- **Secure intake:** revised strict schemaVersion 1 with complete safe folder components/counts/templates and up to 24 INDIVIDUAL nullable samples, preserving exact whole-file size/duration pairs, video-stream bitrate and codec. Container bitrate stays null when not measured. Structure-only positive-media scans are accepted without ffprobe. Partial scans, more than 32 folders or complete payloads above 16 KiB remain export-only. Owner channel/mode settings do not change measured playback fps; sample channel/mode remain unknown. This is a separate versioned, strict gateway contract. The exact outgoing JSON is reviewed independently and serialized once; its exact UTF-8 bytes are hashed and uploaded without reserialization. See [SECURITY.md](SECURITY.md). No automatic publication occurs.
+- **Secure intake:** revised strict schemaVersion 1 with complete safe folder components/counts/templates and up to 24 INDIVIDUAL nullable samples, preserving exact whole-file size/duration pairs, video-stream bitrate and codec. Container bitrate stays null when not measured. Structure-only positive-media scans are accepted without ffprobe. Partial scans, more than 32 folders or complete payloads above 16 KiB remain export-only. Owner channel/mode settings do not change measured playback fps. Sample channel/mode hints use validated native camera context, or remain unknown when matching profiles conflict; protected events are not inferred to be parking. This is a separate versioned, strict gateway contract. The exact outgoing JSON is reviewed independently and serialized once; its exact UTF-8 bytes are hashed and uploaded without reserialization. See [SECURITY.md](SECURITY.md). No automatic publication occurs.
 
 Public export is not a substitute for private paired evidence; do not add undeclared paired fields to public schema 1.0. A safe label can still identify a person if the owner enters one; review labels before export or submission.
 
@@ -43,17 +43,17 @@ npm run test:intake
 npm run tauri -- dev
 ```
 
-Tests use generated metadata-only fixtures (not actual camera recordings). A developer-only Cargo example (`scan_fixture`) exercises the real Rust engine and exports. Contract tests use Ajv against the exact published schema snapshot; DOM tests verify literal rendering, review invalidation, consent and no automatic submit. Automated test suites do not contact production. `intake/` contains the separate abuse-controlled intake/review service and its tests, with no private snapshots; the dedicated Worker is deployed disabled pending acceptance. Optional `node scripts/verify-native.mjs` generates actual H.264/HEVC test clips and compares the native scanner to a host ffprobe; these development tools are not app dependencies.
+Tests use generated fixtures, not proof of hardware compatibility. A developer-only Cargo example (`scan_fixture`) exercises the real Rust engine and exports. Contract tests use Ajv against the published schema snapshot; DOM tests verify navigation, auto-scan guards, review invalidation, consent and no automatic submit. Automated suites do not contact production. `intake/` contains the separate abuse-controlled service and its tests, with no private snapshots. Optional `node scripts/verify-native.mjs` generates H.264/HEVC clips and compares the native reader to a host ffprobe; these development tools are not app dependencies. Catalog generation uses developer-only Python/PyYAML; the generated catalog is compiled into the desktop app.
 
-Local unsigned review bundle, without updater artifacts:
+Local ad-hoc Mac review bundle, without updater artifacts (not notarized):
 
 ```sh
-npm run tauri -- build --no-sign --config '{"bundle":{"createUpdaterArtifacts":false}}'
+npm run tauri -- build --ci --bundles app,dmg --config '{"bundle":{"createUpdaterArtifacts":false}}'
 ```
 
 ## Platforms and releases
 
-CI matrix is configured for Windows x64, macOS arm64 and x64, Linux x64. Local verification evidence is recorded separately; CI configuration is not proof those builds have run. Windows ARM64 is deferred/unverified. Linux `.deb` and AppImage are built; Tauri in-app updater is intended for AppImage, **not `.deb` package-manager installs**.
+During UI iteration, push/PR verification defaults to Apple Silicon Mac. Manually dispatch **Verify desktop builds** with `all_platforms: true` for Windows x64, Intel Mac and Linux x64 acceptance before public release. The manually approved release workflow still targets all four. Windows installers are configured to embed the offline WebView2 installer rather than requiring a separate runtime download on a tester's PC; that package still needs platform acceptance. Windows ARM64 is deferred. Linux `.deb` and AppImage targets remain; the in-app updater is for AppImage, **not `.deb` package-manager installs**.
 
 `release.yml` is manually dispatched on protected `main` and uses the protected **scanner-release** environment. Repository administrators must configure required reviewers and main-only deployment branch rules; YAML alone cannot create that protection. The workflow refuses the placeholder updater public key, requires private signing key CI secrets, creates a **draft** release, and builds signed updater artifacts plus `latest.json`. A maintainer must inspect all artifacts before manually publishing. There is no PR-triggered privileged workflow and no `pull_request_target`.
 

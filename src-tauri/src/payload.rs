@@ -12,16 +12,38 @@ pub struct Labels {
     pub settings: String,
     pub channel_count: u8,
     pub quality: String,
+    pub quality_label: Option<String>,
+    pub parking_mode_label: Option<String>,
     pub parking_mode: String,
     pub time_lapse_fps: Option<f64>,
 }
+/// Manufacturer wording is an assertion, never a measured setting.
+pub fn setting_label(mode: Option<&str>, label: Option<&str>) -> Result<(), String> {
+    if label.is_some_and(|s| {
+        s.is_empty()
+            || s.len() > 80
+            || s.trim() != s
+            || !s.as_bytes()[0].is_ascii_alphanumeric()
+            || !s
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b" ()-_+&/".contains(&b))
+    }) || (mode == Some("other") && label.is_none())
+    {
+        return Err("Setting labels require 1–80 ASCII letters/numbers, spaces, ()-_+&/; custom other requires a label.".into());
+    }
+    Ok(())
+}
 impl Labels {
     pub fn validate(&self) -> Result<(), String> {
+        setting_label(Some(&self.quality), self.quality_label.as_deref())?;
+        setting_label(Some(&self.parking_mode), self.parking_mode_label.as_deref())?;
         if !(1..=8).contains(&self.channel_count) {
             return Err("Choose the owner-reported channel count (1–8).".into());
         }
-        if !["unknown", "low", "normal", "medium", "high", "maximum"]
-            .contains(&self.quality.as_str())
+        if ![
+            "unknown", "low", "normal", "medium", "high", "maximum", "extreme", "other",
+        ]
+        .contains(&self.quality.as_str())
             || ![
                 "unknown",
                 "off",
@@ -31,6 +53,8 @@ impl Labels {
                 "motion",
                 "impact",
                 "low-power-impact",
+                "radar",
+                "other",
             ]
             .contains(&self.parking_mode.as_str())
             || self
@@ -86,7 +110,8 @@ pub fn prepare(r: &Report, l: &Labels) -> Result<Review, String> {
             v["video_summary"]=summary;
         } v
     }).collect();
-    let public = json!({"schema_version":"1.0","camera":{"manufacturer":l.manufacturer.trim(),"model":l.model.trim(),"channel_setup":l.channel_setup.trim(),"firmware":l.firmware.trim()},"evidence":{"kind":"card-validated","notes":"Owner-labeled card scan. Native ISO BMFF metadata samples; no identity inference. Partial/mixed folders may omit non-uniform aggregate fields."},"card_layout":{"folders":folders},"notes":format!("Owner-reported settings: {}. Entries: {}; skipped: {}; bounded/partial: {}; native probes: {}; unavailable/unsupported samples: {}. No ffprobe used. Shapes: N=digit, A=uppercase, a=lowercase, ?=other; not literal filenames.",format!("{}; quality {}; parking {}; channel count {}; capture cadence {:?} fps (owner reported)",l.settings.trim(),l.quality,l.parking_mode,l.channel_count,l.time_lapse_fps),r.entries_seen,r.skipped,r.limited,r.probe_attempts,r.probe_failures)});
+    let setting_text = format!("{}; quality {} ({:?}); parking {} ({:?}); channel count {}; capture cadence {:?} fps (owner reported)", l.settings.trim(), l.quality, l.quality_label, l.parking_mode, l.parking_mode_label, l.channel_count, l.time_lapse_fps);
+    let public = json!({"schema_version":"1.0","camera":{"manufacturer":l.manufacturer.trim(),"model":l.model.trim(),"channel_setup":l.channel_setup.trim(),"firmware":l.firmware.trim()},"evidence":{"kind":"card-validated","notes":"Owner-labeled card scan. Native ISO BMFF metadata samples; no identity inference. Partial/mixed folders may omit non-uniform aggregate fields."},"card_layout":{"folders":folders},"notes":format!("Owner-reported settings: {}. Entries: {}; skipped: {}; bounded/partial: {}; native probes: {}; unavailable/unsupported samples: {}. No ffprobe used. Shapes: N=digit, A=uppercase, a=lowercase, ?=other; not literal filenames.",setting_text,r.entries_seen,r.skipped,r.limited,r.probe_attempts,r.probe_failures)});
     // Existing Worker drops generalized pattern fields. Carry bounded anonymous shapes in message,
     // not fabricated filenameSamples. Persist numeric paired observations in storageRateSamples.
     let mut shapes=String::from("Dashcam Card Scanner: anonymous filename SHAPES (not literal names). N=digit A=uppercase a=lowercase ?=other.\n");
@@ -100,7 +125,7 @@ pub fn prepare(r: &Report, l: &Labels) -> Result<Review, String> {
     }
     shapes.push_str(&format!("Native ISO BMFF probes: {}; unavailable: {}; bounded/partial: {}; skipped: {}. Unsupported formats are not probed. No ffprobe used.",r.probe_attempts,r.probe_failures,r.limited,r.skipped));
     let summaries:Vec<Value>=r.folders.iter().flat_map(|f|f.videos.iter().map(|v|json!({"folder":f.path,"fileCount":1,"totalFileSizeBytes":v.file_size_bytes,"minFileSizeBytes":v.file_size_bytes,"maxFileSizeBytes":v.file_size_bytes,"sampleCodecs":[v.codec],"sampleResolutions":[format!("{}x{}",v.width,v.height)],"sampleFrameRates":v.nominal_frame_rate.into_iter().collect::<Vec<_>>(),"sampleBitrateMin":v.video_bitrate,"sampleBitrateMax":v.video_bitrate,"sampleDurationMin":v.duration_seconds,"sampleDurationMax":v.duration_seconds,"storageRateSamples":[v]}))).collect();
-    let submission = json!({"kind":"training","message":shapes,"appVersion":format!("card-scanner/{}",env!("CARGO_PKG_VERSION")),"contact":"","training":{"manufacturer":l.manufacturer.trim(),"model":l.model.trim(),"channelSetup":l.channel_setup.trim(),"notes":format!("Owner-reported firmware: {}; owner-reported settings: {}. These labels are not scanner-verified.",l.firmware.trim(),format!("{}; quality {}; parking {}; channel count {}; capture cadence {:?} fps (owner reported)",l.settings.trim(),l.quality,l.parking_mode,l.channel_count,l.time_lapse_fps))},"scan":{"scannedFiles":r.scanned_files,"copyableItems":0,"excludedItems":r.skipped,"directorySummaries":r.folders.iter().map(|f|json!({"path":f.path,"depth":f.depth,"directFileCount":f.file_count,"directTotalFileSizeBytes":f.total_file_size_bytes,"extensionCounts":f.extensions})).collect::<Vec<_>>(),"filenameSamples":[],"videoSpecSummaries":summaries}});
+    let submission = json!({"kind":"training","message":shapes,"appVersion":format!("card-scanner/{}",env!("CARGO_PKG_VERSION")),"contact":"","training":{"manufacturer":l.manufacturer.trim(),"model":l.model.trim(),"channelSetup":l.channel_setup.trim(),"notes":format!("Owner-reported firmware: {}; owner-reported settings: {}. These labels are not scanner-verified.",l.firmware.trim(),setting_text)},"scan":{"scannedFiles":r.scanned_files,"copyableItems":0,"excludedItems":r.skipped,"directorySummaries":r.folders.iter().map(|f|json!({"path":f.path,"depth":f.depth,"directFileCount":f.file_count,"directTotalFileSizeBytes":f.total_file_size_bytes,"extensionCounts":f.extensions})).collect::<Vec<_>>(),"filenameSamples":[],"videoSpecSummaries":summaries}});
     let (outgoing, reason) = match crate::intake::envelope(r, l) {
         Ok(v) => (v, String::new()),
         Err(e) => (String::new(), format!(" Intake unavailable: {e}")),
@@ -120,6 +145,8 @@ mod tests {
             settings: "High".into(),
             channel_count: 2,
             quality: "high".into(),
+            quality_label: None,
+            parking_mode_label: None,
             parking_mode: "unknown".into(),
             time_lapse_fps: None,
         };

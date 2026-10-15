@@ -16,7 +16,9 @@ fn main() {
         settings: "synthetic test, not hardware evidence".into(),
         channel_count: 2,
         quality: "high".into(),
+        quality_label: None,
         parking_mode: "unknown".into(),
+        parking_mode_label: None,
         time_lapse_fps: None,
     };
     let mut review = payload::prepare(&report, &labels).expect("review failed");

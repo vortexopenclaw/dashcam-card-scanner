@@ -43,6 +43,9 @@ pub struct Folder {
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Report {
+    // Trusted native recognition context only; never accepted from or sent to JSON.
+    #[serde(skip)]
+    pub recognized_camera_id: Option<String>,
     pub scanned_files: u64,
     pub entries_seen: usize,
     pub skipped: u64,

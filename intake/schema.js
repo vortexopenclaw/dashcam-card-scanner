@@ -43,11 +43,16 @@ function structure(s){
   array(s.observedLayouts,0,64);unique(s.observedLayouts.map(e=>[e.folderIndex,e.channel,e.mode]));for(const e of s.observedLayouts){exact(e,['folderIndex','channel','mode']);folderIndex(e.folderIndex,s);role(e);}
 }
 function settings(o,identity=false) {
-  exact(o,identity?['manufacturer','model','channelCount']:['channelCount'],['firmware','quality','parkingMode','timeLapseFps']);
+  exact(o,identity?['manufacturer','model','channelCount']:['channelCount'],['firmware','quality','qualityLabel','parkingMode','parkingModeLabel','timeLapseFps']);
   if(identity){label(o.manufacturer,64);label(o.model,64);}number(o.channelCount,8,true);
   if(o.firmware!==undefined)label(o.firmware,32);
-  if(o.quality!==undefined)choice(o.quality,['low','normal','medium','high','maximum','unknown']);
-  if(o.parkingMode!==undefined)choice(o.parkingMode,['off','buffered','time-lapse','low-bitrate','motion','impact','low-power-impact','unknown']);
+  if(o.quality!==undefined)choice(o.quality,['low','normal','medium','high','maximum','extreme','other','unknown']);
+  if(o.parkingMode!==undefined)choice(o.parkingMode,['off','buffered','time-lapse','low-bitrate','motion','impact','low-power-impact','radar','other','unknown']);
+  for(const [mode,key] of [['quality','qualityLabel'],['parkingMode','parkingModeLabel']]){
+    const s=o[key];
+    if(s!==undefined&&(typeof s!=='string'||s.length>80||s.trim()!==s||! /^[A-Za-z0-9][A-Za-z0-9 ()_+&/\-]*$/.test(s)))throw Error('invalid_setting_label');
+    if(o[mode]==='other'&&s===undefined)throw Error('missing_setting_label');
+  }
   if(o.timeLapseFps!==undefined)number(o.timeLapseFps,240);
 }
 export function validate(p) {

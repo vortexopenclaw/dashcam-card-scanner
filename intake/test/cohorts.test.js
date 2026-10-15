@@ -15,6 +15,38 @@ const mixed=()=>({schemaVersion:1,owner:owner(),evidence:[sample(),sample('rear'
 async function record(report){const rawJSON=JSON.stringify(report);return {id:await sha256(rawJSON),receivedAt:'2026-01-01T00:00:00Z',rawJSON,report};}
 async function local(t,p=mixed()){const dir=await fs.mkdtemp(path.join(root,'.test-run-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));await fs.mkdir(path.join(dir,'pending'));const r=await record(p);await fs.writeFile(path.join(dir,'pending',r.id+'.json'),JSON.stringify(r));await fs.writeFile(path.join(dir,'snapshot.json'),JSON.stringify({commit:'synthetic-commit-a',profiles:[]}));return {dir,r};}
 const structure=()=>({completed:true,fileCount:2,mediaCount:2,folders:['Movie','Parking'].map(x=>({components:[x],fileCount:1,mediaCount:1,extensions:[{extension:'mp4',mediaType:'video',count:1}],filenameTemplates:['unknown']})),observedLayouts:[{folderIndex:0,channel:'front',mode:'normal'},{folderIndex:1,channel:'rear',mode:'parking'}]});
+test('brand setting labels are strict optional assertions in both owner shapes',()=>{
+ for(const grouped of [false,true]){
+  const p=mixed();if(!grouped)delete p.cohorts;
+  const o=grouped?p.cohorts[0].owner:p.owner;
+  Object.assign(o,{quality:'extreme',qualityLabel:'Extreme (Brand+)',parkingMode:'radar',parkingModeLabel:'Radar Parking'});
+  validate(p);
+  for(const key of ['qualityLabel','parkingModeLabel']){
+   for(const s of ['', ' ', 'a'.repeat(81),'é','line\nbreak','https://example.com','email@example.com','<script>',' trailing ']){
+    const bad=structuredClone(p);(grouped?bad.cohorts[0].owner:bad.owner)[key]=s;assert.throws(()=>validate(bad),s);
+   }
+  }
+  o.quality='other';delete o.qualityLabel;assert.throws(()=>validate(p),/missing_setting_label/);o.qualityLabel='Brand Custom';validate(p);
+  o.parkingMode='other';delete o.parkingModeLabel;assert.throws(()=>validate(p),/missing_setting_label/);o.parkingModeLabel='Auto Event Detection';validate(p);
+ }
+});
+test('custom labels distinguish configuration without changing numeric evidence',async()=>{
+ const p=mixed();Object.assign(p.cohorts[0].owner,{quality:'other',qualityLabel:'Custom A',parkingMode:'other',parkingModeLabel:'Custom Parking A'});
+ const q=structuredClone(p);q.cohorts[0].owner.qualityLabel='Custom B';q.cohorts[0].owner.parkingModeLabel='Custom Parking B';
+ assert.equal(await evidenceHash(p),await evidenceHash(q));
+ const old=await record(p),r=await review(await record(q),[],[old]),g=r.cohortReviews[0];
+ assert.equal(g.duplicateEvidence[0].sameCohort,false);assert(g.flags.includes('new_settings_label_candidate'));assert(g.flags.includes('new_parking_mode_label_candidate'));
+ assert(!g.flags.includes('possible_contradiction_or_measurement_variation'));
+ // Known marketing aliases do not alter measured quantities either.
+ p.cohorts[0].owner.parkingMode=q.cohorts[0].owner.parkingMode='buffered';
+ assert.equal(await evidenceHash(p),await evidenceHash(q));
+});
+test('accepted proposal preserves brand assertions but excludes private contributor',async t=>{
+ const p=mixed();p.owner.qualityLabel='GLOBAL NOT INHERITED';Object.assign(p.cohorts[0].owner,{quality:'extreme',qualityLabel:'Extreme',parkingMode:'radar',parkingModeLabel:'Radar Parking'});p.contributor={dashcamTalkUsername:'Private Label Tester'};
+ const {dir,r}=await local(t,p);await decideReport(dir,r.id,'accept');const proposal=await createProposal(dir,r.id),text=JSON.stringify(proposal);
+ assert.equal(proposal.cohortReviews[0].ownerAssertions.qualityLabel,'Extreme');assert.equal(proposal.cohortReviews[0].ownerAssertions.parkingModeLabel,'Radar Parking');assert.equal(proposal.cohortReviews[1].ownerAssertions.qualityLabel,undefined);
+ for(const forbidden of ['GLOBAL NOT INHERITED','Private Label Tester','contributor','dashcamTalkUsername','rawJSON','sanitizedRawReport'])assert(!text.includes(forbidden),forbidden);
+});
 test('private contributor strict bounded handle accepts forum spaces, rejects contact injection',()=>{
  for(const name of ['A','Synthetic User','a_b-c.d','a'.repeat(40)])assert.equal(validate({...mixed(),contributor:{dashcamTalkUsername:name}}).contributor.dashcamTalkUsername,name);
  for(const name of ['', 'a'.repeat(41),'https://example.com','email@example.com','line\nbreak',' leading','trailing ','unicodeé','<script>'])assert.throws(()=>validate({...mixed(),contributor:{dashcamTalkUsername:name}}));

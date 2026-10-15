@@ -16,7 +16,7 @@ const channels=p=>[...new Set(observations(p).map(e=>e.channel))].sort();
 // Resolve positional references before sorting; retain case-sensitive identities.
 const layout=(p,entries)=>sorted([...new Map(entries.map(e=>{const v={folder:e.folderIndex===undefined?null:p.structure.folders[e.folderIndex].components,channel:e.channel,mode:e.mode};return [stable(v),v];})).values()]);
 export const structureHash=p=>sha256(stable(p.structure?{...p.structure,folders:sorted(p.structure.folders.map(f=>({...f,extensions:sorted(f.extensions),filenameTemplates:sorted(f.filenameTemplates)}))),observedLayouts:layout(p,p.structure.observedLayouts)}:null));
-export const cohort=p=>stable({timeLapseFps:p.owner.timeLapseFps??null,folders:p.structure?sorted(p.structure.folders.map(f=>f.components)):null,firmware:p.owner.firmware??null,channelCount:p.owner.channelCount,quality:p.owner.quality??null,parkingMode:p.owner.parkingMode??null,layout:layout(p,observations(p))});
+export const cohort=p=>stable({qualityLabel:p.owner.qualityLabel??null,parkingModeLabel:p.owner.parkingModeLabel??null,timeLapseFps:p.owner.timeLapseFps??null,folders:p.structure?sorted(p.structure.folders.map(f=>f.components)):null,firmware:p.owner.firmware??null,channelCount:p.owner.channelCount,quality:p.owner.quality??null,parkingMode:p.owner.parkingMode??null,layout:layout(p,observations(p))});
 function compareFolders(p,matches){
  const known=matches.flatMap(profile=>['driving_folders','parking_folders','other_folders'].flatMap(k=>(Array.isArray(profile.recording?.[k])?profile.recording[k]:[]).flatMap(f=>{
    if(typeof f?.path!=='string')return [];const parts=f.path.split('/');
@@ -66,7 +66,7 @@ async function reviewConfiguration(p,record,profiles,same){
  const flags=[];if(!matches.length)flags.push('new_model_candidate');if(matches.length>1)flags.push('ambiguous_model_match');
  const duplicates=same.filter(x=>p.evidence.length&&x.p.evidence.length&&x.hash===hash).map(x=>({id:x.id,cohortId:x.cohortId,sameCohort:cohort(x.p)===cohort(p)}));
  if(p.evidence.length){if(duplicates.some(x=>x.id))flags.push('duplicate_numeric_evidence');else flags.push('new_evidence_candidate');}else flags.push('insufficient_measurements');
- const dimensions={firmware:'new_firmware_candidate',channelCount:'new_channel_count_candidate',quality:'new_settings_candidate',parkingMode:'new_parking_mode_candidate',timeLapseFps:'new_cadence_candidate'};
+ const dimensions={qualityLabel:'new_settings_label_candidate',parkingModeLabel:'new_parking_mode_label_candidate',firmware:'new_firmware_candidate',channelCount:'new_channel_count_candidate',quality:'new_settings_candidate',parkingMode:'new_parking_mode_candidate',timeLapseFps:'new_cadence_candidate'};
  for(const [k,flag] of Object.entries(dimensions))if(same.length&&p.owner[k]!==undefined&&!same.some(x=>x.p.owner[k]===p.owner[k]))flags.push(flag);
  if(same.length&&!same.some(x=>stable(channels(x.p))===stable(channels(p))))flags.push('new_channel_layout_candidate');
  const conflicts=same.filter(x=>p.evidence.length&&x.p.evidence.length&&cohort(x.p)===cohort(p)&&x.hash!==hash).map(x=>x.id);

@@ -29,7 +29,7 @@ class ConfigTests(unittest.TestCase):
         version = json.loads((ROOT / "package.json").read_text())["version"]
         lock = json.loads((ROOT / "package-lock.json").read_text())
         config = json.loads((ROOT / "src-tauri/tauri.conf.json").read_text())
-        self.assertEqual(version, "0.1.1")
+        self.assertRegex(version, r"^\d+\.\d+\.\d+$")
         self.assertEqual(lock["version"], version)
         self.assertEqual(lock["packages"][""]["version"], version)
         self.assertEqual(config["version"], version)

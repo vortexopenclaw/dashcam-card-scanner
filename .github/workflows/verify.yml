@@ -1,17 +1,26 @@
 name: Verify desktop builds
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      all_platforms:
+        description: 'Verify every platform after Mac UI acceptance'
+        type: boolean
+        default: false
+      other_platforms_only:
+        description: 'Background Intel Mac, Windows and Linux checks; reuse the separate Apple Silicon run'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   verify:
     strategy:
       fail-fast: false
+      # Iterate on the shared UI on Apple Silicon; opt into the full matrix for acceptance.
       matrix:
-        include:
-          - { os: macos-14, target: aarch64-apple-darwin, bundles: 'app,dmg' }
-          - { os: macos-15-intel, target: x86_64-apple-darwin, bundles: 'app,dmg' }
-          - { os: windows-2022, target: x86_64-pc-windows-msvc, bundles: 'nsis' }
-          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: 'deb,appimage' }
+        include: ${{ fromJSON(inputs.other_platforms_only && '[{"os":"macos-15-intel","target":"x86_64-apple-darwin","bundles":"app,dmg"},{"os":"windows-2022","target":"x86_64-pc-windows-msvc","bundles":"nsis"},{"os":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}]' || inputs.all_platforms && '[{"os":"macos-14","target":"aarch64-apple-darwin","bundles":"app,dmg"},{"os":"macos-15-intel","target":"x86_64-apple-darwin","bundles":"app,dmg"},{"os":"windows-2022","target":"x86_64-pc-windows-msvc","bundles":"nsis"},{"os":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}]' || '[{"os":"macos-14","target":"aarch64-apple-darwin","bundles":"app,dmg"}]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

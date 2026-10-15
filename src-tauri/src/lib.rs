@@ -3,7 +3,9 @@ pub mod annotations;
 pub mod engine;
 pub mod intake;
 pub mod payload;
+pub mod recognition;
 pub mod video;
+pub mod volumes;
 use payload::{Labels, Review};
 use std::{
     io::Write,
@@ -71,6 +73,29 @@ async fn choose_source(
     }
 }
 #[tauri::command]
+fn camera_catalog() -> Vec<recognition::Camera> {
+    recognition::catalog().to_vec()
+}
+#[tauri::command]
+async fn discover_cards() -> Result<Vec<volumes::Card>, String> {
+    tauri::async_runtime::spawn_blocking(volumes::discover)
+        .await
+        .map_err(|_| "Card discovery failed".into())
+}
+#[tauri::command]
+async fn select_discovered_card(id: String, s: State<'_, AppState>) -> Result<String, String> {
+    let _busy = begin(&s)?;
+    let path = tauri::async_runtime::spawn_blocking(move || volumes::select(&id))
+        .await
+        .map_err(|_| "Card selection failed")??;
+    let mut d = lock(&s)?;
+    let display = path.display().to_string();
+    d.source = Some(path);
+    d.report = None;
+    d.review = None;
+    Ok(display)
+}
+#[tauri::command]
 async fn scan_source(
     app: tauri::AppHandle,
     s: State<'_, AppState>,
@@ -84,17 +109,29 @@ async fn scan_source(
     };
     s.cancel.store(false, Ordering::SeqCst);
     let cancel = s.cancel.clone();
-    let result = tauri::async_runtime::spawn_blocking(move || {
+    let recognition_root = source.clone();
+    let mut result = tauri::async_runtime::spawn_blocking(move || {
         engine::scan(&source, &cancel, |p| {
             let _ = app.emit("scan-progress", p);
         })
     })
     .await
     .map_err(|_| "Scan task failed")??;
-    lock(&s)?.report = Some(result.clone());
     // Local IPC-only review associations; report serializers never contain basenames.
-    let samples:Vec<_>=intake::selected_samples(&result).iter().enumerate().map(|(index,(folder,sample))|serde_json::json!({"index":index,"folderIndex":folder,"folder":result.folders[*folder].path,"localName":sample.local_name,"filenameTemplate":sample.filename_template,"sizeBytes":sample.file_size_bytes,"video":sample.video})).collect();
+    let (camera_recognition, camera) = recognition::recognize(&recognition_root, &result);
+    result.recognized_camera_id = camera.map(|camera| camera.id.clone());
+    lock(&s)?.report = Some(result.clone());
+    let samples:Vec<_>=intake::selected_samples(&result).iter().enumerate().map(|(index,(folder,sample))| {
+        let mut value=serde_json::json!({"index":index,"folderIndex":folder,"folder":result.folders[*folder].path,"localName":sample.local_name,"filenameTemplate":sample.filename_template,"sizeBytes":sample.file_size_bytes,"video":sample.video});
+        if let Some(camera)=camera {
+            let (channel,mode)=recognition::sample_hints(camera,&sample.local_name);
+            if let Some(channel)=channel { value["channel"]=serde_json::json!(channel); }
+            if let Some(mode)=mode { value["mode"]=serde_json::json!(mode); }
+        }
+        value
+    }).collect();
     let mut value = serde_json::to_value(&result).map_err(|_| "Scan encoding failed")?;
+    value["cameraRecognition"] = camera_recognition;
     value["reviewSamples"] = serde_json::json!(samples);
     Ok(value)
 }
@@ -113,7 +150,7 @@ fn prepare_review(
     d.review = None;
     let report = d.report.as_ref().ok_or("Scan first.")?;
     let mut annotations = annotations.unwrap_or_default();
-    annotations.assignments_required = !intake::selected_samples(report).is_empty();
+    annotations.assignments_required = !annotations.cohorts.is_empty();
     let mut review = annotations::prepare(report, &labels, &annotations)?;
     review.payload_hash = intake::hash(review.submission_json.as_bytes());
     d.review = Some(review.clone());
@@ -361,6 +398,9 @@ pub fn run() {
         .manage(AppState::default())
         .invoke_handler(tauri::generate_handler![
             choose_source,
+            camera_catalog,
+            discover_cards,
+            select_discovered_card,
             scan_source,
             cancel_scan,
             prepare_review,

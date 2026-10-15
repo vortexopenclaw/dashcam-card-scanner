@@ -37,6 +37,8 @@ pub struct Owner {
     pub channel_count: u8,
     pub firmware: Option<String>,
     pub quality: Option<String>,
+    pub quality_label: Option<String>,
+    pub parking_mode_label: Option<String>,
     pub parking_mode: Option<String>,
     pub time_lapse_fps: Option<f64>,
 }
@@ -94,12 +96,17 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
             }
         }
         let o = &c.owner;
+        payload::setting_label(o.quality.as_deref(), o.quality_label.as_deref())?;
+        payload::setting_label(o.parking_mode.as_deref(), o.parking_mode_label.as_deref())?;
         if o.channel_count > 8
             || o.firmware
                 .as_ref()
                 .is_some_and(|s| !s.is_empty() && !valid_label(s, 32))
             || o.quality.as_ref().is_some_and(|s| {
-                !["unknown", "low", "normal", "medium", "high", "maximum"].contains(&s.as_str())
+                ![
+                    "unknown", "low", "normal", "medium", "high", "maximum", "extreme", "other",
+                ]
+                .contains(&s.as_str())
             })
             || o.parking_mode.as_ref().is_some_and(|s| {
                 ![
@@ -111,6 +118,8 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
                     "motion",
                     "impact",
                     "low-power-impact",
+                    "radar",
+                    "other",
                 ]
                 .contains(&s.as_str())
             })
@@ -138,6 +147,8 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
         base.channel_setup = "Mixed/owner-grouped; see numbered configuration assertions".into();
         base.firmware.clear();
         base.settings = "No whole-card setting asserted".into();
+        base.quality_label = None;
+        base.parking_mode_label = None;
         base.quality = "unknown".into();
         base.parking_mode = "unknown".into();
         base.time_lapse_fps = None;
@@ -182,6 +193,8 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
                 if let Some(s) = &c.owner.firmware {
                     if !s.is_empty() { owner["firmware"] = json!(s); }
                 }
+                if let Some(s) = &c.owner.quality_label { owner["qualityLabel"] = json!(s); }
+                if let Some(s) = &c.owner.parking_mode_label { owner["parkingModeLabel"] = json!(s); }
                 if let Some(s) = &c.owner.quality { owner["quality"] = json!(s); }
                 if let Some(s) = &c.owner.parking_mode { owner["parkingMode"] = json!(s); }
                 if let Some(v) = c.owner.time_lapse_fps { owner["timeLapseFps"] = json!(v); }
@@ -243,6 +256,67 @@ mod tests {
         let l:Labels=serde_json::from_value(json!({"manufacturer":"VIOFO","model":"Owner model","channelSetup":"DO NOT INHERIT","firmware":"old","settings":"DO NOT INHERIT","channelCount":8,"quality":"maximum","parkingMode":"impact","timeLapseFps":10})).unwrap();
         let a:Annotations=serde_json::from_value(json!({"assignmentsRequired":true,"contributor":{"dashcamTalkUsername":"PrivateTester"},"cohorts":[{"id":"1","evidenceIndices":[0],"folderIndices":[0],"owner":{"channelCount":2,"firmware":"1.0","quality":"high","parkingMode":"time-lapse","timeLapseFps":1}},{"id":"2","evidenceIndices":[1],"folderIndices":[0],"owner":{"channelCount":3,"parkingMode":"low-bitrate"}}]})).unwrap();
         (r, l, a)
+    }
+    #[test]
+    fn ordinary_single_configuration_needs_no_assignments() {
+        let (r, mut l, _) = fixture();
+        l.quality = "extreme".into();
+        l.quality_label = Some("Extreme".into());
+        l.parking_mode = "radar".into();
+        l.parking_mode_label = Some("Radar Parking".into());
+        let a: Annotations = serde_json::from_value(json!({"cohorts":[]})).unwrap();
+        let review = prepare(&r, &l, &a).unwrap();
+        let body: Value = serde_json::from_str(&review.submission_json).unwrap();
+        assert!(body.get("cohorts").is_none());
+        assert_eq!(body["owner"]["qualityLabel"], "Extreme");
+        assert_eq!(body["owner"]["parkingModeLabel"], "Radar Parking");
+        assert_eq!(body["owner"]["channelCount"], 8);
+        assert_eq!(body["evidence"][0]["fps"], 30.);
+        println!("APP_SINGLE_CONTRACT:{}", review.submission_json);
+        assert!(review.public_json.contains("Radar Parking"));
+        assert!(review.private_json.contains("Extreme"));
+    }
+    #[test]
+    fn branded_group_settings_are_explicit_and_not_inherited() {
+        let (r, mut l, mut a) = fixture();
+        l.quality_label = Some("GLOBAL MUST NOT INHERIT".into());
+        l.parking_mode_label = Some("GLOBAL MUST NOT INHERIT".into());
+        a.cohorts[0].owner.quality = Some("other".into());
+        assert!(prepare(&r, &l, &a).is_err());
+        a.cohorts[0].owner.quality_label = Some("Brand Custom+".into());
+        a.cohorts[0].owner.parking_mode = Some("other".into());
+        a.cohorts[0].owner.parking_mode_label = Some("Auto Event Detection".into());
+        let review = prepare(&r, &l, &a).unwrap();
+        let body: Value = serde_json::from_str(&review.submission_json).unwrap();
+        assert_eq!(body["cohorts"][0]["owner"]["qualityLabel"], "Brand Custom+");
+        assert!(body["cohorts"][1]["owner"].get("qualityLabel").is_none());
+        for s in [
+            &review.submission_json,
+            &review.public_json,
+            &review.private_json,
+        ] {
+            assert!(!s.contains("GLOBAL MUST NOT INHERIT"));
+        }
+    }
+    #[test]
+    fn setting_labels_reject_contacts_injection_and_unbounded_text() {
+        for text in [
+            "",
+            " ",
+            " email@example.com",
+            "email@example.com",
+            "https://example.com",
+            "<script>",
+            "line\nbreak",
+            "Unicodeé",
+        ] {
+            assert!(
+                payload::setting_label(Some("other"), Some(text)).is_err(),
+                "{text}"
+            );
+        }
+        assert!(payload::setting_label(Some("other"), Some(&"A".repeat(81))).is_err());
+        assert!(payload::setting_label(Some("other"), Some("Brand (A-B)_+&/ 2")).is_ok());
     }
     #[test]
     fn mixed_fixture_emits_contract() {

@@ -1,0 +1,1456 @@
+{
+  "cameras": [
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "Normal",
+        "Parking",
+        "Lapse",
+        "Event",
+        "Photo"
+      ],
+      "id": "70mai-m310",
+      "manufacturer": "70Mai",
+      "model": "M310",
+      "patterns": [],
+      "sourceSha256": "81831dcf3e5034a119903ef680d73df503dfb4c0b3c9ad579a662fe5c6aebcd3"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + rear + interior",
+      "folders": [
+        "Normal/Front",
+        "Normal/Rear",
+        "Normal/Cabin",
+        "Normal/.s_Front",
+        "Normal/.s_Rear",
+        "Parking/Front",
+        "Parking/Rear",
+        "Parking/Cabin",
+        "Parking/.s_Front",
+        "Parking/.s_Rear",
+        "Lapse/Front",
+        "Lapse/Rear",
+        "Lapse/Cabin",
+        "Lapse/.s_Front",
+        "Lapse/.s_Rear",
+        "Event",
+        "Photo"
+      ],
+      "id": "70mai-t800",
+      "manufacturer": "70mai",
+      "model": "T800",
+      "patterns": [
+        {
+          "channels": {
+            "C": "interior",
+            "F": "front",
+            "R": "rear"
+          },
+          "modes": {
+            "EV": "event",
+            "LA": "parking_timelapse",
+            "NO": "continuous",
+            "PA": "parking_motion_or_impact"
+          },
+          "pattern": "^(NO|PA|LA|EV)(\\d{8})-(\\d{6})-(\\d+)(F|R|C)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "8829202c2cb1327444528269e7c4223f90d2ac41a558e1bd97159f5f3a9e83f6"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "Normal/Front",
+        "Normal/Rear",
+        "Normal/.s_Front",
+        "Parking/Front",
+        "Parking/Rear",
+        "Parking/.s_Front",
+        "Lapse/Front",
+        "Lapse/Rear",
+        "Lapse/.s_Front",
+        "Event",
+        "Photo"
+      ],
+      "id": "70mai-x800",
+      "manufacturer": "70mai",
+      "model": "4K Omni X800",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "modes": {
+            "EV": "event",
+            "LA": "parking_timelapse",
+            "NO": "continuous",
+            "PA": "parking_motion_or_impact"
+          },
+          "pattern": "^(NO|PA|LA|EV)(\\d{8})-(\\d{6})-(\\d+)(F|R)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "75b5af38a4803ee8b16bbfc222770e0757f33527500377b9949fbeba8f59471b"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "BlackVue/Record",
+        "BlackVue/Config"
+      ],
+      "id": "blackvue-dr770x-box",
+      "manufacturer": "BlackVue",
+      "model": "DR770X Box",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "channels": {
+            "F": "front",
+            "O": "interior",
+            "R": "rear"
+          },
+          "mode_group": 3,
+          "modes": {
+            "I": "impact_event",
+            "M": "manual_or_marked_driving",
+            "N": "normal",
+            "P": "parking_motion_or_timelapse"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_([MNPI])([FOR])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "0c0eaad022ba6924e5ec3805ef3c4bfbb7b18d11ff2e1996fa381c409ae2a6b2"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "BlackVue/Record"
+      ],
+      "id": "blackvue-dr970x-lte-plus",
+      "manufacturer": "BlackVue",
+      "model": "DR970X LTE Plus",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "mode_group": 3,
+          "modes": {
+            "E": "event",
+            "M": "manual",
+            "N": "normal",
+            "P": "parking_motion_or_timelapse"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_([NEMP])([FR])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "b66688a4e85224666e59b4f791839d7bc3fdbd14873c8614b08ea60a8433b467"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "BlackVue/Record"
+      ],
+      "id": "blackvue-dr970x-plus",
+      "manufacturer": "BlackVue",
+      "model": "DR970X Plus",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "mode_group": 3,
+          "modes": {
+            "E": "event",
+            "I": "event_impact",
+            "M": "manual",
+            "N": "normal",
+            "P": "parking_motion_or_timelapse"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_([NEMIP])([FR])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "0e0ca18d08c7686f7c387f2a0d2432e02b94d7e3d37fe1d5b45b9973fa4786be"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "BlackVue/Record",
+        "BlackVue/Config"
+      ],
+      "id": "blackvue-elite-10",
+      "manufacturer": "BlackVue",
+      "model": "Elite 10",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "mode_group": 3,
+          "modes": {
+            "I": "parking_impact_detection",
+            "M": "manual",
+            "N": "normal",
+            "P": "parking_motion_or_timelapse"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_([NMPI])([FR])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "a36f2c226c39d75e201997688edb837dc7e21401595f5004ecbad845f9ae7716"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "BlackVue/Record",
+        "BlackVue/Config"
+      ],
+      "id": "blackvue-elite-8",
+      "manufacturer": "BlackVue",
+      "model": "Elite 8",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "mode_group": 3,
+          "pattern": "^(\\d{8})_(\\d{6})_([NMPI])([FR])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "b57b4aa2eae074d58b026008f60b274fa4209adefdbdc46ccdf4af9477e4badc"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "BlackVue/Record",
+        "BlackVue/Config"
+      ],
+      "id": "blackvue-elite-9",
+      "manufacturer": "BlackVue",
+      "model": "Elite 9",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "mode_group": 3,
+          "modes": {
+            "E": "event",
+            "I": "parking_impact_detection",
+            "M": "manual",
+            "N": "normal",
+            "P": "parking_motion_or_timelapse"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_([NEMPI])([FR])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "1bab0d61bb8afeb143abb3901439969ff92a86bbfb70fe155b2c81331a773499"
+    },
+    {
+      "channelCount": 4,
+      "channelSetup": "front + rear + left + right",
+      "folders": [
+        "360CARDVR/REC",
+        "360CARDVR/PARKING",
+        "360CARDVR/SECVIDEO",
+        "360CARDVR/GPS"
+      ],
+      "id": "botslab-g980h",
+      "manufacturer": "Botslab",
+      "model": "G980H",
+      "patterns": [
+        {
+          "channels": {
+            "AA": "front",
+            "AB": "rear",
+            "AC": "left",
+            "AD": "right"
+          },
+          "pattern": "^(\\d{8})(\\d{6})_(\\d{6})(A[A-D])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "9f65822348f2351e3cdff22f05a243a459d0b85681b2445301cfc7028e619660"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front_wide + front_telephoto + rear",
+      "folders": [
+        "DCIM"
+      ],
+      "id": "cansonic-ultradash-z3plus-standard",
+      "manufacturer": "Cansonic",
+      "model": "UltraDash Z3+ Standard Edition",
+      "patterns": [],
+      "sourceSha256": "92af0adaf19699584ba14edbaf8515c9a5fc2f2391b3614851cb214a7aa58c9b"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + front_telephoto + rear",
+      "folders": [
+        "VIDEO",
+        "PROTECTED"
+      ],
+      "id": "cansonic-ultradash-z4-standard",
+      "manufacturer": "Cansonic",
+      "model": "UltraDash Z4 Standard Edition",
+      "patterns": [
+        {
+          "channels": {
+            "B": "rear",
+            "L": "front",
+            "R": "front_telephoto"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_([LRB])\\.MP4$"
+        },
+        {
+          "channels": {
+            "B": "rear",
+            "L": "front",
+            "R": "front_telephoto"
+          },
+          "pattern": "^P(\\d{8})_(\\d{6})_([LRB])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "37d9ab6a0761b3b2bf996547bce4de833719cb2be6a99af9e799b5db5f249268"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "DCIM/RoadScout"
+      ],
+      "id": "cobra-road-scout",
+      "manufacturer": "Cobra",
+      "model": "Road Scout",
+      "patterns": [],
+      "sourceSha256": "e4d2674b3e03824b2e7c1e141fe93503b3dff0a124c44481f8a8946a05ab8eba"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "primary",
+      "folders": [
+        "DCIM/100MEDIA",
+        "MISC/THM/100"
+      ],
+      "id": "dji-mini-3-pro",
+      "manufacturer": "DJI",
+      "model": "Mini 3 Pro",
+      "patterns": [],
+      "sourceSha256": "674718f4f278ee80f3bc905987a972b330f720ca615610b885893428227b22b9"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "primary",
+      "folders": [
+        "Android/data/dji.go.v5/files/MediaCaches",
+        "Android/data/dji.go.v5/files/OriginalFiles/Video",
+        "Android/data/dji.go.v5/files/OriginalFiles/Photo",
+        "Android/data/dji.go.v5/files/OriginalFiles/PanoPhoto",
+        "Android/data/dji.go.v5/files/ImageCaches"
+      ],
+      "id": "dji-rc",
+      "manufacturer": "DJI",
+      "model": "RC",
+      "patterns": [],
+      "sourceSha256": "6f33d16f75c666244291aa385fbf126c37e700f05efea7dbf94c61f26eabe8eb"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "Escort_M1/MOVIE",
+        "Escort_M1/LockedVideo"
+      ],
+      "id": "escort-m1",
+      "manufacturer": "Escort",
+      "model": "M1",
+      "patterns": [],
+      "sourceSha256": "0865efbeed6634be6f7d777d454904666fc5fe7b46a6f30f1da25f6b852799a8"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "Normal",
+        "Photo",
+        "Event"
+      ],
+      "id": "escort-m2",
+      "manufacturer": "Escort",
+      "model": "M2",
+      "patterns": [],
+      "sourceSha256": "7b0fbc30a44a75eb5e99b97ea89f3bb9668f0f7f4f4cfcb79fc3b6fb109ea781"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "Normal/MAXcam360c",
+        "Event/MAXcam360c"
+      ],
+      "id": "escort-maxcam-360c",
+      "manufacturer": "Escort",
+      "model": "MAXcam 360c",
+      "patterns": [],
+      "sourceSha256": "1812272ddd62776c58362a2e9060f94d3bc4607b632255f7164195ff616966f5"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "primary",
+      "folders": [
+        "DCIM/*GOPRO",
+        "MISC"
+      ],
+      "id": "gopro-hero-action-camera",
+      "manufacturer": "GoPro",
+      "model": "HERO / MAX Camera",
+      "patterns": [
+        {
+          "channels": {
+            "GH": "primary",
+            "GP": "primary",
+            "GX": "primary"
+          },
+          "modes": {
+            "GH": "regular_recording",
+            "GP": "regular_recording",
+            "GX": "regular_recording"
+          },
+          "pattern": "^(G[HXP])(\\d{2})(\\d{4})\\.(MP4|MOV)$"
+        },
+        {
+          "channels": {
+            "GH": "primary",
+            "GP": "primary",
+            "GX": "primary"
+          },
+          "modes": {
+            "GH": "regular_recording",
+            "GP": "regular_recording",
+            "GX": "regular_recording"
+          },
+          "pattern": "^(G[HXP])([A-Z]{2})(\\d{4})\\.(MP4|MOV)$"
+        },
+        {
+          "channels": {
+            "GPR": "primary",
+            "JPEG": "primary",
+            "JPG": "primary"
+          },
+          "modes": {
+            "GPR": "photo_raw",
+            "JPEG": "photo",
+            "JPG": "photo"
+          },
+          "pattern": "^GOPR(\\d{4})\\.(JPG|JPEG|GPR)$"
+        },
+        {
+          "channels": {
+            "GPR": "primary",
+            "JPEG": "primary",
+            "JPG": "primary"
+          },
+          "modes": {
+            "GPR": "photo_raw_burst_or_timelapse",
+            "JPEG": "photo_burst_or_timelapse",
+            "JPG": "photo_burst_or_timelapse"
+          },
+          "pattern": "^G(\\d{3})(\\d{4})\\.(JPG|JPEG|GPR)$"
+        }
+      ],
+      "sourceSha256": "6047d5f0cf86530bf55f548487a119fb3e02c10c05c5630df071035ef022ffbf"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "primary",
+      "folders": [
+        "DCIM/*GOPRO",
+        "MISC"
+      ],
+      "id": "gopro-hero9-black",
+      "manufacturer": "GoPro",
+      "model": "HERO9 Black",
+      "patterns": [
+        {
+          "channels": {
+            "GH": "primary",
+            "GX": "primary"
+          },
+          "modes": {
+            "GH": "regular_recording",
+            "GX": "regular_recording"
+          },
+          "pattern": "^(G[HX])(\\d{2})(\\d{4})\\.(MP4|MOV)$"
+        },
+        {
+          "channels": {
+            "GH": "primary",
+            "GX": "primary"
+          },
+          "modes": {
+            "GH": "regular_recording",
+            "GX": "regular_recording"
+          },
+          "pattern": "^(G[HX])([A-Z]{2})(\\d{4})\\.(MP4|MOV)$"
+        },
+        {
+          "channels": {
+            "GPR": "primary",
+            "JPEG": "primary",
+            "JPG": "primary"
+          },
+          "modes": {
+            "GPR": "photo_raw",
+            "JPEG": "photo",
+            "JPG": "photo"
+          },
+          "pattern": "^GOPR(\\d{4})\\.(JPG|JPEG|GPR)$"
+        },
+        {
+          "channels": {
+            "GPR": "primary",
+            "JPEG": "primary",
+            "JPG": "primary"
+          },
+          "modes": {
+            "GPR": "photo_raw_burst_or_timelapse",
+            "JPEG": "photo_burst_or_timelapse",
+            "JPG": "photo_burst_or_timelapse"
+          },
+          "pattern": "^G(\\d{3})(\\d{4})\\.(JPG|JPEG|GPR)$"
+        }
+      ],
+      "sourceSha256": "0acc9458f8e7f4ac0ba87cc24beeee49cbe44b86aebd2aab5d576a011aa3ba28"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "Videos",
+        "Protected"
+      ],
+      "id": "nextbase-622gw",
+      "manufacturer": "Nextbase",
+      "model": "622GW",
+      "patterns": [
+        {
+          "channels": {
+            "FH": "front",
+            "RH": "rear"
+          },
+          "pattern": "^(\\d{6})_(\\d{6})_(\\d{3})_(FH|RH)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "c4d66678014688438ceecfc69d182fed27cbed9d8c466a4492feedc8fa7d2e10"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "norm",
+        "back_norm",
+        "emr",
+        "back_emr",
+        "Photo"
+      ],
+      "id": "ottocast-ottosafe-cam",
+      "manufacturer": "Ottocast",
+      "model": "OttoSafe Cam",
+      "patterns": [
+        {
+          "modes": {},
+          "pattern": "^(\\d{4})_(\\d{2})_(\\d{2})_(\\d{6})_(\\d{2})\\.TS$"
+        },
+        {
+          "channels": {
+            "b": "rear"
+          },
+          "pattern": "^(\\d{4})_(\\d{2})_(\\d{2})_(\\d{6})_(\\d{2})_b\\.TS$"
+        }
+      ],
+      "sourceSha256": "838dda95c9515afc445b33d25848a20a7916792e2f01603945639a7fdf972a8d"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "Video"
+      ],
+      "id": "rove-r2-4k-pro",
+      "manufacturer": "Rove",
+      "model": "R2-4K Pro",
+      "patterns": [
+        {
+          "pattern": "^(\\\\d{4})_(\\\\d{4})_(\\\\d{6})_(\\\\d+)\\\\.(MP4)$"
+        }
+      ],
+      "sourceSha256": "a09c4289a4d1a3676c036d92cf190f427fe71147c708542bb1e05317f3ebb4ab"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "primary",
+      "folders": [
+        "PRIVATE/M4ROOT/CLIP",
+        "PRIVATE/M4ROOT/THMBNL",
+        "PRIVATE/M4ROOT/MEDIAPRO.XML",
+        "DCIM/100MSDCF",
+        "PRIVATE/AVCHD"
+      ],
+      "id": "sony-a7-iii",
+      "manufacturer": "Sony",
+      "model": "A7 III",
+      "patterns": [],
+      "sourceSha256": "14dd3160669944d8c7ff542d7a8da4a4c30f2d1b1cde4341687dd3eceedb4541"
+    },
+    {
+      "channelCount": 6,
+      "channelSetup": "front + rear + left_repeater + right_repeater + left_pillar + right_pillar",
+      "folders": [
+        "TeslaCam/RecentClips",
+        "TeslaCam/SavedClips",
+        "TeslaCam/SentryClips"
+      ],
+      "id": "tesla-dashcam",
+      "manufacturer": "Tesla",
+      "model": "TeslaCam",
+      "patterns": [
+        {
+          "channels": {
+            "back": "rear",
+            "front": "front",
+            "left_pillar": "left_pillar",
+            "left_repeater": "left_repeater",
+            "rear": "rear",
+            "rear_view": "rear",
+            "right_pillar": "right_pillar",
+            "right_repeater": "right_repeater"
+          },
+          "modes": {
+            "back": "recording",
+            "front": "recording",
+            "left_pillar": "recording",
+            "left_repeater": "recording",
+            "rear": "recording",
+            "rear_view": "recording",
+            "right_pillar": "recording",
+            "right_repeater": "recording"
+          },
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}_\\d{2}-\\d{2}-\\d{2}-(front|back|rear|rear_view|left_repeater|right_repeater|left_pillar|right_pillar)\\.(MP4|mp4)$"
+        }
+      ],
+      "sourceSha256": "f6667a43d084b1b09ed4c6b14f8cf9f3402f3603e75554780e5d8c34f3dd06d2"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "manual_rec",
+        "motion_timelapse_rec",
+        "parking_rec"
+      ],
+      "id": "thinkware-arc-700",
+      "manufacturer": "Thinkware",
+      "model": "ARC 700",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "pattern": "^REC_(\\d{8})_(\\d{6})_([FR])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "2e113d54f2aae2857c9d7b7cd042eb2b827640f508f7bd19de002a3178307295"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "motion_timelapse_rec",
+        "parking_rec",
+        "manual_rec",
+        "Safety_Box",
+        "sos_rec",
+        ".parking_rec_sec"
+      ],
+      "id": "thinkware-arc-800",
+      "manufacturer": "Thinkware",
+      "model": "ARC 800",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "modes": {
+            "EVT": "driving_event",
+            "MAN": "manual",
+            "MOT": "parking_motion_or_timelapse",
+            "PAK": "parking_impact_detection",
+            "PAS": "parking_event_secondary",
+            "REC": "continuous"
+          },
+          "pattern": "^(REC|EVT|MOT|PAK|PAS|MAN)_(\\d{8})_(\\d{6})_([FR])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "8ef5f1db46d8633e55f62d68ad3ea79cd0c618edde15ba81515835b7ab7bfe6c"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "motion_rec",
+        "parking_rec",
+        "manual_rec",
+        "sos_rec"
+      ],
+      "id": "thinkware-arc-900",
+      "manufacturer": "Thinkware",
+      "model": "ARC 900",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "pattern": "^REC_(\\d{8})_(\\d{6})_([FR])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "87f7cb6333541ab95cc0d1ef1a5584b06cf2322c1c66b5b6846d2391e37b3fa8"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "motion_timelapse_rec",
+        "parking_rec",
+        "manual_rec"
+      ],
+      "id": "thinkware-u1000-plus",
+      "manufacturer": "Thinkware",
+      "model": "U1000 Plus",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "modes": {
+            "EVT": "driving_event",
+            "MAN": "manual",
+            "MOT": "parking_motion_or_timelapse",
+            "PAK": "parking_event",
+            "REC": "continuous"
+          },
+          "pattern": "^(REC|EVT|MOT|PAK|MAN)_(\\d{8})_(\\d{6})_([FR])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "836bbbf8e5d01c65c825e4aafdcfb5a2b5606e9631aba100d2ec19650013ecb2"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "motion_timelapse_rec",
+        "parking_rec",
+        "manual_rec"
+      ],
+      "id": "thinkware-u1000",
+      "manufacturer": "Thinkware",
+      "model": "U1000",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "R": "rear"
+          },
+          "modes": {
+            "EVT": "driving_event",
+            "MAN": "manual",
+            "MOT": "parking_motion_or_timelapse",
+            "PAK": "parking_event",
+            "REC": "continuous"
+          },
+          "pattern": "^(REC|EVT|MOT|PAK|MAN)_(\\d{4})_(\\d{2})_(\\d{2})_(\\d{2})_(\\d{2})_(\\d{2})_([FR])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "5f99d7d87b18d2aa032f770541726d697aed9192cb64411e75c9db448507760c"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "motion_timelapse_rec",
+        "parking_rec",
+        ".parking_rec_sec",
+        "manual_rec",
+        "sos_rec",
+        "incabin_rec"
+      ],
+      "id": "thinkware-u3000-pro",
+      "manufacturer": "Thinkware",
+      "model": "U3000 Pro",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "pattern": "^(REC|EVT|MOT|PAK|PAS)_(\\d{8})_(\\d{6})_([A-Z]+(?:_[A-Z]+)?)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "b6a745da9dd4defec60b134191b37a2e42472c2e47f6bdc00013317bcfd08efc"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "cont_rec",
+        "evt_rec",
+        "motion_timelapse_rec",
+        "parking_rec",
+        "manual_rec",
+        "sos_rec"
+      ],
+      "id": "thinkware-u3000",
+      "manufacturer": "Thinkware",
+      "model": "U3000",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "pattern": "^(REC|EVT|MOT|PAK)_(\\d{8})_(\\d{6})_([FR])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "14fb452e2350c9413050099fb9f79ce15044699d9e906db901c32bc797d18a89"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "Normal",
+        "Parking",
+        "Event",
+        "Photo",
+        "GPS"
+      ],
+      "id": "vantrue-e1-pro",
+      "manufacturer": "Vantrue",
+      "model": "E1 Pro",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "channels": {
+            "A": "front"
+          },
+          "mode_group": 4,
+          "modes": {
+            "E": "event",
+            "N": "normal",
+            "P": "parking",
+            "T": "timelapse"
+          },
+          "pattern": "^(\\\\d{8})_(\\\\d{6})_(\\\\d{5})_([NPET])_([A])\\\\.(MP4|JPG)$"
+        }
+      ],
+      "sourceSha256": "5de98ff578efa1b2012d5ec865a63d6292809d8b1368faf4e64efea364eb24fa"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "panoramic_front + interior + rear",
+      "folders": [
+        "Normal",
+        "Event",
+        "Parking"
+      ],
+      "id": "vantrue-e360",
+      "manufacturer": "Vantrue",
+      "model": "E360",
+      "patterns": [
+        {
+          "channels": {
+            "A": "panoramic_front",
+            "B": "interior",
+            "C": "rear"
+          },
+          "modes": {
+            "E": "event",
+            "N": "normal",
+            "P": "parking"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_(\\d{5})_([NEP])_([AC])\\.(MP4|JPG)$"
+        }
+      ],
+      "sourceSha256": "ace2a243cb9b177413cad60503d3193228e6ce3e39025149d2845c522709588b"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "Normal",
+        "Event",
+        "Parking",
+        "Photo",
+        "GPS"
+      ],
+      "id": "vantrue-n4-pro-s",
+      "manufacturer": "Vantrue",
+      "model": "N4 Pro S",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "channels": {
+            "A": "front",
+            "B": "interior",
+            "C": "rear"
+          },
+          "mode_group": 4,
+          "modes": {
+            "E": "event",
+            "N": "normal",
+            "P": "parking"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_(\\d{5})_([NEP])_([ABC])\\.(MP4|JPG)$"
+        }
+      ],
+      "sourceSha256": "7a1f6e7d7c2eb1580466d074fc3ad59f32da11be8a5b881509fe73cd509ccc67"
+    },
+    {
+      "channelCount": 4,
+      "channelSetup": "User-configurable 1CH/2CH/3CH modes; front (A) always active + front + interior + rear",
+      "folders": [],
+      "id": "vantrue-n4-s",
+      "manufacturer": "Vantrue",
+      "model": "N4 S",
+      "patterns": [],
+      "sourceSha256": "31b9c056ed0359a7cd60fb5f55bc0752fd08267baeb1ffc7353f5bf22b223472"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "Normal",
+        "Event",
+        "Parking",
+        "Photo"
+      ],
+      "id": "vantrue-n4",
+      "manufacturer": "Vantrue",
+      "model": "N4",
+      "patterns": [
+        {
+          "channels": {
+            "A": "front",
+            "B": "interior",
+            "C": "rear"
+          },
+          "modes": {
+            "E": "event",
+            "N": "normal",
+            "P": "parking"
+          },
+          "pattern": "^(\\d{4})_(\\d{2})_(\\d{2})_(\\d{6})_([NEP])_([ABC])\\.(MP4|JPG)$"
+        }
+      ],
+      "sourceSha256": "2207e7bdd88d765fdbdf781bce46dafcfaea004783f629f8611ecfbbff8cafac"
+    },
+    {
+      "channelCount": 4,
+      "channelSetup": "front + interior_front + interior_rear + rear",
+      "folders": [
+        "Normal",
+        "Event",
+        "Parking",
+        "Photo"
+      ],
+      "id": "vantrue-n5",
+      "manufacturer": "Vantrue",
+      "model": "N5",
+      "patterns": [
+        {
+          "channels": {
+            "A": "front",
+            "B": "interior_front",
+            "C": "interior_rear",
+            "D": "rear"
+          },
+          "modes": {
+            "E": "event",
+            "N": "normal",
+            "P": "parking"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_(\\d{5})_([NEP])_([ABCD])\\.(MP4|JPG)$"
+        }
+      ],
+      "sourceSha256": "fbdba17f3c1a5db3a4fa7e71a4ce8525f1e2ed2ca63111aa075d6048f30f830a"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Parking",
+        "DCIM/Parking/RO",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-a119-mini-2",
+      "manufacturer": "VIOFO",
+      "model": "A119 Mini 2",
+      "patterns": [
+        {
+          "pattern": "^(\\d{4})(\\d{2})(\\d{2})(\\d{6})_(\\d+)\\.MP4$"
+        },
+        {
+          "pattern": "^(\\d{4})(\\d{2})(\\d{2})(\\d{6})_(\\d+)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "9b0f18401f9283e60cb15f0774bebaeedfb48fc39eb7453614c6ed7ae355a8ac"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "DCIM/Movie"
+      ],
+      "id": "viofo-a119m-pro",
+      "manufacturer": "VIOFO",
+      "model": "A119M Pro",
+      "patterns": [
+        {
+          "pattern": "^(\\d{4})(\\d{2})(\\d{2})(\\d{6})_(\\d+)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "bf1992ab9e8a321c66cf5815e4a3dc9f10c8d49630cc3769771105fa7a15e67e"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Movie/Parking"
+      ],
+      "id": "viofo-a129-duo",
+      "manufacturer": "VIOFO",
+      "model": "A129 Duo",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "PF": "parking_front",
+            "PR": "parking_rear",
+            "R": "rear"
+          },
+          "modes": {
+            "PF": "parking",
+            "PR": "parking"
+          },
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|R|PF|PR)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "0fa68744ac1b5d04191bbc1396e965d61f8bce1062afeed31e4b04d3cd17e941"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Movie/Parking"
+      ],
+      "id": "viofo-a129-plus-duo",
+      "manufacturer": "VIOFO",
+      "model": "A129 Plus Duo",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "PF": "parking_front",
+            "PR": "parking_rear",
+            "R": "rear"
+          },
+          "modes": {
+            "PF": "parking",
+            "PR": "parking"
+          },
+          "pattern": "^(\\d{4})(\\d{2})(\\d{2})(\\d{6})_(\\d+)(F|R|PF|PR)\\.MP4$"
+        },
+        {
+          "channels": {
+            "PF": "parking_front",
+            "PR": "parking_rear"
+          },
+          "modes": {
+            "PF": "parking",
+            "PR": "parking"
+          },
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(PF|PR)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "15c31f0f445d942b345788568af681b49916af6e4e3c5078e3cfea5495b5be00"
+    },
+    {
+      "channelCount": 2,
+      "channelSetup": "front + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Movie/Parking"
+      ],
+      "id": "viofo-a129-pro",
+      "manufacturer": "VIOFO",
+      "model": "A129 Pro",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "PF": "parking_front",
+            "PR": "parking_rear",
+            "R": "rear"
+          },
+          "modes": {
+            "PF": "parking",
+            "PR": "parking"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})(F|R|PF|PR)\\.MP4$"
+        },
+        {
+          "channels": {
+            "PF": "parking_front",
+            "PR": "parking_rear"
+          },
+          "modes": {
+            "PF": "parking",
+            "PR": "parking"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_(\\d+)(PF|PR)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "cd43fe54b09b418693ca8b03f9e607b4e43db34dcad82f8bc851fb891372f3dc"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "DCIM/Movie"
+      ],
+      "id": "viofo-a139-pro",
+      "manufacturer": "VIOFO",
+      "model": "A139 Pro",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(F|I|R|T)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "9288e4e330050d48d738e7041e3f0380f7cf8f04be147d285dac43641aeacb7a"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Movie/Parking",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-a229-plus",
+      "manufacturer": "VIOFO",
+      "model": "A229 Plus",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.MP4$"
+        },
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "1f7ad2f43505e1f96dc877dc75cd2d40cb6141f3461ee53ab09f2ef752dfaf79"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Movie/Parking",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-a229-pro",
+      "manufacturer": "VIOFO",
+      "model": "A229 Pro",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.MP4$"
+        },
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "b83c34e0dd725f16198076de1eba0b9cc07462d1fa3818c5b0295342fc3fa084"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Movie/Parking",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-a229-ultra",
+      "manufacturer": "VIOFO",
+      "model": "A229 Ultra",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.MP4$"
+        },
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "6040744843166345f153890680ed41bba09b208b60bda134e368cec398561e62"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/Parking",
+        "DCIM/Movie/RO",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-a329s",
+      "manufacturer": "VIOFO",
+      "model": "A329S",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R)\\.MP4$"
+        },
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(PF|PI|PR)\\.MP4$"
+        },
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "d150af89d8d3a99ce8fdc02e7222a8bbe8ddeb83a6a656f0223c7ce2cf19c3f0"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + rear + telephoto",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/Parking",
+        "DCIM/Movie/RO",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-a329t",
+      "manufacturer": "VIOFO",
+      "model": "A329T",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|R|T|PF|PR|PT)\\.MP4$"
+        },
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|R|T|PF|PR|PT)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "43ffe30f771aea09c0c00e5106778401cef32cd680c2761870e81f5c7f7fce61"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/RO",
+        "DCIM/Movie/Parking"
+      ],
+      "id": "viofo-t130",
+      "manufacturer": "VIOFO",
+      "model": "T130",
+      "patterns": [
+        {
+          "channels": {
+            "F": "front",
+            "I": "interior",
+            "R": "rear"
+          },
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_([FIR])\\.MP4$"
+        }
+      ],
+      "sourceSha256": "be27310beb0343de1769fe748a21e3ce63e1a0071c0c7114f6ba143c939e2c7a"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/Parking",
+        "DCIM/Movie/RO",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-t330w",
+      "manufacturer": "VIOFO",
+      "model": "T330W",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.MP4$"
+        },
+        {
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|I|R|PF|PI|PR)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "40cb1ac56522c8fbc0cb6f1e83103e8ca2d3e73c0c73dacf9ce4f95699de594a"
+    },
+    {
+      "channelCount": 4,
+      "channelSetup": "front + rear + interior + telephoto",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Movie/Parking",
+        "DCIM/Movie/RO",
+        "DCIM/Photo"
+      ],
+      "id": "viofo-t340",
+      "manufacturer": "VIOFO",
+      "model": "T340",
+      "patterns": [
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|R|I|T|PF|PR|PI|PT)\\.MP4$"
+        },
+        {
+          "channel_group": 5,
+          "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|R|I|T|PF|PR|PI|PT)\\.JPG$"
+        }
+      ],
+      "sourceSha256": "a4f590664696d4bb74c9ffb291113aa04887e16da1deafe73dfa11845fdbb1d1"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Parking"
+      ],
+      "id": "viofo-vs1",
+      "manufacturer": "VIOFO",
+      "model": "VS1",
+      "patterns": [
+        {
+          "modes": {
+            "P": "parking"
+          },
+          "pattern": "^(\\d{4})(\\d{2})(\\d{2})(\\d{6})_(\\d+)(P?)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "fce9568067bc8bc7b5755176c68c85b96c0637ee8abc21e5b25d7dc115f07880"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "DCIM/Movie",
+        "DCIM/Parking"
+      ],
+      "id": "viofo-wm1",
+      "manufacturer": "VIOFO",
+      "model": "WM1",
+      "patterns": [
+        {
+          "modes": {
+            "P": "parking"
+          },
+          "pattern": "^(\\d{4})(\\d{2})(\\d{2})(\\d{6})_(\\d+)(P?)\\.MP4$"
+        }
+      ],
+      "sourceSha256": "6e3438e23e4e753168ab402cdc038c8868daaaa294d380e036d3adf0b48cf52c"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "INF",
+        "EVENT",
+        "PARK",
+        "PEVENT",
+        "USER",
+        "BOOKMARK"
+      ],
+      "id": "vueroid-s1-4k-infinite",
+      "manufacturer": "Vueroid",
+      "model": "S1 4K Infinite",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "pattern": "^(\\d{8})_(\\d{6})_([A-Z]+)_([FIR])_([A-Z])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "61d3dccbcd7abb6a2ff6ea7b24a5a896a2745a190bc1b11b209297451b6e95dc"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + interior + rear",
+      "folders": [
+        "INF",
+        "EVENT",
+        "PARK",
+        "PEVENT",
+        "USER",
+        "BOOKMARK"
+      ],
+      "id": "vueroid-s1-qhd-infinite",
+      "manufacturer": "Vueroid",
+      "model": "S1 QHD Infinite",
+      "patterns": [
+        {
+          "channel_group": 4,
+          "pattern": "^(\\d{8})_(\\d{6})_([A-Z]+)_([FIR])_([A-Z])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "69beeb9f4577cacc486672b6dc70fa093cf4ee5b2a61183caea5ac0e6abf868a"
+    }
+  ],
+  "commit": "d160f4a6343163d68b952c742f75c425baaa7f67",
+  "license": "AGPL-3.0-only",
+  "restrictedParsing": [
+    "vantrue-n4-s.yaml"
+  ],
+  "source": "https://github.com/vortexopenclaw/dashcam-offloader"
+}
