@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# COPY ONLY AFTER PRIVATE RESOURCES + HOSTNAME ARE APPROVED. Not a deploy target.
+name = "dashcam-scanner-intake-new"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+preview_urls = false
+
+[observability]
+enabled = false
+
+[vars]
+ENABLED = "false"
+ORIGIN = "https://REPLACE-WITH-APPROVED-HOST"
+TURNSTILE_SITE_KEY = "REPLACE_WITH_SITE_KEY"
+MAX_RECORDS = "1000"
+MAX_STORED_BYTES = "16000000"
+
+[[kv_namespaces]]
+binding = "PENDING"
+id = "REPLACE_WITH_NEW_PRIVATE_NAMESPACE_ID"
+
+[[durable_objects.bindings]]
+name = "GATE"
+class_name = "IntakeGate"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["IntakeGate"]
+
+# Set IP_SALT (>=32 cryptographically random characters) and TURNSTILE_SECRET
+# as Worker secrets, never vars or source. Add approved HTTPS route/custom domain.

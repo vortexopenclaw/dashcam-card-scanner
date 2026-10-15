@@ -1,0 +1,40 @@
+name: Verify desktop builds
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-14, target: aarch64-apple-darwin, bundles: 'app,dmg' }
+          - { os: macos-15-intel, target: x86_64-apple-darwin, bundles: 'app,dmg' }
+          - { os: windows-2022, target: x86_64-pc-windows-msvc, bundles: 'nsis' }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: 'deb,appimage' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with: { node-version: '24', cache: npm }
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with: { targets: '${{ matrix.target }}' }
+      - name: Linux platform dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run build
+      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - run: npm test
+      - run: npm run test:intake
+      - name: Unsigned review bundles (never updater release artifacts)
+        shell: bash
+        run: npm run tauri -- build --ci --target '${{ matrix.target }}' --bundles '${{ matrix.bundles }}' --no-sign --config '{"bundle":{"createUpdaterArtifacts":false}}'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: unsigned-review-${{ matrix.target }}
+          path: src-tauri/target/${{ matrix.target }}/release/bundle/
+          if-no-files-found: error
+          retention-days: 7

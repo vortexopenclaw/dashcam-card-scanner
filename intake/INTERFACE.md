@@ -1,0 +1,36 @@
+# Scanner intake v1 — revised pre-release contract
+
+Executable authority: schema.js. No deployment.
+
+Envelope required `schemaVersion:1`, `owner`, `evidence`; optional `structure`. Owner channelCount integer 1..8; quality additionally `normal`; parkingMode additionally `low-power-impact`; optional positive finite `timeLapseFps` <=240 (owner cadence, never measured playback fps). Existing constrained labels remain; no notes.
+
+Evidence is 0..24 INDIVIDUAL file samples, not averaged groups. Each requires channel, mode, width, height, fps, bitrateKbps, containerBitrateKbps, sizeBytes, durationSeconds, codec. Optional folderIndex references zero-based structure folder. No sampleCount/group metadata required or allowed. Channel adds telephoto; mode adds protected. Codec `h264|hevc|av1|mjpeg|mpeg4|unknown`. All numeric fields nullable when unknown: width/height positive integer <=16384, fps >0 <=240, video bitrateKbps and separately measured containerBitrateKbps >0 <=1000000, sizeBytes positive safe integer <=1000000000000, durationSeconds >0 <=86400. Never infer video stream bitrate from size/duration or container bitrate. Preserve exact individual size/duration pairs, never independently sort/average extrema. Unknown is null, not zero.
+
+Structure requires completed:true, fileCount, mediaCount, folders, observedLayouts. Counts integer 0..10000000, positive mediaCount <=fileCount. Folders 1..32, immediate-parent totals sum exactly to structure totals. Each folder requires components (0..8, [] root), fileCount, mediaCount, extensions (0..16), filenameTemplates (0..16 unique). Unique component arrays. Extension entries {extension,mediaType,count}: positive integer counts sum to fileCount; video/image counts sum to mediaCount. Case-preserving extension matched case-insensitively: video mp4/mov/avi/ts/mkv; image jpg/jpeg/png; other dat/bin/txt/log/nmea/srt/unknown. Other extensions become exactly unknown.
+
+Allowed components, case-insensitive matched with original case preserved: DCIM, Movie, Movies, RO, Parking, Photo, Photos, Video, Videos, Normal, Event, Events, Emergency, Record, Recording, Front, Rear, Interior, Telephoto, Left, Right, Lock, Locked, Snapshot, Snapshots, Continuous, Driving, BlackVue, INNOVV, Garmin, Thinkware, VIOFO. Unknowns become deterministic per-report folder-N (N=1..256), first-seen traversal order, reused for same original component. No alias lookup tables transmitted. Export sanitizeFolderComponents(components,map) uses caller-owned Map reused per report. No arbitrary paths/components, separators, traversal, original names.
+
+Filename templates: finite stems YYYY_MMDD_HHMMSS_SEQUENCE, YYYYMMDD_HHMMSS, YYYYMMDD_HHMMSS_SEQUENCE, YYYY_MMDD_HHMMSS, SEQUENCE; optional suffix F/R/I/T/PF/PR/PI/PT directly or with underscore; dot plus known non-unknown extension preserving case. Example YYYY_MMDD_HHMMSS_SEQUENCET.MP4. Unknown shape exactly unknown, never original basename fragments. Export generalizeFilename fully matches known numeric families before replacement. observedLayouts: 0..64 unique {folderIndex,channel,mode}, valid references and sample enums, scanner observations not owner assertions.
+
+Empty evidence is allowed ONLY for completed usable positive-media structure. Never fake metadata. Coverage reports insufficient measurements, not failed total scan. Whole JSON remains <=16384 UTF-8 bytes; if full bounded structural inventory cannot fit, keep local rather than falsely claim complete counts. Strict nested unknown-key rejection remains.
+
+Review/proposal retain structure, paired measurements, owner assertions separately, report/evidence/structure hashes and canonical snapshot commit. Numeric duplicates exclude owner labels and positional folderIndex; they retain channel, mode, codec and every paired measurement. Raw samples retain location references separately. Cohorts preserve channel/mode/folder associations resolved to case-sensitive component arrays, independent of folder traversal order; structure hashes similarly normalize ordering without changing the retained report. Canonical folder comparisons use exact allowlisted structured paths only; aliases, filename regexes/unstructured claims remain manual (never execute upstream regexes). Complete observed channel sets compare structured variants only. No pattern match proves settings/numeric agreement. Proposal requires latest explicit local accept against the CURRENT snapshot commit; after a snapshot change, re-review and explicitly accept again. Never publishes.
+
+## Transport
+
+Serialize ONCE as UTF-8 JSON without BOM. A leading UTF-8 BOM is explicitly rejected before ticket redemption or storage (HTTP 400); it is never silently stripped. Retain the exact bytes reviewed and approved by the user. Hash those bytes as lowercase SHA-256. No private original paths, filenames, configs, media, location, serial/device identifiers or unknown fields.
+
+
+
+Example individual sample (synthetic):
+```json
+{"channel":"telephoto","mode":"normal","width":2560,"height":1440,"fps":30,"bitrateKbps":14000,"containerBitrateKbps":null,"sizeBytes":111149056,"durationSeconds":60,"codec":"h264"}
+```
+
+Labels: manufacturer/model 1–64 ASCII alphanumeric/space/dot/underscore/hyphen, beginning alphanumeric; optional firmware 1–32 same syntax. quality low/normal/medium/high/maximum/unknown. parkingMode off/buffered/time-lapse/low-bitrate/motion/impact/low-power-impact/unknown. Channel front/rear/interior/telephoto/left/right/unknown; mode normal/protected/parking/unknown. Owner labels remain unverified assertions. Omit unknown optional labels; never invent measurements.
+
+1. Open system browser to `https://INTAKE_HOST/challenge#LOWERCASE_SHA256`. Hash only, no payload or secrets in URL; fragment is not sent to server. Page shows hash; user completes Turnstile. Browser POSTs `/ticket` JSON `{ "hash": "...", "turnstile": "..." }` on same origin. Server verifies hostname and action `scanner_upload`. The page displays a short-lived opaque ticket for manual copy/paste into app. No callbacks, redirect, polling, or app custom schemes.
+2. App POST `/submit` with `Authorization: Bearer COPIED_TICKET`, `Content-Type: application/json`, body EXACT saved JSON bytes. Do not reserialize, append newline, or retry with modified payload. Limit 16384 bytes. Native HTTP client recommended; cross-origin browser submissions are not supported.
+3. Success HTTP 202 `{ "id": "<report SHA256>", "status":"pending" }`. Duplicate exact bytes also accepted as duplicate without storing another report; response has `duplicate:true`. Errors return `{ "error": "..." }`; 400 invalid report/hash, 401 invalid/expired/replayed ticket, 403 challenge/origin failure, 413 body too large, 429 quota/rate limit, 503 disabled/unconfigured. Tickets valid 5 minutes, one redemption attempt for correct-hash/schema-valid payload; once redeemed never retry that ticket. Obtain fresh challenge if response lost. Report hashes deduplicate subsequent attempts.
+
+Show exact envelope locally before browser launch. Preserve original richer scan locally only. User explicitly approves sending the displayed privacy-safe envelope. Endpoint unconfigured/disabled by default; do not point at existing Offloader feedback Worker. No deployed URL exists yet.

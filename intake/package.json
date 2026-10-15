@@ -1,0 +1,1 @@
+{"name":"dashcam-scanner-intake","private":true,"type":"module","license":"AGPL-3.0-or-later","scripts":{"test":"node --test test/*.test.js"}}

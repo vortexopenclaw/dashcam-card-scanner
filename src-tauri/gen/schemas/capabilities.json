@@ -1,0 +1,1 @@
+{"main":{"identifier":"main","description":"Local UI only; no filesystem, shell, HTTP or updater renderer permissions. All sensitive operations are Rust commands.","local":true,"windows":["main"],"permissions":["core:event:allow-listen","core:event:allow-unlisten"]}}

@@ -1,0 +1,8 @@
+private/
+canonical-source/
+.test-run-*/
+node_modules/
+.wrangler/
+.dev.vars
+.env*
+wrangler.toml

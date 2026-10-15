@@ -1,0 +1,91 @@
+name: Approved draft release
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: scanner-release
+  cancel-in-progress: false
+jobs:
+  draft:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    environment: scanner-release
+    permissions: { contents: write }
+    outputs:
+      release_id: ${{ steps.draft.outputs.id }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '24' }
+      - name: Fail closed unless protected-environment reviewers are configured
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/environments/scanner-release" --jq '.protection_rules | any(.type == "required_reviewers" and (.reviewers | length > 0))' | python3 -c 'import sys; assert sys.stdin.read().strip() == "true", "Required environment reviewers must be configured"'
+      - name: Verify source version and official public key provisioning
+        run: node scripts/release-preflight.mjs
+      - name: Create draft release only (never publish automatically)
+        id: draft
+        env: { GH_TOKEN: '${{ github.token }}' }
+        run: |
+          VERSION=$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')
+          gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -f name="Dashcam Card Scanner $VERSION" -F draft=true -F prerelease=false -f body="Review build artifacts before manually publishing. Updater signatures are not platform code signing. macOS not notarized; Windows not Authenticode-signed. Linux updater: AppImage only." --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
+  build:
+    needs: draft
+    environment: scanner-release
+    permissions: { contents: write }
+    strategy:
+      fail-fast: false
+      # Serialize latest.json read/merge/write by tauri-action; no competing manifest writers.
+      max-parallel: 1
+      matrix:
+        include:
+          - { os: macos-14, target: aarch64-apple-darwin, bundles: 'app,dmg' }
+          - { os: macos-15-intel, target: x86_64-apple-darwin, bundles: 'app,dmg' }
+          - { os: windows-2022, target: x86_64-pc-windows-msvc, bundles: 'nsis' }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: 'deb,appimage' }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '24', cache: npm }
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
+        with: { targets: '${{ matrix.target }}' }
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+      - run: npm ci
+      - run: node scripts/release-preflight.mjs
+      - run: npm audit --audit-level=high
+      - run: npm run build
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - run: npm test
+      - run: npm run test:intake
+      - name: Build updater-signed assets and merge draft latest.json
+        uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          releaseId: ${{ needs.draft.outputs.release_id }}
+          releaseDraft: true
+          prerelease: false
+          includeDebug: false
+          includeRelease: true
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true
+          uploadPlainBinary: false
+          args: --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+  inspect:
+    needs: [draft, build]
+    runs-on: ubuntu-22.04
+    permissions: { contents: read }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '24' }
+      - name: Read back draft manifest and require all signed updater platforms
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ needs.draft.outputs.release_id }}
+        run: node scripts/check-draft.mjs

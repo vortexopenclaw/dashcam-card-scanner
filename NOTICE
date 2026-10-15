@@ -1,0 +1,17 @@
+Dashcam Card Scanner by Vortex Radar
+Copyright 2026 Vortex Radar. App source: AGPL-3.0-only (see LICENSE).
+
+The test-only tests/reference/legacy-worker.js is an unmodified snapshot from
+vortexopenclaw/dashcam-offloader, workers/feedback/worker.js, supplied as the
+clean scanner-source reference checkout. It remains covered by that project’s
+AGPLv3 license. No source Worker is changed or deployed by this app.
+
+The test-only tests/reference/card-scan.schema.json is from
+vortexopenclaw/dashcam-camera-profiles at commit
+bf9f6bb72f1a2e57e12f5b48162e4ba9ece00c07, schemas/card-scan.schema.json.
+Attribution: Vortex Radar / dashcam-camera-profiles contributors.
+Data/schema license: Creative Commons Attribution 4.0 International,
+https://creativecommons.org/licenses/by/4.0/ . Snapshot unchanged.
+
+Third-party Rust/npm dependencies retain their respective licenses. Lockfiles
+record exact resolved versions. They are not relicensed by this notice.
