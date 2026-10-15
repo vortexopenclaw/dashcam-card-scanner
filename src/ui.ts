@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {brandOptions} from './brand-options';
+import {platformStyle} from './platform-style';
 import {loadSettings,saveSettings,followTheme,type Theme} from './settings';
 export type Bridge = {invoke:<T>(cmd:string,args?:Record<string,unknown>)=>Promise<T>;listen:<T>(event:string,handler:(e:{payload:T})=>void)=>Promise<()=>void>};
 type ReviewSample={index:number;folderIndex:number;folder:string;localName?:string;filenameTemplate:string;sizeBytes?:number;video?:{codec:string;width:number;height:number;nominalFrameRate:number|null;videoBitrate:number|null;fileSizeBytes?:number;durationSeconds?:number}|null};
@@ -8,6 +9,7 @@ type Camera={id:string;manufacturer:string;model:string;channelCount:number;chan
 type Report={cameraRecognition?:Partial<Camera>;reviewSamples?:ReviewSample[];scannedFiles:number;entriesSeen:number;skipped:number;sampledFiles:number;probeAttempts:number;probeFailures:number;limited:boolean;cancelled:boolean;folders:{path:string;fileCount:number;videos:unknown[]}[]};
 type Review={token:string;publicJson:string;submissionJson:string;privateJson:string;payloadHash:string;warning:string;submissionAvailable?:boolean};
 export function mount(root:HTMLElement,bridge:Bridge) {
+  document.documentElement.dataset.platform=platformStyle(navigator.platform||navigator.userAgent);
   const element=<K extends keyof HTMLElementTagNameMap>(tag:K,text='',parent:HTMLElement=root)=>{const n=document.createElement(tag);n.textContent=text;parent.append(n);return n;};
   const preferences=loadSettings();let stopTheme=followTheme(preferences.theme);
   const sidebar=element('aside');sidebar.className='sidebar';element('div','◉',sidebar).className='brand-icon';element('strong','Dashcam Card Scanner',sidebar);
