@@ -21,6 +21,11 @@ pub const MAX_SAMPLES: usize = 64;
 pub struct Sample {
     pub file_size_bytes: u64,
     pub video: Option<Video>,
+    // Local review association only. Never serialized to reports, exports or intake.
+    #[serde(skip)]
+    pub local_name: String,
+    #[serde(skip)]
+    pub filename_template: String,
 }
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -251,6 +256,7 @@ pub fn scan(
             }
         };
         let mut local_probes = 0;
+        let mut sampled_families: BTreeMap<String, usize> = BTreeMap::new();
         for entry in entries {
             if cancel.load(Ordering::Relaxed) {
                 r.cancelled = true;
@@ -359,18 +365,36 @@ pub fn scan(
                         .filename_templates
                         .insert(filename_template(&name.to_string_lossy()));
                 }
+                let template = filename_template(&name.to_string_lossy());
+                // Reserve room for distinct numeric filename families/suffixes rather than
+                // consuming every slot on the first channel. No channel/model inference.
+                let family_count = sampled_families.get(&template).copied().unwrap_or(0);
                 if matches!(
                     ext_lower.as_str(),
                     "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv"
                 ) && r.sampled_files < MAX_SAMPLES
-                    && local_probes < 4
+                    && local_probes < 16
+                    && family_count
+                        < if template
+                            .split('.')
+                            .next()
+                            .unwrap_or("")
+                            .ends_with(['F', 'R', 'I', 'T'])
+                        {
+                            2
+                        } else {
+                            4
+                        }
                 {
                     local_probes += 1;
+                    *sampled_families.entry(template.clone()).or_default() += 1;
                     r.sampled_files += 1;
                     if !matches!(ext_lower.as_str(), "mp4" | "mov" | "m4v") {
                         folder.samples.push(Sample {
                             file_size_bytes: meta.len(),
                             video: None,
+                            local_name: name.to_string_lossy().into_owned(),
+                            filename_template: template,
                         });
                         continue;
                     }
@@ -387,6 +411,8 @@ pub fn scan(
                     folder.samples.push(Sample {
                         file_size_bytes: result.as_ref().map_or(meta.len(), |v| v.file_size_bytes),
                         video: result.clone(),
+                        local_name: name.to_string_lossy().into_owned(),
+                        filename_template: template,
                     });
                     if let Some(v) = result {
                         folder.videos.push(v)
@@ -508,6 +534,33 @@ mod tests {
         assert_eq!(filename_template("000001T.MP4"), "SEQUENCET.MP4");
         assert_eq!(filename_template("Ariel-secret20261015.MP4"), "unknown");
         assert_eq!(filename_template("20261015_131010_F.private"), "unknown");
+    }
+    #[test]
+    fn mixed_numeric_suffixes_get_bounded_sampling_slots_without_role_inference() {
+        let t = tempfile::Builder::new()
+            .tempdir_in(std::env::temp_dir().canonicalize().unwrap())
+            .unwrap();
+        for suffix in ["F", "R", "I", "T", "PF", "PR", "PI", "PT"] {
+            for i in 0..8 {
+                std::fs::write(t.path().join(format!("{i:06}{suffix}.MP4")), b"not video").unwrap();
+            }
+        }
+        let r = scan(t.path(), &AtomicBool::new(false), |_| {}).unwrap();
+        assert_eq!(r.scanned_files, 64);
+        assert_eq!(r.sampled_files, 16);
+        let templates: BTreeSet<_> = r.folders[0]
+            .samples
+            .iter()
+            .map(|s| s.filename_template.clone())
+            .collect();
+        assert_eq!(templates.len(), 8);
+        assert!(r.folders[0]
+            .samples
+            .iter()
+            .all(|s| !s.local_name.is_empty()));
+        let serialized = serde_json::to_string(&r).unwrap();
+        assert!(!serialized.contains("localName"));
+        assert!(!serialized.contains("000000"));
     }
     #[test]
     fn sampling_budget_applies_to_unsupported_formats() {

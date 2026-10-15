@@ -4,7 +4,8 @@ use crate::{engine::Report, payload::Labels};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 // Provision only after separate deployment review. No environment-variable endpoint override.
-pub const ORIGIN: Option<&str> = None;
+pub const ORIGIN: Option<&str> =
+    Some("https://dashcam-card-scanner-intake.vortexradar.workers.dev");
 pub fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
@@ -24,6 +25,41 @@ fn media_type(ext: &str) -> &'static str {
 }
 fn positive(value: Option<f64>, max: f64) -> Option<f64> {
     value.filter(|v| v.is_finite() && *v > 0. && *v <= max)
+}
+// Shared deterministic bounded sample order for local review and private intake.
+pub fn selected_samples(r: &Report) -> Vec<(usize, &crate::engine::Sample)> {
+    let ordered: Vec<Vec<_>> = r
+        .folders
+        .iter()
+        .map(|f| {
+            let mut families: std::collections::BTreeMap<&str, Vec<_>> =
+                std::collections::BTreeMap::new();
+            for s in &f.samples {
+                families.entry(&s.filename_template).or_default().push(s);
+            }
+            let mut row = Vec::new();
+            for round in 0..16 {
+                for samples in families.values() {
+                    if let Some(s) = samples.get(round) {
+                        row.push(*s);
+                    }
+                }
+            }
+            row
+        })
+        .collect();
+    let mut out = Vec::new();
+    for round in 0..16 {
+        for (index, row) in ordered.iter().enumerate() {
+            if let Some(s) = row.get(round) {
+                if out.len() == 24 {
+                    return out;
+                }
+                out.push((index, *s));
+            }
+        }
+    }
+    out
 }
 pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     if !label(l.manufacturer.trim(), 64)
@@ -57,7 +93,7 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     let mut folders = Vec::new();
     let mut evidence = Vec::new();
     let mut total_media = 0u64;
-    for (index, f) in r.folders.iter().enumerate() {
+    for f in &r.folders {
         let mut counts: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
         for (ext, count) in &f.extensions {
             let known = matches!(
@@ -97,17 +133,14 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
             f.path.split('/').collect()
         };
         folders.push(json!({"components":components,"fileCount":f.file_count,"mediaCount":media,"extensions":counts.iter().map(|(e,n)|json!({"extension":e,"mediaType":media_type(e),"count":n})).collect::<Vec<_>>(),"filenameTemplates":f.filename_templates}));
-        for sample in &f.samples {
-            if evidence.len() >= 24 {
-                break;
-            }
-            let v = sample.video.as_ref();
-            let codec = v
-                .map(|v| v.codec.as_str())
-                .filter(|c| ["h264", "hevc", "av1", "mjpeg", "mpeg4"].contains(c))
-                .unwrap_or("unknown");
-            evidence.push(json!({"folderIndex":index,"channel":"unknown","mode":"unknown","width":v.map(|v|v.width).filter(|n|*n>0 && *n<=16384),"height":v.map(|v|v.height).filter(|n|*n>0 && *n<=16384),"fps":positive(v.and_then(|v|v.nominal_frame_rate),240.),"bitrateKbps":positive(v.and_then(|v|v.video_bitrate),1e9).map(|n|n/1000.),"containerBitrateKbps":Value::Null,"sizeBytes":(sample.file_size_bytes>0 && sample.file_size_bytes<=1_000_000_000_000).then_some(sample.file_size_bytes),"durationSeconds":positive(v.map(|v|v.duration_seconds),86400.),"codec":codec}));
-        }
+    }
+    for (index, sample) in selected_samples(r) {
+        let v = sample.video.as_ref();
+        let codec = v
+            .map(|v| v.codec.as_str())
+            .filter(|c| ["h264", "hevc", "av1", "mjpeg", "mpeg4"].contains(c))
+            .unwrap_or("unknown");
+        evidence.push(json!({"folderIndex":index,"channel":"unknown","mode":"unknown","width":v.map(|v|v.width).filter(|n|*n>0 && *n<=16384),"height":v.map(|v|v.height).filter(|n|*n>0 && *n<=16384),"fps":positive(v.and_then(|v|v.nominal_frame_rate),240.),"bitrateKbps":positive(v.and_then(|v|v.video_bitrate),1e9).map(|n|n/1000.),"containerBitrateKbps":Value::Null,"sizeBytes":(sample.file_size_bytes>0 && sample.file_size_bytes<=1_000_000_000_000).then_some(sample.file_size_bytes),"durationSeconds":positive(v.map(|v|v.duration_seconds),86400.),"codec":codec}));
     }
     if total_media == 0 {
         return Err(
@@ -145,6 +178,37 @@ pub fn origin() -> Result<&'static str, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn outgoing_sampling_round_robins_folders_and_filename_families() {
+        let r = Report {
+            folders: (0..8)
+                .map(|i| crate::engine::Folder {
+                    path: format!("folder-{i}"),
+                    samples: [
+                        "SEQUENCEF.MP4",
+                        "SEQUENCEF.MP4",
+                        "SEQUENCER.MP4",
+                        "SEQUENCER.MP4",
+                    ]
+                    .iter()
+                    .map(|t| crate::engine::Sample {
+                        filename_template: t.to_string(),
+                        ..Default::default()
+                    })
+                    .collect(),
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let chosen = selected_samples(&r);
+        assert_eq!(chosen.len(), 24);
+        for i in 0..8 {
+            assert_eq!(chosen.iter().filter(|(f, _)| *f == i).count(), 3);
+        }
+        assert_eq!(chosen[0].1.filename_template, "SEQUENCEF.MP4");
+        assert_eq!(chosen[8].1.filename_template, "SEQUENCER.MP4");
+    }
     #[test]
     fn sha256_known_vector() {
         assert_eq!(

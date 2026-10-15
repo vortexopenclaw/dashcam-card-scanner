@@ -6,10 +6,12 @@ Open-source, standalone **Tauri 2** desktop utility for read-only dashcam card r
 
 1. Choose the card root or a local folder. Paths remain local.
 2. Scan read-only. Progress, cancellation, skipped entries, unavailable probes and partial scans are shown.
-3. Enter owner-reported manufacturer/model, firmware, channel setup, quality and parking settings. Labels are not scanner-verified. Describe mixed cards as mixed; do not enter personal data or identifiers.
-4. Prepare the exact data review. Review every format separately.
-5. Export a **new** JSON file outside the source; existing files are never overwritten. This sends nothing.
-6. Optional submission requires explicit consent, a browser Turnstile challenge and a short-lived one-use ticket bound to the exact reviewed payload. **Intake is deliberately unconfigured in this review build** and fails closed. The legacy feedback endpoint is never contacted directly.
+3. Enter the manufacturer/model. Review the sampled files and assign separate configuration groups when a card contains different channel counts, firmware, quality or parking settings. Unknown settings stay unknown; one group's assertions never apply to the whole card.
+4. Review the human-readable report and, if desired, expand the exact outgoing technical details before approving submission.
+5. Optional submission requires explicit consent, a browser Turnstile challenge and a short-lived one-use ticket bound to the exact reviewed payload. The dedicated intake origin is provisioned, but production intake remains disabled pending a successful browser-approved upload and private readback. The legacy feedback endpoint is never contacted directly.
+6. **More options → Save report to file…** keeps a local copy or supports manual sharing when online submission is unavailable. The app creates a new file outside the source and never overwrites existing files. Saving sends nothing.
+
+Appearance lives only in **Settings**: Match System (default), Dark, or Light. Settings can also remember an optional DashCamTalk username. Including that username requires a separate opt-in on a private submission; local exports and public proposals exclude it. No automatic forum messaging or publication occurs.
 
 ### Data formats
 
@@ -41,7 +43,7 @@ npm run test:intake
 npm run tauri -- dev
 ```
 
-Tests use generated metadata-only fixtures (not actual camera recordings). A developer-only Cargo example (`scan_fixture`) exercises the real Rust engine and exports. Contract tests use Ajv against the exact published schema snapshot; DOM tests verify literal rendering, review invalidation, consent and no automatic submit. No test contacts production. `intake/` contains the separate undeployed abuse-controlled intake/review service and its tests, with no private snapshots. Optional `node scripts/verify-native.mjs` generates actual H.264/HEVC test clips and compares the native scanner to a host ffprobe; these development tools are not app dependencies.
+Tests use generated metadata-only fixtures (not actual camera recordings). A developer-only Cargo example (`scan_fixture`) exercises the real Rust engine and exports. Contract tests use Ajv against the exact published schema snapshot; DOM tests verify literal rendering, review invalidation, consent and no automatic submit. Automated test suites do not contact production. `intake/` contains the separate abuse-controlled intake/review service and its tests, with no private snapshots; the dedicated Worker is deployed disabled pending acceptance. Optional `node scripts/verify-native.mjs` generates actual H.264/HEVC test clips and compares the native scanner to a host ffprobe; these development tools are not app dependencies.
 
 Local unsigned review bundle, without updater artifacts:
 

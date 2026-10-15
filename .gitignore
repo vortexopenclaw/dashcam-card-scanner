@@ -14,3 +14,5 @@ src-tauri/target/
 *.secret
 verification/
 IMPLEMENTATION-HANDOFF.md
+# Owner-only review utility is maintained separately; never publish it accidentally.
+review-app/

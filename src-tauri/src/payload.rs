@@ -67,6 +67,7 @@ pub struct Review {
     pub private_json: String,
     pub payload_hash: String,
     pub warning: String,
+    pub submission_available: bool,
 }
 pub fn prepare(r: &Report, l: &Labels) -> Result<Review, String> {
     l.validate()?;
@@ -104,7 +105,7 @@ pub fn prepare(r: &Report, l: &Labels) -> Result<Review, String> {
         Ok(v) => (v, String::new()),
         Err(e) => (String::new(), format!(" Intake unavailable: {e}")),
     };
-    Ok(Review{token:uuid::Uuid::new_v4().to_string(),public_json:serde_json::to_string_pretty(&public).map_err(|_|"JSON encoding failed")?,submission_json:outgoing,private_json:serde_json::to_string_pretty(&submission).map_err(|_|"JSON encoding failed")?,payload_hash:String::new(),warning:format!("Review all owner-entered labels: do not include contacts, serials, GPS, paths or identifiers. Public export is aggregate schema 1.0; private submission contains anonymous paired measurements. The existing Worker retains shapes in the message, not its filenamePatternSummaries. Partial scans are labeled. Sampling is bounded and not representative of every setting/channel. Gateway evidence preserves individual pairs; container bitrate and unmeasured metadata are null. Channel/mode remain unknown; owner settings are separate.{}",reason)})
+    Ok(Review{submission_available:crate::intake::ORIGIN.is_some(),token:uuid::Uuid::new_v4().to_string(),public_json:serde_json::to_string_pretty(&public).map_err(|_|"JSON encoding failed")?,submission_json:outgoing,private_json:serde_json::to_string_pretty(&submission).map_err(|_|"JSON encoding failed")?,payload_hash:String::new(),warning:format!("Review all owner-entered labels: do not include contacts, serials, GPS, paths or identifiers. Public export is aggregate schema 1.0; private submission contains anonymous paired measurements. The existing Worker retains shapes in the message, not its filenamePatternSummaries. Partial scans are labeled. Sampling is bounded and not representative of every setting/channel. Gateway evidence preserves individual pairs; container bitrate and unmeasured metadata are null. Channel/mode remain unknown; owner settings are separate.{}",reason)})
 }
 #[cfg(test)]
 mod tests {

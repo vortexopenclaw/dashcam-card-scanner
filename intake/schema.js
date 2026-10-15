@@ -42,19 +42,40 @@ function structure(s){
   for(const k of ['fileCount','mediaCount'])if(s.folders.reduce((n,f)=>n+f[k],0)!==s[k])throw Error('invalid_totals');
   array(s.observedLayouts,0,64);unique(s.observedLayouts.map(e=>[e.folderIndex,e.channel,e.mode]));for(const e of s.observedLayouts){exact(e,['folderIndex','channel','mode']);folderIndex(e.folderIndex,s);role(e);}
 }
+function settings(o,identity=false) {
+  exact(o,identity?['manufacturer','model','channelCount']:['channelCount'],['firmware','quality','parkingMode','timeLapseFps']);
+  if(identity){label(o.manufacturer,64);label(o.model,64);}number(o.channelCount,8,true);
+  if(o.firmware!==undefined)label(o.firmware,32);
+  if(o.quality!==undefined)choice(o.quality,['low','normal','medium','high','maximum','unknown']);
+  if(o.parkingMode!==undefined)choice(o.parkingMode,['off','buffered','time-lapse','low-bitrate','motion','impact','low-power-impact','unknown']);
+  if(o.timeLapseFps!==undefined)number(o.timeLapseFps,240);
+}
 export function validate(p) {
-  exact(p,['schemaVersion','owner','evidence'],['structure']);if(p.schemaVersion!==1)throw Error('invalid_version');
-  exact(p.owner,['manufacturer','model','channelCount'],['firmware','quality','parkingMode','timeLapseFps']);label(p.owner.manufacturer,64);label(p.owner.model,64);number(p.owner.channelCount,8,true);
-  if(p.owner.firmware!==undefined)label(p.owner.firmware,32);
-  if(p.owner.quality!==undefined)choice(p.owner.quality,['low','normal','medium','high','maximum','unknown']);
-  if(p.owner.parkingMode!==undefined)choice(p.owner.parkingMode,['off','buffered','time-lapse','low-bitrate','motion','impact','low-power-impact','unknown']);
-  if(p.owner.timeLapseFps!==undefined)number(p.owner.timeLapseFps,240);
+  exact(p,['schemaVersion','owner','evidence'],['structure','contributor','cohorts']);if(p.schemaVersion!==1)throw Error('invalid_version');
+  settings(p.owner,true);
+  if(p.contributor!==undefined){
+    exact(p.contributor,['dashcamTalkUsername']);
+    if(typeof p.contributor.dashcamTalkUsername!=='string'||! /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]{0,38}[A-Za-z0-9])?$/.test(p.contributor.dashcamTalkUsername))throw Error('invalid_contributor');
+  }
   if(p.structure!==undefined)structure(p.structure);
   array(p.evidence,0,24);if(!p.evidence.length&&!p.structure)throw Error('missing_evidence');
   for(const e of p.evidence){
     exact(e,['channel','mode','width','height','fps','bitrateKbps','containerBitrateKbps','sizeBytes','durationSeconds','codec'],['folderIndex']);role(e);choice(e.codec,['h264','hevc','av1','mjpeg','mpeg4','unknown']);
     for(const [k,max,int] of [['width',16384,true],['height',16384,true],['fps',240,false],['bitrateKbps',1000000,false],['containerBitrateKbps',1000000,false],['sizeBytes',1000000000000,true],['durationSeconds',86400,false]])if(e[k]!==null)number(e[k],max,int);
     if(e.folderIndex!==undefined)folderIndex(e.folderIndex,p.structure);
+  }
+  if(p.cohorts!==undefined){
+    array(p.cohorts,1,16);unique(p.cohorts.map(c=>c.id));const used=new Set(),folders=new Set();
+    for(const c of p.cohorts){
+      exact(c,['id','evidenceIndices','owner'],['folderIndices']);
+      if(typeof c.id!=='string'||! /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$/.test(c.id))throw Error('invalid_cohort_id');
+      settings(c.owner);array(c.evidenceIndices,0,24);unique(c.evidenceIndices);
+      for(const i of c.evidenceIndices){if(!Number.isInteger(i)||i<0||i>=p.evidence.length||used.has(i))throw Error('invalid_evidence_partition');used.add(i);}
+      if(c.folderIndices!==undefined){array(c.folderIndices,0,32);unique(c.folderIndices);for(const i of c.folderIndices){folderIndex(i,p.structure);folders.add(i);}}
+      if(!c.evidenceIndices.length&&!c.folderIndices?.length)throw Error('empty_cohort');
+    }
+    if(used.size!==p.evidence.length)throw Error('invalid_evidence_partition');
+    if(!p.evidence.length&&folders.size!==p.structure.folders.length)throw Error('incomplete_folder_coverage');
   }
   return p;
 }

@@ -29,12 +29,42 @@ export async function checkRecord(r){
  if(!HASH.test(r.id)||typeof r.rawJSON!=='string'||Buffer.byteLength(r.rawJSON)>MAX_BODY||await sha256(r.rawJSON)!==r.id)throw Error('Record integrity failed');
  const report=validate(parse(new TextEncoder().encode(r.rawJSON)));if(stable(report)!==stable(r.report))throw Error('Record envelope mismatch');return report;
 }
+// Internal configuration views retain original measurements; they are not upload envelopes.
+function configurations(p){
+ if(!p.cohorts)return [{id:'legacy',evidenceIndices:p.evidence.map((_,i)=>i),folderIndices:(p.structure?.folders||[]).map((_,i)=>i),report:p}];
+ return p.cohorts.map(c=>{
+  const indices=[...new Set([...(c.folderIndices||[]),...c.evidenceIndices.flatMap(i=>p.evidence[i].folderIndex===undefined?[]:[p.evidence[i].folderIndex])])].sort((a,b)=>a-b);
+  const remap=i=>indices.indexOf(i),evidence=c.evidenceIndices.map(i=>{const e=p.evidence[i];return {...e,...(e.folderIndex===undefined?{}:{folderIndex:remap(e.folderIndex)})};});
+  const folders=indices.map(i=>p.structure.folders[i]);
+  // Global folder observations cannot be attributed to sampled configurations
+  // sharing that folder. Only explicit sample roles apply there.
+  const structure=p.structure?{...p.structure,folders,fileCount:folders.reduce((n,f)=>n+f.fileCount,0),mediaCount:folders.reduce((n,f)=>n+f.mediaCount,0),observedLayouts:c.evidenceIndices.length?[]:p.structure.observedLayouts.filter(e=>indices.includes(e.folderIndex)&&!p.cohorts.some(other=>other!==c&&(other.folderIndices||[]).includes(e.folderIndex))).map(e=>({...e,folderIndex:remap(e.folderIndex)}))}:undefined;
+  return {id:c.id,evidenceIndices:c.evidenceIndices,folderIndices:indices,report:{schemaVersion:1,owner:{manufacturer:p.owner.manufacturer,model:p.owner.model,...c.owner},evidence,...(structure?{structure}:{})}};
+ });
+}
 export async function review(record,profiles,previous=[]){
- const p=await checkRecord(record), hash=await evidenceHash(p);
+ const p=await checkRecord(record),same=[],wholeDuplicates=[],wholeHash=await evidenceHash(p);
+ for(const old of previous){
+  if(old.id===record.id)continue;const q=await checkRecord(old);
+  if(norm(q.owner.manufacturer)===norm(p.owner.manufacturer)&&norm(q.owner.model)===norm(p.owner.model)){
+   if(p.evidence.length&&q.evidence.length&&await evidenceHash(q)===wholeHash)wholeDuplicates.push({id:old.id,scope:'whole_report_numeric; configuration partition ignored'});
+   for(const c of configurations(q))same.push({id:old.id,cohortId:c.id,p:c.report,hash:await evidenceHash(c.report)});
+  }
+ }
+ const groups=[];
+ for(const c of configurations(p)){
+  const r=await reviewConfiguration(c.report,record,profiles,same);
+  const {sanitizedRawReport,receivedAt,...safe}=r;
+  groups.push({...safe,id:c.id,evidenceIndices:c.evidenceIndices,folderIndices:c.folderIndices,observationBasis:'scanner-reported sample roles and measurements; owner settings asserted, not verified',inventoryScope:p.cohorts?'folder references only; shared folder totals must not be added':'whole report'});
+ }
+ if(!p.cohorts){const single=await reviewConfiguration(p,record,profiles,same);return {...single,flags:[...new Set([...single.flags,...(wholeDuplicates.length?['duplicate_numeric_evidence']:[])])],wholeReportDuplicateEvidence:wholeDuplicates,contributor:p.contributor??null,cohortReviews:groups};}
+ return {id:record.id,receivedAt:record.receivedAt,contributor:p.contributor??null,ownerAssertions:{manufacturer:p.owner.manufacturer,model:p.owner.model},scannerReportedMeasurements:p.evidence,scannerReportedStructure:p.structure??null,numericEvidenceHash:await evidenceHash(p),structureEvidenceHash:await structureHash(p),cohortReviews:groups,duplicateEvidence:wholeDuplicates,flags:[...new Set([...groups.flatMap(g=>g.flags),...(wholeDuplicates.length?['duplicate_numeric_evidence']:[])])],coverage:{sampleCount:p.evidence.length,mediaCount:p.structure?.mediaCount??null,scanCompleted:p.structure?.completed??null,status:'mixed_configuration_review_per_cohort'},canonicalNumericComparison:'manual_required_per_cohort; no cross-configuration numeric or settings agreement inferred',sanitizedRawReport:p,warning:'Unverified private submission. Review each configuration separately. No automatic acceptance, merge, or public claim.'};
+}
+async function reviewConfiguration(p,record,profiles,same){
+ const hash=await evidenceHash(p);
  const matches=profiles.filter(x=>norm(x.manufacturer)===norm(p.owner.manufacturer)&&norm(x.model)===norm(p.owner.model));
  const flags=[];if(!matches.length)flags.push('new_model_candidate');if(matches.length>1)flags.push('ambiguous_model_match');
- const same=[];for(const old of previous){if(old.id===record.id)continue;const q=await checkRecord(old);if(norm(q.owner.manufacturer)===norm(p.owner.manufacturer)&&norm(q.owner.model)===norm(p.owner.model))same.push({id:old.id,p:q,hash:await evidenceHash(q)});}
- const duplicates=same.filter(x=>p.evidence.length&&x.p.evidence.length&&x.hash===hash).map(x=>({id:x.id,sameCohort:cohort(x.p)===cohort(p)}));
+ const duplicates=same.filter(x=>p.evidence.length&&x.p.evidence.length&&x.hash===hash).map(x=>({id:x.id,cohortId:x.cohortId,sameCohort:cohort(x.p)===cohort(p)}));
  if(p.evidence.length){if(duplicates.some(x=>x.id))flags.push('duplicate_numeric_evidence');else flags.push('new_evidence_candidate');}else flags.push('insufficient_measurements');
  const dimensions={firmware:'new_firmware_candidate',channelCount:'new_channel_count_candidate',quality:'new_settings_candidate',parkingMode:'new_parking_mode_candidate',timeLapseFps:'new_cadence_candidate'};
  for(const [k,flag] of Object.entries(dimensions))if(same.length&&p.owner[k]!==undefined&&!same.some(x=>x.p.owner[k]===p.owner[k]))flags.push(flag);
@@ -88,6 +118,49 @@ export async function pull(destination,maxPages=5,startCursor=''){
  return {downloaded:count,quarantined,hasMore:!!cursor,nextCursor:cursor||null,warning:'Bounded pull; resume with nextCursor. Invalid records excluded; inspect quarantine markers. No remote mutations.'};
 }
 async function records(dir){const out=[];for(const name of (await fs.readdir(dir)).sort()){if(/^[a-f0-9]{64}\.json$/.test(name))out.push(JSON.parse(await fs.readFile(path.join(dir,name),'utf8')));}return out;}
+async function history(local){try{return (await fs.readFile(path.join(local,'decisions.jsonl'),'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);}catch(e){if(e.code!=='ENOENT')throw e;return [];}}
+export async function listReports(local){
+ const decisions=await history(local);let all;try{all=await records(path.join(local,'pending'));}catch(e){if(e.code!=='ENOENT')throw e;all=[];}
+ const out=[];for(const r of all){const p=await checkRecord(r);out.push({id:r.id,receivedAt:r.receivedAt,owner:p.owner,contributor:p.contributor??null,cohortCount:p.cohorts?.length??1,decision:decisions.filter(d=>d.id===r.id&&!d.cohortId).at(-1)??null});}return out;
+}
+async function context(local,id){
+ if(!HASH.test(id||''))throw Error('Invalid report ID');
+ const all=await records(path.join(local,'pending')),record=all.find(x=>x.id===id);if(!record)throw Error('Unknown local record');
+ const snapshot=JSON.parse(await fs.readFile(path.join(local,'snapshot.json'),'utf8'));
+ if(!Array.isArray(snapshot.profiles)||typeof snapshot.commit!=='string'||!snapshot.commit)throw Error('Invalid snapshot');
+ return {record,snapshot,result:await review(record,snapshot.profiles,all),decisions:await history(local)};
+}
+export async function reviewReport(local,id){const c=await context(local,id);return {...c.result,snapshotCommit:c.snapshot.commit,decisionHistory:c.decisions.filter(x=>x.id===id)};}
+function decisionDetails(details){
+ if(details===undefined)return {};
+ if(!details||typeof details!=='object'||Array.isArray(details)||![Object.prototype,null].includes(Object.getPrototypeOf(details)))throw Error('Invalid decision details');
+ const out={};
+ for(const key of Object.keys(details)){
+  const value=details[key];
+  if(!['note','question','reason','reference','cohortId'].includes(key)||typeof value!=='string'||!value.trim()||value.length>2000||/[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u.test(value))throw Error('Invalid decision details');
+  out[key]=value;
+ }
+ return out;
+}
+export async function decideReport(local,id,decision,details){
+ if(!['accept','reject','needs-info','duplicate'].includes(decision))throw Error('Invalid decision');
+ const annotations=decisionDetails(details);
+ if(details!==undefined&&decision==='needs-info'&&!annotations.question)throw Error('Specific private question required');
+ if(details!==undefined&&decision==='duplicate'&&(!annotations.reason||!annotations.reference))throw Error('Coverage reason and existing evidence/configuration reference required');
+ const {snapshot,result}=await context(local,id);
+ if(annotations.cohortId&&!result.cohortReviews.some(c=>c.id===annotations.cohortId))throw Error('Unknown cohort ID');
+ const entry={id,decision,at:new Date().toISOString(),snapshotCommit:snapshot.commit,evidenceHash:result.numericEvidenceHash,...annotations};
+ await fs.appendFile(path.join(local,'decisions.jsonl'),JSON.stringify(entry)+'\n',{mode:0o600});
+ return {...entry,message:'Local decision appended; pending record unchanged.'};
+}
+// Public export is an allowlist, never a shallow copy of private review state.
+export async function createProposal(local,id){
+ const {record,snapshot,result,decisions}=await context(local,id),latest=decisions.filter(x=>x.id===id&&!x.cohortId).at(-1);
+ if(latest?.decision!=='accept')throw Error('Local accept decision required');
+ if(latest.snapshotCommit!==snapshot.commit)throw Error('Current snapshot accept decision required; re-review and accept again');
+ const keys=['ownerAssertions','scannerReportedMeasurements','scannerReportedStructure','structureEvidenceHash','coverage','canonicalFolderComparison','canonicalChannelComparison','numericEvidenceHash','cohortReviews'];
+ return {type:'anonymous-review-proposal',notPublished:true,sourceReportHash:record.id,snapshotCommit:snapshot.commit,...Object.fromEntries(keys.filter(k=>result[k]!==undefined).map(k=>[k,result[k]])),caveat:'Unverified anonymous owner assertions and scanner measurements; manual review and explicit public publication approval required.'};
+}
 async function main(){
  const [cmd,...args]=process.argv.slice(2);const local=path.resolve(process.env.REVIEW_DATA_DIR||path.join(ROOT,'private'));await fs.mkdir(local,{recursive:true,mode:0o700});
  if(cmd==='snapshot'){
@@ -100,16 +173,9 @@ async function main(){
   await fs.writeFile(path.join(local,'snapshot.json'),JSON.stringify(snapshot,null,2),{mode:0o600});console.log(JSON.stringify({commit,profiles:snapshot.profiles.length}));return;
  }
  if(cmd==='pull'){console.log(JSON.stringify(await pull(path.join(local,'pending'),+(args[0]||5),args[1]||'')));return;}
- if(!['review','decide','proposal'].includes(cmd)||!HASH.test(args[0]||''))throw Error('Usage: node review.js snapshot | pull [pages] | review ID | decide ID accept|reject|needs-info|duplicate | proposal ID');
- const all=await records(path.join(local,'pending')),record=all.find(x=>x.id===args[0]);if(!record)throw Error('Unknown local record');
- const snapshot=JSON.parse(await fs.readFile(path.join(local,'snapshot.json'),'utf8'));const result=await review(record,snapshot.profiles,all);
- const decisionFile=path.join(local,'decisions.jsonl');let history=[];try{history=(await fs.readFile(decisionFile,'utf8')).trim().split('\n').filter(Boolean).map(JSON.parse);}catch(e){if(e.code!=='ENOENT')throw e;}
- if(cmd==='decide'){if(!['accept','reject','needs-info','duplicate'].includes(args[1]))throw Error('Invalid decision');await fs.appendFile(decisionFile,JSON.stringify({id:record.id,decision:args[1],at:new Date().toISOString(),snapshotCommit:snapshot.commit,evidenceHash:result.numericEvidenceHash})+'\n',{mode:0o600});console.log('Local decision appended; pending record unchanged.');}
- else if(cmd==='proposal'){
-  const latest=history.filter(x=>x.id===record.id).at(-1);
-  if(latest?.decision!=='accept')throw Error('Local accept decision required');
-  if(typeof snapshot.commit!=='string'||!snapshot.commit||latest.snapshotCommit!==snapshot.commit)throw Error('Current snapshot accept decision required; re-review and accept again');
-  console.log(JSON.stringify({type:'anonymous-review-proposal',notPublished:true,sourceReportHash:record.id,snapshotCommit:snapshot.commit,ownerAssertions:result.ownerAssertions,scannerReportedMeasurements:result.scannerReportedMeasurements,scannerReportedStructure:result.scannerReportedStructure,structureEvidenceHash:result.structureEvidenceHash,coverage:result.coverage,canonicalFolderComparison:result.canonicalFolderComparison,canonicalChannelComparison:result.canonicalChannelComparison,numericEvidenceHash:result.numericEvidenceHash,caveat:'Unverified anonymous owner assertions and scanner measurements; manual review and explicit public publication approval required.'},null,2));
- }else console.log(JSON.stringify({...result,snapshotCommit:snapshot.commit,decisionHistory:history.filter(x=>x.id===record.id)},null,2));
+ if(cmd==='list'){console.log(JSON.stringify(await listReports(local)));return;}
+ if(!['review','decide','proposal'].includes(cmd)||!HASH.test(args[0]||''))throw Error('Usage: node review.js snapshot | pull [pages] | list | review ID | decide ID accept|reject|needs-info|duplicate | proposal ID');
+ const result=cmd==='review'?await reviewReport(local,args[0]):cmd==='decide'?await decideReport(local,args[0],args[1],args[2]===undefined?undefined:JSON.parse(args[2])):await createProposal(local,args[0]);
+ console.log(JSON.stringify(result,null,2));
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(()=>{console.error('Review failed. Check command, credentials, network, record integrity, and local snapshot. No secret or remote response details logged.');process.exitCode=1;});

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+pub mod annotations;
 pub mod engine;
 pub mod intake;
 pub mod payload;
@@ -73,7 +74,7 @@ async fn choose_source(
 async fn scan_source(
     app: tauri::AppHandle,
     s: State<'_, AppState>,
-) -> Result<engine::Report, String> {
+) -> Result<serde_json::Value, String> {
     let _busy = begin(&s)?;
     let source = {
         let mut d = lock(&s)?;
@@ -91,18 +92,29 @@ async fn scan_source(
     .await
     .map_err(|_| "Scan task failed")??;
     lock(&s)?.report = Some(result.clone());
-    Ok(result)
+    // Local IPC-only review associations; report serializers never contain basenames.
+    let samples:Vec<_>=intake::selected_samples(&result).iter().enumerate().map(|(index,(folder,sample))|serde_json::json!({"index":index,"folderIndex":folder,"folder":result.folders[*folder].path,"localName":sample.local_name,"filenameTemplate":sample.filename_template,"sizeBytes":sample.file_size_bytes,"video":sample.video})).collect();
+    let mut value = serde_json::to_value(&result).map_err(|_| "Scan encoding failed")?;
+    value["reviewSamples"] = serde_json::json!(samples);
+    Ok(value)
 }
 #[tauri::command]
 fn cancel_scan(s: State<'_, AppState>) {
     s.cancel.store(true, Ordering::SeqCst);
 }
 #[tauri::command]
-fn prepare_review(labels: Labels, s: State<'_, AppState>) -> Result<Review, String> {
+fn prepare_review(
+    labels: Labels,
+    annotations: Option<annotations::Annotations>,
+    s: State<'_, AppState>,
+) -> Result<Review, String> {
     let _busy = begin(&s)?;
     let mut d = lock(&s)?;
     d.review = None;
-    let mut review = payload::prepare(d.report.as_ref().ok_or("Scan first.")?, &labels)?;
+    let report = d.report.as_ref().ok_or("Scan first.")?;
+    let mut annotations = annotations.unwrap_or_default();
+    annotations.assignments_required = !intake::selected_samples(report).is_empty();
+    let mut review = annotations::prepare(report, &labels, &annotations)?;
     review.payload_hash = intake::hash(review.submission_json.as_bytes());
     d.review = Some(review.clone());
     Ok(review)
