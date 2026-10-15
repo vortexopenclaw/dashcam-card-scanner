@@ -29,7 +29,7 @@ jobs:
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
           VERSION=$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')
-          gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -f name="Dashcam Card Scanner $VERSION" -F draft=true -F prerelease=false -f body="Review build artifacts before manually publishing. Updater signatures are not platform code signing. macOS not notarized; Windows not Authenticode-signed. Linux updater: AppImage only." --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
+          gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -f name="Dashcam Card Scanner $VERSION" -F draft=true -F prerelease=false -f body="Do not publish unless every build and packaging verification job passes. Bundle integrity is necessary but NOT Gatekeeper distribution approval. macOS ad-hoc signed only, no Developer ID or notarization; Windows not Authenticode-signed. Updater signatures are not platform code signing. Linux updater: AppImage only." --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
   build:
     needs: draft
     environment: scanner-release
@@ -65,6 +65,8 @@ jobs:
       - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
       - run: npm test
       - run: npm run test:intake
+      - name: Packaging verifier regression tests
+        run: python3 -m unittest discover -s scripts -p 'test_macos_packaging.py' -v
       - name: Build updater-signed assets and merge draft latest.json
         uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4
         env:
@@ -81,6 +83,11 @@ jobs:
           updaterJsonPreferNsis: true
           uploadPlainBinary: false
           args: --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Verify actual macOS DMG and updater bundle integrity
+        if: runner.os == 'macOS'
+        run: python3 scripts/verify-macos-packaging.py --bundle-dir 'src-tauri/target/${{ matrix.target }}/release/bundle'
+        # tauri-action uploads before this check: keep the release DRAFT on failure.
+        # A passing workflow is required before any manual publication.
   inspect:
     needs: [draft, build]
     runs-on: ubuntu-22.04
