@@ -8,13 +8,14 @@ use cap_std::{
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, BTreeSet},
+    io::{Read, Seek, SeekFrom},
     path::{Component, Path},
     sync::atomic::{AtomicBool, Ordering},
     time::{Duration, Instant},
 };
-pub const MAX_ENTRIES: usize = 100_000;
-pub const MAX_DIRS: usize = 160;
-pub const MAX_DEPTH: usize = 8;
+pub const MAX_ENTRIES: usize = 10_000_000;
+pub const MAX_DIRS: usize = 16_384;
+pub const MAX_DEPTH: usize = 32;
 pub const MAX_SAMPLES: usize = 64;
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -39,6 +40,29 @@ pub struct Folder {
     pub filename_templates: BTreeSet<String>,
     pub samples: Vec<Sample>,
     pub videos: Vec<Video>,
+    /// Streaming, anonymous configuration evidence, independent of private intake samples.
+    #[serde(default)]
+    pub metadata_cohorts: Vec<MetadataCohort>,
+}
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MetadataCohort {
+    pub filename_template: String,
+    pub extension: String,
+    pub file_count: u64,
+    /// First, lowest, and highest measured bitrate/duration pairs, never averaged.
+    pub paired_measurements: Vec<Video>,
+}
+#[derive(Clone, Default, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct MetadataCoverage {
+    pub recognized_files: usize,
+    pub inspected_files: usize,
+    pub measured_files: usize,
+    pub unsupported_files: usize,
+    pub cohort_count: usize,
+    pub complete: bool,
+    pub representative_samples_limited: bool,
 }
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -55,6 +79,13 @@ pub struct Report {
     pub limited: bool,
     pub cancelled: bool,
     pub folders: Vec<Folder>,
+    #[serde(default)]
+    pub inventory_complete: bool,
+    /// Fixed reason codes and counts only: never source names or error strings.
+    #[serde(default)]
+    pub issues: BTreeMap<String, u64>,
+    #[serde(default)]
+    pub metadata_coverage: MetadataCoverage,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -158,6 +189,38 @@ fn entry_reparse(m: &cap_std::fs::Metadata) -> bool {
         false
     }
 }
+// Preserve probe's public interface while distinguishing source I/O failures from
+// unsupported/malformed headers. Neither raw errors nor source names leave the engine.
+struct ProbeReader<R> {
+    inner: R,
+    failed: bool,
+}
+impl<R: Read> Read for ProbeReader<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let result = self.inner.read(buf);
+        self.failed |= result.is_err() || matches!(result, Ok(0)) && !buf.is_empty();
+        result
+    }
+}
+impl<R: Seek> Seek for ProbeReader<R> {
+    fn seek(&mut self, from: SeekFrom) -> std::io::Result<u64> {
+        let result = self.inner.seek(from);
+        self.failed |= result.is_err();
+        result
+    }
+}
+fn offline_placeholder(m: &cap_std::fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use cap_std::fs::MetadataExt;
+        m.file_attributes() & (0x1000 | 0x40000 | 0x400000) != 0
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = m;
+        false
+    }
+}
 fn camera_component(s: &str) -> Option<String> {
     const SAFE:&str="dcim movie movies ro parking photo photos video videos normal event events emergency record recording front rear interior telephoto left right lock locked snapshot snapshots continuous driving blackvue innovv garmin thinkware viofo";
     SAFE.split(' ')
@@ -228,23 +291,148 @@ pub fn filename_template(name: &str) -> String {
         })
         .unwrap_or_else(|| "unknown".into())
 }
+// Private intake remains bounded independently of whole-card inventory/header coverage.
+const MAX_COHORTS: usize = 8192;
+#[derive(Clone, Copy)]
+struct Limits {
+    entries: usize,
+    directories: usize,
+    depth: usize,
+    cohorts: usize,
+}
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            entries: MAX_ENTRIES,
+            directories: MAX_DIRS,
+            depth: MAX_DEPTH,
+            cohorts: MAX_COHORTS,
+        }
+    }
+}
+fn issue(r: &mut Report, code: &str, inventory: bool) {
+    *r.issues.entry(code.into()).or_default() += 1;
+    r.limited |= inventory;
+}
+fn ignored_os_directory(name: &str) -> bool {
+    matches!(
+        name,
+        ".Spotlight-V100"
+            | ".Trashes"
+            | ".fseventsd"
+            | ".TemporaryItems"
+            | "System Volume Information"
+            | "$RECYCLE.BIN"
+    )
+}
+fn same_configuration(a: &Video, b: &Video) -> bool {
+    a.codec == b.codec
+        && a.width == b.width
+        && a.height == b.height
+        && a.nominal_frame_rate == b.nominal_frame_rate
+}
+// Retain actual paired measurements at each extremum; never synthesize an average clip.
+fn add_pair(pairs: &mut Vec<Video>, v: &Video) {
+    let mut candidates = pairs.clone();
+    candidates.push(v.clone());
+    let mut keep = vec![candidates[0].clone()];
+    for metric in [0, 1] {
+        let value = |v: &Video| {
+            if metric == 0 {
+                v.video_bitrate
+            } else {
+                Some(v.duration_seconds)
+            }
+        };
+        for largest in [false, true] {
+            let best = candidates
+                .iter()
+                .filter(|v| value(v).is_some())
+                .min_by(|a, b| {
+                    let order = value(a).unwrap().total_cmp(&value(b).unwrap());
+                    if largest {
+                        order.reverse()
+                    } else {
+                        order
+                    }
+                });
+            if let Some(best) = best {
+                if !keep.contains(best) {
+                    keep.push(best.clone());
+                }
+            }
+        }
+    }
+    *pairs = keep;
+}
 pub fn scan(
     root: &Path,
     cancel: &AtomicBool,
-    mut progress: impl FnMut(Progress),
+    progress: impl FnMut(Progress),
+) -> Result<Report, String> {
+    scan_with_limits(root, cancel, progress, Limits::default())
+}
+fn scan_with_limits(
+    root: &Path,
+    cancel: &AtomicBool,
+    progress: impl FnMut(Progress),
+    limits: Limits,
 ) -> Result<Report, String> {
     let root = safe_root(root)?;
     let dir = open_dir_secure(&root)?;
-    let mut queue = vec![(dir, ".".to_string(), 0usize)];
-    let mut r = Report::default();
-    let start = Instant::now();
-    let mut last = Instant::now() - Duration::from_secs(1);
-    let mut aliases: BTreeMap<String, String> = BTreeMap::new();
-    while let Some((dir, path, depth)) = queue.pop() {
-        if cancel.load(Ordering::Relaxed) {
-            r.cancelled = true;
-            break;
+    let mut walker = Walker {
+        report: Report::default(),
+        cancel,
+        progress,
+        limits,
+        last: Instant::now() - Duration::from_secs(1),
+        directories: 0,
+        stopped: false,
+        next_alias: 0,
+        sample_reclamation_exhausted: false,
+    };
+    walker.visit(dir, ".".into(), 0);
+    let r = &mut walker.report;
+    r.inventory_complete = !r.limited && !r.cancelled;
+    r.metadata_coverage.complete = r.inventory_complete
+        && r.metadata_coverage.inspected_files == r.metadata_coverage.recognized_files
+        && r.probe_failures == 0
+        && r.metadata_coverage.unsupported_files == 0
+        && !r.issues.contains_key("metadata_cohort_limit");
+    r.metadata_coverage.representative_samples_limited =
+        r.metadata_coverage.recognized_files > r.sampled_files;
+    (walker.progress)(Progress {
+        phase: if r.cancelled {
+            "Cancelled"
+        } else if r.limited {
+            "Inventory incomplete"
+        } else {
+            "Scan complete"
+        },
+        entries: r.entries_seen,
+        files: r.scanned_files,
+        probed: r.probe_attempts,
+    });
+    Ok(walker.report)
+}
+struct Walker<'a, F> {
+    report: Report,
+    cancel: &'a AtomicBool,
+    progress: F,
+    limits: Limits,
+    last: Instant,
+    directories: usize,
+    stopped: bool,
+    next_alias: usize,
+    sample_reclamation_exhausted: bool,
+}
+impl<F: FnMut(Progress)> Walker<'_, F> {
+    fn visit(&mut self, dir: Dir, path: String, depth: usize) {
+        if self.cancel.load(Ordering::Relaxed) {
+            self.report.cancelled = true;
+            return;
         }
+        self.directories += 1;
         let mut folder = Folder {
             path: path.clone(),
             depth,
@@ -253,37 +441,41 @@ pub fn scan(
         let entries = match dir.entries() {
             Ok(e) => e,
             Err(_) => {
-                r.skipped += 1;
-                r.limited = true;
-                continue;
+                issue(&mut self.report, "directory_enumeration_failed", true);
+                self.report.skipped += 1;
+                return;
             }
         };
-        let mut local_probes = 0;
-        let mut sampled_families: BTreeMap<String, usize> = BTreeMap::new();
+        // Recursive depth-first enumeration retains at most MAX_DEPTH + 1 directory
+        // handles/iterators, not one open handle for every child of a wide directory.
         for entry in entries {
-            if cancel.load(Ordering::Relaxed) {
-                r.cancelled = true;
+            if self.cancel.load(Ordering::Relaxed) {
+                self.report.cancelled = true;
                 break;
             }
-            if r.entries_seen >= MAX_ENTRIES || start.elapsed() > Duration::from_secs(120) {
-                r.limited = true;
+            if self.stopped {
                 break;
             }
-            r.entries_seen += 1;
-            if last.elapsed() > Duration::from_millis(100) {
-                progress(Progress {
+            if self.report.entries_seen >= self.limits.entries {
+                issue(&mut self.report, "entry_resource_limit", true);
+                self.stopped = true;
+                break;
+            }
+            self.report.entries_seen += 1;
+            if self.last.elapsed() > Duration::from_millis(100) {
+                (self.progress)(Progress {
                     phase: "Scanning metadata",
-                    entries: r.entries_seen,
-                    files: r.scanned_files,
-                    probed: r.probe_attempts,
+                    entries: self.report.entries_seen,
+                    files: self.report.scanned_files,
+                    probed: self.report.probe_attempts,
                 });
-                last = Instant::now();
+                self.last = Instant::now();
             }
             let entry = match entry {
                 Ok(v) => v,
                 Err(_) => {
-                    r.skipped += 1;
-                    r.limited = true;
+                    issue(&mut self.report, "directory_entry_failed", true);
+                    self.report.skipped += 1;
                     continue;
                 }
             };
@@ -292,33 +484,42 @@ pub fn scan(
             if p.components().count() != 1
                 || !p.components().all(|c| matches!(c, Component::Normal(_)))
             {
-                r.skipped += 1;
+                issue(&mut self.report, "unsafe_entry_name", true);
+                self.report.skipped += 1;
                 continue;
             }
+            // Exact OS metadata allowlist is intentional, including unreadable OS junk.
+            // No wildcard/dot-folder exclusions: camera directories must not be hidden.
             let meta = match dir.symlink_metadata(p) {
-                Ok(v) => v,
+                Ok(m) => m,
                 Err(_) => {
-                    r.skipped += 1;
-                    r.limited = true;
+                    issue(&mut self.report, "entry_metadata_failed", true);
+                    self.report.skipped += 1;
                     continue;
                 }
             };
             if meta.file_type().is_symlink() || entry_reparse(&meta) {
-                r.skipped += 1;
+                self.report.skipped += 1;
                 continue;
             }
             if meta.is_dir() {
-                if depth >= MAX_DEPTH || queue.len() + r.folders.len() + 1 >= MAX_DIRS {
-                    r.limited = true;
-                    r.skipped += 1;
+                if ignored_os_directory(&name.to_string_lossy()) {
+                    self.report.skipped += 1;
                     continue;
                 }
+                if depth >= self.limits.depth {
+                    issue(&mut self.report, "directory_depth_limit", true);
+                    self.report.skipped += 1;
+                    continue;
+                }
+                if self.directories >= self.limits.directories {
+                    issue(&mut self.report, "directory_resource_limit", true);
+                    self.stopped = true;
+                    break;
+                }
                 let label = camera_component(&name.to_string_lossy()).unwrap_or_else(|| {
-                    let next = aliases.len() + 1;
-                    aliases
-                        .entry(name.to_string_lossy().into_owned())
-                        .or_insert_with(|| format!("folder-{next}"))
-                        .clone()
+                    self.next_alias += 1;
+                    format!("folder-{}", self.next_alias)
                 });
                 let label = if path == "." {
                     label
@@ -326,129 +527,180 @@ pub fn scan(
                     format!("{path}/{label}")
                 };
                 match dir.open_dir_nofollow(p) {
-                    Ok(d) => queue.push((d, label, depth + 1)),
+                    Ok(child) => self.visit(child, label, depth + 1),
                     Err(_) => {
-                        r.skipped += 1;
-                        r.limited = true;
-                    }
-                };
-            } else if meta.is_file() {
-                // Cloud placeholders/offline/reparse entries must not trigger hydration.
-                #[cfg(windows)]
-                {
-                    use cap_std::fs::MetadataExt;
-                    if meta.file_attributes() & (0x1000 | 0x40000 | 0x400000) != 0 {
-                        r.skipped += 1;
-                        continue;
+                        issue(&mut self.report, "directory_open_failed", true);
+                        self.report.skipped += 1;
                     }
                 }
-                r.scanned_files += 1;
+            } else if meta.is_file() {
+                if offline_placeholder(&meta) {
+                    issue(&mut self.report, "offline_placeholder_excluded", true);
+                    self.report.skipped += 1;
+                    continue;
+                }
+                self.report.scanned_files += 1;
                 folder.file_count += 1;
                 folder.total_file_size_bytes =
                     folder.total_file_size_bytes.saturating_add(meta.len());
                 let ext = extension(p);
-                let ext_lower = ext.to_ascii_lowercase();
+                let lower = ext.to_ascii_lowercase();
                 *folder.extensions.entry(ext.clone()).or_default() += 1;
-                if matches!(
-                    ext_lower.as_str(),
-                    "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv" | "jpg" | "jpeg" | "png"
-                ) && folder.filename_shapes.len() < 20
-                {
-                    folder
-                        .filename_shapes
-                        .insert(shape(&name.to_string_lossy()));
-                }
-                if folder.filename_templates.len() < 16
-                    && matches!(
-                        ext_lower.as_str(),
-                        "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv" | "jpg" | "jpeg" | "png"
-                    )
-                {
-                    folder
-                        .filename_templates
-                        .insert(filename_template(&name.to_string_lossy()));
-                }
+                let media = matches!(lower.as_str(), "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv");
                 let template = filename_template(&name.to_string_lossy());
-                // Reserve room for distinct numeric filename families/suffixes rather than
-                // consuming every slot on the first channel. No channel/model inference.
-                let family_count = sampled_families.get(&template).copied().unwrap_or(0);
-                if matches!(
-                    ext_lower.as_str(),
-                    "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv"
-                ) && r.sampled_files < MAX_SAMPLES
-                    && local_probes < 16
-                    && family_count
-                        < if template
-                            .split('.')
-                            .next()
-                            .unwrap_or("")
-                            .ends_with(['F', 'R', 'I', 'T'])
-                        {
-                            2
-                        } else {
-                            4
-                        }
-                {
-                    local_probes += 1;
-                    *sampled_families.entry(template.clone()).or_default() += 1;
-                    r.sampled_files += 1;
-                    if !matches!(ext_lower.as_str(), "mp4" | "mov" | "m4v") {
-                        folder.samples.push(Sample {
-                            file_size_bytes: meta.len(),
-                            video: None,
-                            local_name: name.to_string_lossy().into_owned(),
-                            filename_template: template,
-                        });
-                        continue;
+                if media || matches!(lower.as_str(), "jpg" | "jpeg" | "png") {
+                    if folder.filename_shapes.len() < 20 {
+                        folder
+                            .filename_shapes
+                            .insert(shape(&name.to_string_lossy()));
                     }
-                    r.probe_attempts += 1;
+                    if folder.filename_templates.len() < 256 {
+                        folder.filename_templates.insert(template.clone());
+                    }
+                }
+                if !media {
+                    continue;
+                }
+                self.report.metadata_coverage.recognized_files += 1;
+                // Probe eligibility depends only on the safely opened file, never retention budgets.
+                let result = if matches!(lower.as_str(), "mp4" | "mov" | "m4v") {
+                    self.report.probe_attempts += 1;
                     let mut options = OpenOptions::new();
                     options.read(true).follow(FollowSymlinks::No);
-                    let result = dir.open_with(p, &options).ok().and_then(|mut f| {
-                        let m = f.metadata().ok()?;
-                        if !m.is_file() || entry_reparse(&m) {
-                            return None;
+                    match dir.open_with(p, &options) {
+                        Ok(mut f) => match f.metadata() {
+                            Ok(m)
+                                if m.is_file()
+                                    && !entry_reparse(&m)
+                                    && !offline_placeholder(&m) =>
+                            {
+                                self.report.metadata_coverage.inspected_files += 1;
+                                let mut reader = ProbeReader {
+                                    inner: &mut f,
+                                    failed: false,
+                                };
+                                let result = video::probe(&mut reader, m.len());
+                                if reader.failed {
+                                    issue(&mut self.report, "video_read_failed", true);
+                                    None
+                                } else {
+                                    result
+                                }
+                            }
+                            _ => {
+                                issue(&mut self.report, "video_metadata_failed", true);
+                                None
+                            }
+                        },
+                        Err(_) => {
+                            issue(&mut self.report, "video_open_failed", true);
+                            None
                         }
-                        video::probe(&mut f, m.len())
-                    });
-                    folder.samples.push(Sample {
-                        file_size_bytes: result.as_ref().map_or(meta.len(), |v| v.file_size_bytes),
-                        video: result.clone(),
-                        local_name: name.to_string_lossy().into_owned(),
-                        filename_template: template,
-                    });
-                    if let Some(v) = result {
-                        folder.videos.push(v)
+                    }
+                } else {
+                    self.report.metadata_coverage.unsupported_files += 1;
+                    issue(&mut self.report, "video_container_unsupported", false);
+                    None
+                };
+                if matches!(lower.as_str(), "mp4" | "mov" | "m4v") && result.is_none() {
+                    self.report.probe_failures += 1;
+                    issue(&mut self.report, "video_header_unmeasured", false);
+                }
+                let sample = Sample {
+                    file_size_bytes: result.as_ref().map_or(meta.len(), |v| v.file_size_bytes),
+                    video: result.clone(),
+                    local_name: name.to_string_lossy().into_owned(),
+                    filename_template: template.clone(),
+                };
+                self.retain_sample(&mut folder, sample);
+                if let Some(v) = result {
+                    self.report.metadata_coverage.measured_files += 1;
+                    if let Some(cohort) = folder.metadata_cohorts.iter_mut().find(|c| {
+                        c.filename_template == template
+                            && c.extension == ext
+                            && same_configuration(&c.paired_measurements[0], &v)
+                    }) {
+                        cohort.file_count += 1;
+                        add_pair(&mut cohort.paired_measurements, &v);
+                    } else if self.report.metadata_coverage.cohort_count < self.limits.cohorts {
+                        folder.metadata_cohorts.push(MetadataCohort {
+                            filename_template: template,
+                            extension: ext,
+                            file_count: 1,
+                            paired_measurements: vec![v],
+                        });
+                        self.report.metadata_coverage.cohort_count += 1;
                     } else {
-                        r.probe_failures += 1
+                        issue(&mut self.report, "metadata_cohort_limit", false);
                     }
                 }
             } else {
-                r.skipped += 1;
+                self.report.skipped += 1;
             }
         }
-        r.folders.push(folder);
-        if r.cancelled
-            || (r.limited
-                && (r.entries_seen >= MAX_ENTRIES || start.elapsed() > Duration::from_secs(120)))
-        {
-            break;
+        // Legacy recognition/export consumers still see every retained encoding and
+        // paired extremum, not merely the first clip of a changing rate cohort.
+        folder.videos = folder
+            .metadata_cohorts
+            .iter()
+            .flat_map(|c| c.paired_measurements.iter().cloned())
+            .collect();
+        self.report.folders.push(folder);
+    }
+    fn retain_sample(&mut self, folder: &mut Folder, sample: Sample) {
+        // Stratify on observed template AND encoding, with at most two clips per
+        // stratum. Late variants replace redundant rows, not metadata coverage.
+        let same = |s: &Sample| {
+            s.filename_template == sample.filename_template
+                && match (&s.video, &sample.video) {
+                    (Some(a), Some(b)) => same_configuration(a, b),
+                    (None, None) => true,
+                    _ => false,
+                }
+        };
+        let count = folder.samples.iter().filter(|s| same(s)).count();
+        if count >= 2 {
+            return;
+        }
+        if self.report.sampled_files < MAX_SAMPLES {
+            folder.samples.push(sample);
+            self.report.sampled_files += 1;
+            return;
+        }
+        if count == 0 && !self.sample_reclamation_exhausted {
+            // Once all retained strata are unique, no later clip can reclaim a
+            // duplicate. Avoid rescanning all prior folders for every card file.
+            self.sample_reclamation_exhausted = true;
+            // Reclaim a redundant stratum in the current or an earlier folder.
+            for f in std::iter::once(&mut *folder).chain(self.report.folders.iter_mut()) {
+                let redundant = (0..f.samples.len()).find(|&i| {
+                    (0..i).any(|j| {
+                        f.samples[i].filename_template == f.samples[j].filename_template
+                            && match (&f.samples[i].video, &f.samples[j].video) {
+                                (Some(a), Some(b)) => same_configuration(a, b),
+                                (None, None) => true,
+                                _ => false,
+                            }
+                    })
+                });
+                if let Some(i) = redundant {
+                    f.samples.remove(i);
+                    self.report.sampled_files -= 1;
+                    self.sample_reclamation_exhausted = false;
+                    break;
+                }
+            }
+            if self.report.sampled_files < MAX_SAMPLES {
+                folder.samples.push(sample);
+                self.report.sampled_files += 1;
+            }
         }
     }
-    progress(Progress {
-        phase: if r.cancelled {
-            "Cancelled"
-        } else if r.limited {
-            "Bounded scan complete (partial)"
-        } else {
-            "Scan complete"
-        },
-        entries: r.entries_seen,
-        files: r.scanned_files,
-        probed: r.probe_attempts,
-    });
-    Ok(r)
 }
+#[cfg(test)]
+#[path = "engine_whole_card_tests.rs"]
+mod whole_card_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -480,13 +732,13 @@ mod tests {
         let r = scan(t.path(), &AtomicBool::new(true), |_| {}).unwrap();
         assert!(r.cancelled);
         let mut p = t.path().to_path_buf();
-        for _ in 0..12 {
+        for _ in 0..MAX_DEPTH + 4 {
             p.push("dcim");
             std::fs::create_dir(&p).unwrap();
         }
         let r = scan(t.path(), &AtomicBool::new(false), |_| {}).unwrap();
         assert!(r.limited);
-        assert_eq!(r.folders.len(), 9);
+        assert_eq!(r.folders.len(), MAX_DEPTH + 1);
     }
     #[cfg(unix)]
     #[test]
@@ -579,9 +831,9 @@ mod tests {
         }
         let r = scan(t.path(), &AtomicBool::new(false), |_| {}).unwrap();
         assert_eq!(r.scanned_files, 100);
-        assert_eq!(r.sampled_files, 64);
+        assert_eq!(r.sampled_files, 40);
         assert_eq!(r.probe_attempts, 0);
-        assert!(r.folders.iter().all(|f| f.samples.len() <= 4));
+        assert!(r.folders.iter().all(|f| f.samples.len() <= 2));
         assert!(!r.limited);
     }
     #[cfg(windows)]
