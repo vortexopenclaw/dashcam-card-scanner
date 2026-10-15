@@ -41,10 +41,16 @@ fn camera_root(path: &Path) -> bool {
 use cap_fs_ext::DirExt;
 fn eligible(removable: bool, filesystem: &str, path: &Path) -> bool {
     // Fail closed: excludes system/APFS/NTFS backup disks and all network FS.
+    #[cfg(windows)]
+    let local_mount = matches!(path.components().next(), Some(std::path::Component::Prefix(prefix))
+        if matches!(prefix.kind(), std::path::Prefix::Disk(_) | std::path::Prefix::VerbatimDisk(_)));
+    #[cfg(not(windows))]
+    let local_mount = path.parent().is_some();
     removable
         && ["fat", "fat32", "vfat", "msdos", "exfat", "msdosfs"]
             .contains(&filesystem.to_ascii_lowercase().as_str())
-        && path.parent().is_some()
+        && path.is_absolute()
+        && local_mount
 }
 pub fn discover() -> Vec<Card> {
     let disks = sysinfo::Disks::new_with_refreshed_list();
@@ -115,24 +121,34 @@ mod tests {
     use super::*;
     #[test]
     fn excludes_internal_network_backup() {
-        assert!(!eligible(false, "exfat", Path::new("/Volumes/Card")));
+        #[cfg(windows)]
+        let mount = Path::new("E:\\");
+        #[cfg(not(windows))]
+        let mount = Path::new("/Volumes/Card");
+        assert!(!eligible(false, "exfat", mount));
         for fs in ["apfs", "ntfs", "nfs", "smbfs", "ext4"] {
-            assert!(!eligible(true, fs, Path::new("/Volumes/Card")));
+            assert!(!eligible(true, fs, mount));
         }
-        assert!(eligible(true, "ExFAT", Path::new("/Volumes/Card")));
+        assert!(eligible(true, "ExFAT", mount));
+        assert!(!eligible(true, "exfat", Path::new("relative-card")));
+        #[cfg(windows)]
+        assert!(!eligible(true, "exfat", Path::new("\\\\server\\card")));
         assert!(select("/Volumes/Untrusted").is_err());
     }
     #[test]
     fn shallow_read_only_discovery() {
         let d = tempfile::tempdir().unwrap();
-        assert!(!camera_root(d.path()));
-        std::fs::create_dir(d.path().join("DCIM")).unwrap();
-        assert!(camera_root(d.path()));
+        // CI's macOS temp directory can live under /var -> /private/var.
+        // Resolve only this trusted test fixture; production no-follow checks stay strict.
+        let root = d.path().canonicalize().unwrap();
+        assert!(!camera_root(&root));
+        std::fs::create_dir(root.join("DCIM")).unwrap();
+        assert!(camera_root(&root));
         #[cfg(unix)]
         {
-            std::fs::remove_dir(d.path().join("DCIM")).unwrap();
-            std::os::unix::fs::symlink("/", d.path().join("DCIM")).unwrap();
-            assert!(!camera_root(d.path()));
+            std::fs::remove_dir(root.join("DCIM")).unwrap();
+            std::os::unix::fs::symlink("/", root.join("DCIM")).unwrap();
+            assert!(!camera_root(&root));
         }
     }
     #[test]
