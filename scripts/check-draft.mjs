@@ -11,7 +11,7 @@ const manifest=JSON.parse(execFileSync('gh',['api',`repos/${repo}/releases/asset
 assert.equal(manifest.version,JSON.parse(readFileSync('package.json','utf8')).version);
 for(const platform of ['darwin-aarch64','darwin-x86_64','windows-x86_64','linux-x86_64']){
  const value=manifest.platforms[platform];assert(value,`Missing ${platform}`);assert.equal(typeof value.signature,'string');assert(value.signature.length>40,'Missing updater signature');
- const url=new URL(value.url);assert.equal(url.protocol,'https:');assert.equal(url.host,'github.com');assert(url.pathname.startsWith(`/${repo}/releases/download/`));
+ const url=new URL(value.url);assert.equal(url.protocol,'https:');assert.equal(url.host,'github.com');assert(url.pathname.startsWith(`/${repo}/releases/download/${release.tag_name}/`),'Updater packages must use immutable version URLs');
  const name=decodeURIComponent(url.pathname.split('/').pop());assert(release.assets.some(a=>a.name===name),`Missing updater artifact ${name}`);
 }
 console.log('Draft latest.json read back; all four platform URLs, updater artifacts and signatures present. Maintainer must verify signatures/install behavior before manual publication.');

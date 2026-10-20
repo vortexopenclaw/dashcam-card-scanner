@@ -29,7 +29,13 @@ jobs:
         env: { GH_TOKEN: '${{ github.token }}' }
         run: |
           VERSION=$(node -p 'JSON.parse(require("fs").readFileSync("package.json")).version')
-          gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -f name="Dashcam Card Scanner $VERSION" -F draft=true -F prerelease=false -f body="Do not publish unless every build and packaging verification job passes. Bundle integrity is necessary but NOT Gatekeeper distribution approval. macOS ad-hoc signed only, no Developer ID or notarization; Windows not Authenticode-signed. Updater signatures are not platform code signing. Linux updater: AppImage only." --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
+          EXISTING=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name == \"v$VERSION\") | .id")
+          if [ -n "$EXISTING" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/releases/$EXISTING" --jq '.draft' | python3 -c 'import sys; assert sys.stdin.read().strip() == "true", "Never overwrite a published release"'
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$EXISTING" -f target_commitish="$GITHUB_SHA" --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -f name="Dashcam Card Scanner $VERSION" -F draft=true -F prerelease=false -f body="Do not publish unless every build and packaging verification job passes. Bundle integrity is necessary but NOT Gatekeeper distribution approval. macOS ad-hoc signed only, no Developer ID or notarization; Windows not Authenticode-signed. Updater signatures are not platform code signing. Linux updater: AppImage only." --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
+          fi
   build:
     needs: draft
     environment: scanner-release
@@ -75,6 +81,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.draft.outputs.release_id }}
+          tagName: v__VERSION__
           releaseDraft: true
           prerelease: false
           includeDebug: false
@@ -91,7 +98,8 @@ jobs:
   inspect:
     needs: [draft, build]
     runs-on: ubuntu-22.04
-    permissions: { contents: read }
+    # GitHub requires contents:write to read unpublished draft releases.
+    permissions: { contents: write }
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
