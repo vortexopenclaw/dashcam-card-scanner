@@ -239,7 +239,7 @@ fn unreadable_camera_directory_and_video_have_explicit_reasons_but_os_junk_does_
     std::fs::create_dir(&os).unwrap();
     std::fs::write(&f, metadata_fixture(b"avc1", 1920, 30)).unwrap();
     for p in [&media, &os, &f] {
-        std::fs::set_permissions(p, std::fs::Permissions::from_mode(0)).unwrap();
+        std::fs::set_permissions(p, std::fs::Permissions::from_mode(0o0)).unwrap();
     }
     let result = scan(t.path(), &AtomicBool::new(false), |_| {});
     for p in [&media, &os] {
