@@ -73,6 +73,10 @@ jobs:
       - run: npm run test:intake
       - name: Packaging verifier regression tests
         run: python3 -m unittest discover -s scripts -p 'test_macos_packaging.py' -v
+      - name: Resolve exact version tag for updater URLs
+        id: version
+        shell: bash
+        run: echo "tag=v$(node -p 'JSON.parse(require(\"fs\").readFileSync(\"package.json\")).version')" >> "$GITHUB_OUTPUT"
       - name: Build updater-signed assets and merge draft latest.json
         uses: tauri-apps/tauri-action@fce9c6108b31ea247710505d3aaaa893ee6768d4
         env:
@@ -81,7 +85,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           releaseId: ${{ needs.draft.outputs.release_id }}
-          tagName: v__VERSION__
+          tagName: ${{ steps.version.outputs.tag }}
           releaseDraft: true
           prerelease: false
           includeDebug: false
