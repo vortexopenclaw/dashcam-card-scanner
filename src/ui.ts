@@ -19,7 +19,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const themeLabel=element('label','Appearance',settingsPanel);const theme=element('select','',themeLabel);for(const [value,title] of [['system','Match system (default)'],['light','Light'],['dark','Dark']]){const o=element('option',title,theme);o.value=value;}theme.value=preferences.theme;
   const usernameLabel=element('label','DashCamTalk username (optional)',settingsPanel);const username=element('input','',usernameLabel);username.maxLength=40;username.autocomplete='off';username.value=preferences.username;
   element('p','Helps Vortex Radar identify your submission and credit your contribution.',settingsPanel);
-  const settingsStatus=element('p','',settingsPanel);const closeSettings=element('button','Done',settingsPanel);let savedScroll=0;const mainScreen=element('div');mainScreen.className='main-screen';const showSettings=(show:boolean)=>{if(show)savedScroll=window.scrollY;settingsPanel.hidden=!show;mainScreen.hidden=show;settingsButton.setAttribute('aria-expanded',String(show));try{window.scrollTo(0,show?0:savedScroll);}catch{}if(show&&updateState==='idle'&&!busy)void checkForUpdate();if(!show){restartConfirmed=false;renderUpdate();}if(show){const heading=settingsPanel.querySelector('h2')!;heading.tabIndex=-1;heading.focus({preventScroll:true});}};settingsButton.onclick=()=>showSettings(true);closeSettings.onclick=()=>showSettings(false);
+  const settingsStatus=element('p','',settingsPanel);const closeSettings=element('button','Done',settingsPanel);let savedScroll=0;const mainScreen=element('div');mainScreen.className='main-screen';const showSettings=(show:boolean)=>{if(show)savedScroll=window.scrollY;settingsPanel.hidden=!show;mainScreen.hidden=show;settingsButton.setAttribute('aria-expanded',String(show));try{window.scrollTo(0,show?0:savedScroll);}catch{}if(show&&updateState==='idle'&&!busy)void checkForUpdate();if(!show)renderUpdate();if(show){const heading=settingsPanel.querySelector('h2')!;heading.tabIndex=-1;heading.focus({preventScroll:true});}};settingsButton.onclick=()=>showSettings(true);closeSettings.onclick=()=>showSettings(false);
   theme.onchange=()=>{preferences.theme=theme.value as Theme;stopTheme();stopTheme=followTheme(preferences.theme);settingsStatus.textContent=saveSettings(preferences)?'Appearance saved locally.':'Unable to save preferences on this computer.';};
   element('h1','Dashcam Card Scanner');
   element('p','Help document dashcam recording formats without uploading your footage. Independent of Dashcam Offloader.');
@@ -110,10 +110,10 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   let revision=0;let pendingVerification:{token:string;snapshot:string;opened:boolean;ticket?:string}|null=null;
   let verificationReady=false;let submitting=false;
   type UpdateState='idle'|'checking'|'available'|'downloading'|'installing'|'installed'|'current'|'error';
-  let updateState:UpdateState='idle';let restartConfirmed=false;let restartPending=false;let submittedReport=false;
+  let updateState:UpdateState='idle';let restartPending=false;let submittedReport=false;
   const updateWorking=()=>['checking','downloading','installing'].includes(updateState)||restartPending;
   const renderUpdate=()=>{
-    updateAction.textContent=restartPending?'Restarting…':restartConfirmed?'Restart anyway':({idle:'Check for updates',checking:'Checking…',available:`Update to ${version}`,downloading:'Downloading…',installing:'Installing…',installed:'Restart to finish update',current:'Check for updates',error:'Retry update check'}[updateState]);
+    updateAction.textContent=restartPending?'Restarting…':({idle:'Check for updates',checking:'Checking…',available:`Update to ${version}`,downloading:'Downloading…',installing:'Installing…',installed:'Restart to finish update',current:'Check for updates',error:'Retry update check'}[updateState]);
     updateAction.classList.toggle('primary',updateState==='available'||updateState==='installed');updateAction.dataset.state=updateState;
     updateProgress.hidden=updateState!=='downloading';updateSection.setAttribute('aria-busy',String(updateWorking()));
     // Both surfaces reflect the same state and invoke the same action handler.
@@ -125,7 +125,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
     updateBanner.setAttribute('aria-busy',String(updateWorking()));setBusy(busy);
   };
   void bridge.invoke<string>('app_version').then(value=>{runningVersion.textContent=typeof value==='string'&&value?`Running version: ${value}`:'Running version unavailable.';}).catch(()=>{runningVersion.textContent='Running version unavailable.';});
-  const invalidate=()=>{restartConfirmed=false;const pending=pendingVerification;if(pending)status.textContent='Report changed. Click Submit to verify the updated metadata.';revision++;submittedReport=false;review=null;pendingVerification=null;if(pending)void bridge.invoke('cancel_verification',{token:pending.token}).catch(()=>{});reviewPanel.hidden=true;if(updateState==='installed')renderUpdate();else setBusy(busy);};
+  const invalidate=()=>{const pending=pendingVerification;if(pending)status.textContent='Report changed. Click Submit to verify the updated metadata.';revision++;submittedReport=false;review=null;pendingVerification=null;if(pending)void bridge.invoke('cancel_verification',{token:pending.token}).catch(()=>{});reviewPanel.hidden=true;if(updateState==='installed')renderUpdate();else setBusy(busy);};
   username.oninput=()=>{preferences.username=username.value;invalidate();settingsStatus.textContent=saveSettings(preferences)?'Username saved locally.':'Unable to save preferences on this computer.';};
   Object.values(fields).forEach(f=>f.addEventListener('input',invalidate));Object.values(choices).forEach(f=>f.addEventListener('change',invalidate));cadence.addEventListener('input',invalidate);
   const setBusy=(value:boolean)=>{busy=value;value=value||submitting||updateWorking();labels.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select').forEach(e=>e.disabled=value);groupPanel.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(e=>e.disabled=value);addGroup.disabled=value||cohorts.length>=16;username.disabled=value;select.disabled=value;scan.disabled=value || source.dataset.selected!=='yes';cancel.disabled=!busy;prepare.disabled=value || !!pendingVerification || !report || report.cancelled || report.scannedFiles===0;Object.entries(fields).forEach(([k,f])=>f.disabled=value||(cohorts.length>0&&!['manufacturer','model'].includes(k)));Object.values(choices).forEach(f=>f.disabled=value||cohorts.length>0);cadence.disabled=value||cohorts.length>0;publicExport.disabled=value;privateExport.disabled=value;submit.disabled=value||!verificationReady||!!pendingVerification||!report||report.cancelled||report.scannedFiles===0||review?.submissionAvailable===false;submit.textContent=pendingVerification?'Waiting for verification…':'Submit';updateAction.disabled=value||!!pendingVerification;bannerAction.disabled=updateAction.disabled;};
@@ -186,17 +186,16 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const checkForUpdate=async()=>{
     if(busy||submitting||pendingVerification||updateWorking()||updateState==='installed')return;
     startupCheckPending=false;version=null;updateState='checking';updateStatus.textContent='Checking for updates…';renderUpdate();
-    try{await updateProgressReady;version=await bridge.invoke<string|null>('check_update');updateState=version?'available':'current';updateStatus.textContent=version?`Version ${version} is available. Nothing installs until you choose Update.`:'No update available.';}
+    try{await updateProgressReady;version=await bridge.invoke<string|null>('check_update');updateState=version?'available':'current';updateStatus.textContent=version?`Version ${version} is available. Update installs and restarts automatically; any unsent report will be cleared.`:'No update available.';}
     catch(e){version=null;updateState='error';updateStatus.textContent=`Unable to check for updates: ${String(e)}. Retry when ready.`;}
     renderUpdate();
   };
   const performUpdate=async()=>{
     if(busy||submitting||pendingVerification||updateWorking())return;
     if(updateState==='installed'){
-      if(((report&&!submittedReport)||(!report&&ownerEdited)||pendingVerification)&&!restartConfirmed){restartConfirmed=true;updateStatus.textContent=`Version ${version} is installed. Restarting will discard your unsent report and camera settings. Save your report first, or click Restart anyway to discard it.`;renderUpdate();return;}
       restartPending=true;updateStatus.textContent='Restarting to finish the update…';renderUpdate();
       try{await bridge.invoke('restart_app',{consent:true});}
-      catch(e){restartPending=false;restartConfirmed=false;updateStatus.textContent=`Version ${version} is installed, but restart failed: ${String(e)}. Try restarting again.`;renderUpdate();}
+      catch(e){restartPending=false;updateStatus.textContent=`Version ${version} is installed, but restart failed: ${String(e)}. Try restarting again.`;renderUpdate();}
       return;
     }
     if(updateState!=='available'){await checkForUpdate();return;}
@@ -205,7 +204,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
     try{await bridge.invoke('install_update',{version:target,consent:true});updateState='installed';updateStatus.textContent=`Version ${target} installed. The running version above stays unchanged until you restart. Restart to finish the update.`;}
     catch(e){version=null;updateState='error';updateStatus.textContent=`Update failed: ${String(e)}. Retry to check for updates again.`;}
     renderUpdate();
-    // The install click also consents to restart, but never to discarding owner work.
+    // One explicit Update click authorizes installation and restart, including clearing an unsent report.
     if(updateState==='installed')await performUpdate();
   };
   updateAction.onclick=performUpdate;bannerAction.onclick=performUpdate;
@@ -230,7 +229,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   for(const button of [select,submit])button.classList.add('primary');
   void bridge.listen<{phase:string;entries:number;files:number;probed:number}>('scan-progress',({payload:p})=>{status.textContent=`${p.phase}: ${p.entries} entries, ${p.files} files, ${p.probed} video probes.`;}).catch(e=>status.textContent=`Progress unavailable: ${String(e)}`);
   let knownCards=new Set<string>();let discoveryReady=false;let polling=false;
-  const discover=async()=>{if(polling||busy||updateWorking()||document.hidden||!root.isConnected)return;polling=true;try{const result=await bridge.invoke<{id:string;label:string;path:string}[]>('discover_cards');const cards=Array.isArray(result)?result:[];const added=cards.filter(c=>!knownCards.has(c.id));knownCards=new Set(cards.map(c=>c.id));if(discoveryReady&&added.length===1&&!report&&!ownerEdited&&!review&&source.dataset.selected!=='yes'&&!busy&&!mainScreen.hidden){await run(async()=>{const path=await bridge.invoke<string>('select_discovered_card',{id:added[0].id});resetSource();source.textContent=path;source.dataset.selected='yes';await scanSource();});}discoveryReady=true;}catch{}finally{polling=false;}};
+  const discover=async()=>{if(polling||busy||updateWorking()||document.hidden||!root.isConnected)return;polling=true;try{const result=await bridge.invoke<{id:string;label:string;path:string}[]>('discover_cards');const cards=Array.isArray(result)?result:[];const added=cards.filter(c=>!knownCards.has(c.id));knownCards=new Set(cards.map(c=>c.id));if((discoveryReady?added:cards).length===1&&!report&&!ownerEdited&&!review&&source.dataset.selected!=='yes'&&!busy&&!mainScreen.hidden){await run(async()=>{const path=await bridge.invoke<string>('select_discovered_card',{id:added[0].id});resetSource();source.textContent=path;source.dataset.selected='yes';await scanSource();});}discoveryReady=true;}catch{}finally{polling=false;}};
   void discover();const poll=window.setInterval(()=>{if(!root.isConnected)window.clearInterval(poll);else void discover();},4000);
   return {fields,status,source,choices,scan,prepare,select,submit,publicView,privateView,reviewPanel,cancel,theme,username,manufacturerPick,modelPick,settingsButton,settingsPanel,updateAction,updateStatus,updateProgress,runningVersion,updateBanner,bannerAction,bannerStatus,bannerProgress,addGroup,sampleList,groupForms,humanReview,submissionStatus,technical,more,submission};
 }
