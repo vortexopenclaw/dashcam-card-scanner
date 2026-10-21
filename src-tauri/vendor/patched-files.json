@@ -1,0 +1,18 @@
+{
+  "glib-0.18.5/src/variant_iter.rs": "a0f5ee8acb8faa089bcdfbc9a57372609fce7654026ccef7d9a224d05a654ccc",
+  "glib-macros-0.18.5/Cargo.toml": "f75de730d1675d3cb07b32ba65404956b2e7d9f9495940ef3964c906435ac477",
+  "glib-macros-0.18.5/src/object_subclass_attribute.rs": "eabef80af5760892e6a38364d4504ba322bdf4d2d9a62a02bb700895ad75089f",
+  "glib-macros-0.18.5/src/boxed_derive.rs": "404234ef46f86331d515aa10169bb91ef22b9ca5330e4c97aa756f239848f30e",
+  "glib-macros-0.18.5/src/variant_derive.rs": "6e2c3c2142d96277cccaa766b025d5c323b6d67793faa39b2d3bd14f02d03458",
+  "glib-macros-0.18.5/src/lib.rs": "71eeac965c610ac9025599ebf6a44ed267e0ab4cc36ac532710b4f75637b04b7",
+  "glib-macros-0.18.5/src/enum_derive.rs": "45d253bfe6d32701c0d11e1c9997f60e6e8570fa48b673da6d38a5162b87a08b",
+  "glib-macros-0.18.5/src/closure.rs": "5471589d5976e2b4591c3e90eb5dc42f9c3afb31cb3d21699615558e8a6a6a0d",
+  "glib-macros-0.18.5/src/error_domain_derive.rs": "5809fe7e020e4130013adcc16d50b597deeea275d4fd0ea991d6a288e688181b",
+  "glib-macros-0.18.5/src/object_interface_attribute.rs": "b61743721fe03aed2c7b3460b6ea7024883cdc0d2c468a46cb4e4b7d10fd1ee6",
+  "glib-macros-0.18.5/src/flags_attribute.rs": "706539422fb0c9f4f9044399afa84ecec47064d7f5a551f1c85ef854cf2d62ee",
+  "glib-macros-0.18.5/src/shared_boxed_derive.rs": "6788029e9358e7759d4349b626073dcb0970b1787d9d8a9db3a111cc909417c5",
+  "glib-macros-0.18.5/src/derived_properties_attribute.rs": "b53f4f29fd4124f5761936a7a9f0b792d442d656e5a6c7154dc8437f6e1e1c69",
+  "gtk3-macros-0.18.2/Cargo.toml": "bcfb696934d5016f5ac09ed98890f0ed791d8cf411636c4b2af6b3920465bf45",
+  "gtk3-macros-0.18.2/src/lib.rs": "1875356033073a07cc54e05acbc2055505475c47f44383e967f69362592268ea",
+  "gtk3-macros-0.18.2/src/composite_template_derive.rs": "0aac2d33597151e043c8373c739f8e2b1dada278977265d738355bb7d48f3227"
+}
