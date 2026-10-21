@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-export type SettingOption = {value:string;label:string};
+export type SettingOption = {value:string;label:string;category?:string};
+/** UI keys may distinguish exact picture modes sharing a generic schema category. */
+export const settingCategory=(option:SettingOption):string=>option.category||option.value;
 export type BrandOptions = {quality:SettingOption[];parking:SettingOption[]};
 
 /**
@@ -16,8 +18,10 @@ export type BrandOptions = {quality:SettingOption[];parking:SettingOption[]};
  * Motion Detection is buffered; Collision Detection has Quick Start/Power-Saving
  * variants, so its broad category is impact (not universally low-power-impact).
  * Low Frame Rate Recording maps to time-lapse, not a normal-driving frame rate.
- * Standard/PlatePix picture modes are not verified bitrate-quality tiers: keep
- * generic quality suggestions instead of inventing Vantrue bitrate settings.
+ * Standard/PlatePix are owner-report picture/quality modes, NOT bitrate tiers.
+ * They use category other + exact label, with distinct UI keys (not custom text).
+ * E1 Pro S official prerelease page also documents PlatePix:
+ * https://www.vantrue.com/products/element-1-pro-s-4k-dashcam
  * VIOFO Auto Event Detection, Time-lapse and Low bitrate:
  * https://support.viofo.com/support/solutions/articles/19000109185-what-is-auto-event-detection-what-parking-mode-to-choose-
  * https://support.viofo.com/support/solutions/articles/19000109184-advanced-buffered-parking-mode
@@ -57,6 +61,7 @@ export function brandOptions(manufacturer:string):BrandOptions {
    parking=[option('buffered','Auto Event Detection'),option('time-lapse','Time-Lapse'),option('low-bitrate','Low Bitrate')];
    break;
   case 'vantrue':
+   quality=[...genericQuality().slice(0,-1),{value:'vantrue-standard',label:'Standard',category:'other'},{value:'vantrue-platepix',label:'PlatePix',category:'other'},other()];
    parking=[option('motion','Motion Detection'),option('impact','Collision Detection'),option('low-bitrate','Low-Bitrate Recording'),option('time-lapse','Low Frame Rate Recording')];
    break;
   case 'thinkware':

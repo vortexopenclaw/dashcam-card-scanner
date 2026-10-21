@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {test,expect} from 'vitest';
-import {brandOptions} from '../src/brand-options';
+import {brandOptions,settingCategory} from '../src/brand-options';
 
 test('VIOFO Auto Event Detection is not mislabeled motion-only',()=>{
  expect(brandOptions('Viofo').parking).toContainEqual({value:'buffered',label:'Auto Event Detection'});
@@ -14,7 +14,8 @@ test('Vantrue N4 Pro S manual terminology preserves all four parking modes',()=>
   {value:'other',label:'Other'},
  ]);
  // Picture enhancement modes are not fabricated bitrate tiers.
- expect(brandOptions('Vantrue').quality).toEqual(brandOptions('').quality);
+ expect(brandOptions('Vantrue').quality).toContainEqual({value:'vantrue-standard',label:'Standard',category:'other'});
+ expect(brandOptions('Vantrue').quality).toContainEqual({value:'vantrue-platepix',label:'PlatePix',category:'other'});
 });
 test('Thinkware offers model-dependent radar and energy-saving terminology',()=>{
  const {parking}=brandOptions('Thinkware');
@@ -50,7 +51,7 @@ test('every list has capitalized labels, unique allowed values and editable esca
    expect(list.at(-1)).toEqual({value:'other',label:'Other'});
    expect(new Set(list.map(o=>o.value)).size).toBe(list.length);
    for(const item of list){
-    expect((key==='quality'?quality:parking).has(item.value)).toBe(true);
+    expect((key==='quality'?quality:parking).has(settingCategory(item))).toBe(true);
     expect(item.label).toMatch(/^[A-Z]/);
    }
   }
