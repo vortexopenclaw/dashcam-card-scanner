@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
+import {submissionErrorMessage} from './submission-errors';
 import {brandOptions} from './brand-options';
 import {platformStyle} from './platform-style';
 import {describeScan,type ScanCoverage} from './scan-summary';
@@ -172,18 +173,20 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const currentSnapshot=()=>JSON.stringify({report,payload:outgoing()});
   submit.onclick=()=>{if(submitting||submittedReport)return;void run(async()=>{
     submitting=true;submitResult.textContent='Sending…';setBusy(true);
+    let submissionPhase:'prepare'|'submit'='prepare';
     try{
       const prepared=await prepareCurrent();if(!prepared||!review){if(!submitResult.textContent||submitResult.textContent==='Sending…')submitResult.textContent='Report changed or needs attention. Confirm your settings and click Submit again.';return;}
       if(submittedHashes.has(prepared.hash)){submittedReport=true;submitResult.textContent='Report submitted. Thank you!';return;}
       if(review.submissionAvailable===false||!review.submissionJson){submitResult.textContent=submissionStatus.textContent;return;}
       if(!/^[a-f0-9]{64}$/.test(prepared.hash))throw Error('Invalid prepared report');
       const snapshot=currentSnapshot();
+      submissionPhase='submit';
       const receipt=await bridge.invoke<string>('submit_review',{token:prepared.token,consent:true});
       if(typeof receipt!=='string'||receipt!==prepared.hash)throw Error('Invalid receipt');
       submittedHashes.add(prepared.hash);submittedSnapshots.add(snapshot);
       if(prepared.revision!==revision||prepared.snapshot!==JSON.stringify(outgoing())){submitResult.textContent='Previous report submitted. Current settings have changed; click Submit to send an updated report.';return;}
       submittedReport=true;submitResult.textContent='Report submitted. Thank you!';submissionStatus.textContent=submitResult.textContent;
-    }catch{submitResult.textContent='Unable to confirm submission. Check your connection and click Submit to retry.';}
+    }catch(error){submitResult.textContent=submissionErrorMessage(error,submissionPhase);}
     finally{submitting=false;setBusy(busy);}
   });};
   const checkForUpdate=async()=>{
