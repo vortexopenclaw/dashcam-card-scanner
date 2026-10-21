@@ -16,6 +16,8 @@ pub struct Labels {
     pub parking_mode_label: Option<String>,
     pub parking_mode: String,
     pub time_lapse_fps: Option<f64>,
+    #[serde(default)]
+    pub suggested_fields: Vec<String>,
 }
 /// Manufacturer wording is an assertion, never a measured setting.
 pub fn setting_label(mode: Option<&str>, label: Option<&str>) -> Result<(), String> {
@@ -35,6 +37,15 @@ pub fn setting_label(mode: Option<&str>, label: Option<&str>) -> Result<(), Stri
 }
 impl Labels {
     pub fn validate(&self) -> Result<(), String> {
+        if self.suggested_fields.len() > 2
+            || self.suggested_fields.iter().enumerate().any(|(i, k)| {
+                !["parkingMode", "timeLapseFps"].contains(&k.as_str())
+                    || self.suggested_fields[..i].contains(k)
+                    || (k == "timeLapseFps" && self.time_lapse_fps.is_none())
+            })
+        {
+            return Err("Invalid suggested-field provenance".into());
+        }
         setting_label(Some(&self.quality), self.quality_label.as_deref())?;
         setting_label(Some(&self.parking_mode), self.parking_mode_label.as_deref())?;
         if !(1..=8).contains(&self.channel_count) {
@@ -110,7 +121,11 @@ pub fn prepare(r: &Report, l: &Labels) -> Result<Review, String> {
             v["video_summary"]=summary;
         } v
     }).collect();
-    let setting_text = format!("{}; quality {} ({:?}); parking {} ({:?}); channel count {}; capture cadence {:?} fps (owner reported)", l.settings.trim(), l.quality, l.quality_label, l.parking_mode, l.parking_mode_label, l.channel_count, l.time_lapse_fps);
+    let setting_text = format!("{}; quality {} ({:?}); parking {} ({:?}); channel count {}; capture cadence {:?} fps (owner reported)", l.settings.trim(), l.quality, l.quality_label, if l.suggested_fields.iter().any(|k| k == "parkingMode") { "unknown (automatic estimate withheld)" } else { &l.parking_mode }, if l.suggested_fields.iter().any(|k| k == "parkingMode") { None } else { l.parking_mode_label.clone() }, l.channel_count, if l.suggested_fields.iter().any(|k| k == "timeLapseFps") { None } else { l.time_lapse_fps });
+    let setting_text = format!(
+        "{setting_text}. Automatic estimate fields, NOT owner-confirmed: {:?}; estimated parking {:?}; estimated capture fps {:?}",
+        l.suggested_fields, if l.suggested_fields.iter().any(|k| k == "parkingMode") { Some(&l.parking_mode) } else { None }, if l.suggested_fields.iter().any(|k| k == "timeLapseFps") { l.time_lapse_fps } else { None }
+    );
     let public = json!({"schema_version":"1.0","camera":{"manufacturer":l.manufacturer.trim(),"model":l.model.trim(),"channel_setup":l.channel_setup.trim(),"firmware":l.firmware.trim()},"evidence":{"kind":"card-validated","notes":"Owner-labeled card scan. Native ISO BMFF metadata samples; no identity inference. Partial/mixed folders may omit non-uniform aggregate fields."},"card_layout":{"folders":folders},"notes":format!("Owner-reported settings: {}. Entries: {}; skipped: {}; bounded/partial: {}; native probes: {}; unavailable/unsupported samples: {}. No ffprobe used. Shapes: N=digit, A=uppercase, a=lowercase, ?=other; not literal filenames.",setting_text,r.entries_seen,r.skipped,r.limited,r.probe_attempts,r.probe_failures)});
     // Existing Worker drops generalized pattern fields. Carry bounded anonymous shapes in message,
     // not fabricated filenameSamples. Persist numeric paired observations in storageRateSamples.
@@ -127,7 +142,14 @@ pub fn prepare(r: &Report, l: &Labels) -> Result<Review, String> {
     let summaries:Vec<Value>=r.folders.iter().flat_map(|f|f.videos.iter().map(|v|json!({"folder":f.path,"fileCount":1,"totalFileSizeBytes":v.file_size_bytes,"minFileSizeBytes":v.file_size_bytes,"maxFileSizeBytes":v.file_size_bytes,"sampleCodecs":[v.codec],"sampleResolutions":[format!("{}x{}",v.width,v.height)],"sampleFrameRates":v.nominal_frame_rate.into_iter().collect::<Vec<_>>(),"sampleBitrateMin":v.video_bitrate,"sampleBitrateMax":v.video_bitrate,"sampleDurationMin":v.duration_seconds,"sampleDurationMax":v.duration_seconds,"storageRateSamples":[v]}))).collect();
     let submission = json!({"kind":"training","message":shapes,"appVersion":format!("card-scanner/{}",env!("CARGO_PKG_VERSION")),"contact":"","training":{"manufacturer":l.manufacturer.trim(),"model":l.model.trim(),"channelSetup":l.channel_setup.trim(),"notes":format!("Owner-reported firmware: {}; owner-reported settings: {}. These labels are not scanner-verified.",l.firmware.trim(),setting_text)},"scan":{"scannedFiles":r.scanned_files,"copyableItems":0,"excludedItems":r.skipped,"directorySummaries":r.folders.iter().map(|f|json!({"path":f.path,"depth":f.depth,"directFileCount":f.file_count,"directTotalFileSizeBytes":f.total_file_size_bytes,"extensionCounts":f.extensions})).collect::<Vec<_>>(),"filenameSamples":[],"videoSpecSummaries":summaries}});
     let (outgoing, reason) = match crate::intake::envelope(r, l) {
-        Ok(v) => (v, String::new()),
+        Ok(v) => {
+            let warning = if !v.contains("\"temporalEvidence\"") {
+                " Temporal summary omitted: 16 KiB limit; existing paired measurements preserved."
+            } else {
+                ""
+            };
+            (v, warning.into())
+        }
         Err(e) => (String::new(), format!(" Intake unavailable: {e}")),
     };
     Ok(Review{submission_available:crate::intake::ORIGIN.is_some(),token:uuid::Uuid::new_v4().to_string(),public_json:serde_json::to_string_pretty(&public).map_err(|_|"JSON encoding failed")?,submission_json:outgoing,private_json:serde_json::to_string_pretty(&submission).map_err(|_|"JSON encoding failed")?,payload_hash:String::new(),warning:format!("Review all owner-entered labels: do not include contacts, serials, GPS, paths or identifiers. Public export is aggregate schema 1.0; private submission contains anonymous paired measurements. The existing Worker retains shapes in the message, not its filenamePatternSummaries. Partial scans are labeled. Sampling is bounded and not representative of every setting/channel. Gateway evidence preserves individual pairs; container bitrate and unmeasured metadata are null. Channel/mode remain unknown; owner settings are separate.{}",reason)})
@@ -149,6 +171,7 @@ mod tests {
             parking_mode_label: None,
             parking_mode: "unknown".into(),
             time_lapse_fps: None,
+            suggested_fields: vec![],
         };
         assert!(prepare(&Report::default(), &l).is_err());
         let r = Report {

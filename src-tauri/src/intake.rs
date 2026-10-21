@@ -268,11 +268,51 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     if let Some(n) = l.time_lapse_fps {
         owner["timeLapseFps"] = json!(n);
     }
+    if !l.suggested_fields.is_empty() {
+        owner["suggestedFields"] = json!(l.suggested_fields);
+    }
     let body=serde_json::to_string(&json!({"schemaVersion":1,"owner":owner,"evidence":evidence,"structure":{"completed":true,"fileCount":r.scanned_files,"mediaCount":total_media,"folders":folders,"observedLayouts":[]}})).map_err(|_|"JSON encoding failed")?;
     if body.len() > 16384 {
         return Err("Complete intake exceeds 16 KiB. Export locally; structural totals are never silently truncated.".into());
     }
-    Ok(body)
+    let mut payload: Value = serde_json::from_str(&body).map_err(|_| "JSON encoding failed")?;
+    payload["temporalEvidence"] = temporal_summary(r);
+    loop {
+        let encoded = serde_json::to_string(&payload).map_err(|_| "JSON encoding failed")?;
+        if encoded.len() <= 16384 {
+            return Ok(encoded);
+        }
+        let t = &mut payload["temporalEvidence"];
+        if t["cohorts"]
+            .as_array_mut()
+            .expect("cohorts")
+            .pop()
+            .is_none()
+        {
+            return Ok(body);
+        }
+        t["omittedCohortCount"] = json!(
+            t["cohortCount"].as_u64().unwrap() - t["cohorts"].as_array().unwrap().len() as u64
+        );
+    }
+}
+fn temporal_summary(r: &Report) -> Value {
+    let t = crate::mode_evidence::parking_evidence(r, r.recognized_camera_id.as_deref()).temporal;
+    let mut cohorts: Vec<_> = t.cohorts.iter().collect();
+    cohorts.sort_by_key(|c| c.recording_context != "parking");
+    let rows: Vec<_> = cohorts.iter().take(8).map(|c| {
+        let complete = t.inventory_complete && !t.temporal_limited && c.adjacent_pairs >= 4;
+        let suggestion = if complete { c.suggestion } else { None };
+        let reason = match suggestion {
+            Some("continuous_like" | "time_lapse_like") => "consistent_adjacent_timing",
+            Some("low_bitrate_continuous_like") => "comparable_lower_bitrate",
+            Some("event_like") => "irregular_correlated_bursts",
+            _ if !complete => "mixed_or_incomplete",
+            _ => "insufficient_evidence",
+        };
+        json!({"channel":c.channel,"recordingContext":c.recording_context,"suggestion":suggestion,"confidence":if complete && c.confidence == "likely" {"medium"} else {"low"},"reasonCode":reason,"adjacentPairCount":c.adjacent_pairs.min(16383),"playbackFps":positive(Some(c.measured_playback_fps),240.),"durationMedianSeconds":positive(Some(c.median_playback_duration_seconds),86400.),"startIntervalMedianSeconds":if complete {positive(c.median_start_interval_seconds,604800.)} else {None},"estimatedCaptureFps":if complete {positive(c.estimated_capture_fps,240.)} else {None},"relativeDrivingBitrate":if complete {positive(c.relative_driving_bitrate,100.)} else {None}})
+    }).collect();
+    json!({"version":1,"inventoryComplete":t.inventory_complete,"temporalLimited":t.temporal_limited,"cohortCount":cohorts.len(),"omittedCohortCount":cohorts.len()-rows.len(),"ownerConfirmed":false,"cohorts":rows})
 }
 pub fn origin() -> Result<&'static str, String> {
     let s=ORIGIN.ok_or("Secure intake is not provisioned. Export JSON instead; the legacy feedback endpoint is never used for direct submission.")?;
@@ -292,6 +332,69 @@ pub fn origin() -> Result<&'static str, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn bmff(duration: f64, fps: f64, frame_bytes: u32) -> Vec<u8> {
+        fn bx(tag: &[u8; 4], body: Vec<u8>) -> Vec<u8> {
+            let mut b = ((body.len() + 8) as u32).to_be_bytes().to_vec();
+            b.extend(tag);
+            b.extend(body);
+            b
+        }
+        let mut mdhd = vec![0; 24];
+        mdhd[12..16].copy_from_slice(&1000u32.to_be_bytes());
+        mdhd[16..20].copy_from_slice(&((duration * 1000.0) as u32).to_be_bytes());
+        let mut hdlr = vec![0; 12];
+        hdlr[8..12].copy_from_slice(b"vide");
+        let mut entry = vec![0; 78];
+        entry[24..26].copy_from_slice(&1920u16.to_be_bytes());
+        entry[26..28].copy_from_slice(&1080u16.to_be_bytes());
+        let mut stsd = vec![0, 0, 0, 0, 0, 0, 0, 1];
+        stsd.extend(bx(b"avc1", entry));
+        let count = (duration * fps).round() as u32;
+        let mut stsz = vec![0; 4];
+        stsz.extend(frame_bytes.to_be_bytes());
+        stsz.extend(count.to_be_bytes());
+        let mut stbl = bx(b"stsd", stsd);
+        stbl.extend(bx(b"stsz", stsz));
+        let mut mdia = bx(b"mdhd", mdhd);
+        mdia.extend(bx(b"hdlr", hdlr));
+        mdia.extend(bx(b"minf", bx(b"stbl", stbl)));
+        let mut bytes = bx(b"moov", bx(b"trak", bx(b"mdia", mdia)));
+        bytes.extend(bx(b"mdat", vec![0; (frame_bytes * count) as usize]));
+        bytes
+    }
+
+    #[test]
+    fn temporal_native_prepared_fixture() {
+        use std::sync::atomic::AtomicBool;
+        let dir = tempfile::Builder::new()
+            .prefix("retention-native-")
+            .tempdir_in(std::env::temp_dir().canonicalize().unwrap())
+            .unwrap();
+        let bytes = bmff(60., 30., 10);
+        for i in 0..8 {
+            let seconds = i * 1800;
+            let name = format!(
+                "2030_0101_{:02}{:02}00_{:06}PF.MP4",
+                seconds / 3600,
+                seconds / 60 % 60,
+                i + 1
+            );
+            std::fs::write(dir.path().join(name), &bytes).unwrap();
+        }
+        let mut report = crate::engine::scan(dir.path(), &AtomicBool::new(false), |_| {}).unwrap();
+        report.recognized_camera_id = Some("viofo-t340".into());
+        let labels: Labels = serde_json::from_value(json!({"manufacturer":"Synthetic","model":"Temporal","channelSetup":"1CH","firmware":"","settings":"","channelCount":1,"quality":"unknown","parkingMode":"time-lapse","timeLapseFps":1,"suggestedFields":["parkingMode","timeLapseFps"]})).unwrap();
+        let prepared = crate::payload::prepare(&report, &labels).unwrap();
+        let p: Value = serde_json::from_str(&prepared.submission_json).unwrap();
+        assert!(!p["evidence"].as_array().unwrap().is_empty());
+        assert_eq!(
+            p["temporalEvidence"]["cohorts"][0]["suggestion"],
+            "time_lapse_like"
+        );
+        assert_eq!(p["temporalEvidence"]["ownerConfirmed"], false);
+        println!("TEMPORAL_NATIVE:{}", prepared.submission_json);
+    }
+
     #[test]
     fn outgoing_sampling_round_robins_folders_and_filename_families() {
         let r = Report {
@@ -366,6 +469,7 @@ mod tests {
             parking_mode_label: None,
             parking_mode: "unknown".into(),
             time_lapse_fps: None,
+            suggested_fields: vec![],
         };
         let unrecognized: Value =
             serde_json::from_str(&envelope(&report, &labels).unwrap()).unwrap();
@@ -496,6 +600,7 @@ mod tests {
             parking_mode: "buffered".into(),
             parking_mode_label: Some("Auto Event Detection".into()),
             time_lapse_fps: None,
+            suggested_fields: vec![],
         };
         let (_, camera) =
             crate::recognition::recognize(std::path::Path::new("/Volumes/Untitled"), &report);
@@ -671,6 +776,7 @@ mod tests {
             parking_mode_label: None,
             parking_mode: "unknown".into(),
             time_lapse_fps: None,
+            suggested_fields: vec![],
         };
         let body = envelope(&report, &labels).unwrap();
         let value: Value = serde_json::from_str(&body).unwrap();

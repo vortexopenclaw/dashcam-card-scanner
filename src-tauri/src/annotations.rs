@@ -41,6 +41,8 @@ pub struct Owner {
     pub parking_mode_label: Option<String>,
     pub parking_mode: Option<String>,
     pub time_lapse_fps: Option<f64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub suggested_fields: Vec<String>,
 }
 fn valid_label(s: &str, max: usize) -> bool {
     !s.is_empty()
@@ -96,6 +98,16 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
             }
         }
         let o = &c.owner;
+        if o.suggested_fields.len() > 2
+            || o.suggested_fields.iter().enumerate().any(|(i, k)| {
+                !["parkingMode", "timeLapseFps"].contains(&k.as_str())
+                    || o.suggested_fields[..i].contains(k)
+                    || (k == "timeLapseFps" && o.time_lapse_fps.is_none())
+                    || (k == "parkingMode" && o.parking_mode.is_none())
+            })
+        {
+            return Err("Invalid group suggestion provenance".into());
+        }
         payload::setting_label(o.quality.as_deref(), o.quality_label.as_deref())?;
         payload::setting_label(o.parking_mode.as_deref(), o.parking_mode_label.as_deref())?;
         if o.channel_count > 8
@@ -152,12 +164,13 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
         base.quality = "unknown".into();
         base.parking_mode = "unknown".into();
         base.time_lapse_fps = None;
+        base.suggested_fields.clear();
     }
     let mut review = payload::prepare(r, &base)?;
     if grouped {
         let group_text = serde_json::to_string(&a.cohorts).map_err(|_| "Group encoding failed")?;
         let unassigned: Vec<_> = (0..samples.len()).filter(|i| !seen.contains(i)).collect();
-        let note=format!(" Owner-reported configuration groups (channelCount 0 means unknown, never measured): {group_text}. Unassigned sample indices: {unassigned:?}. Membership references the bounded secure-intake sample order, not the entire card. Shared fallback settings do not apply to these groups.");
+        let note=format!(" Configuration labels (suggestedFields marks automatic estimates, NOT owner-confirmed; channelCount 0 means unknown, never measured): {group_text}. Unassigned sample indices: {unassigned:?}. Membership references the bounded secure-intake sample order, not the entire card. Shared fallback settings do not apply to these groups.");
         let mut public: Value =
             serde_json::from_str(&review.public_json).map_err(|_| "Review encoding failed")?;
         let inventory = public["notes"]
@@ -198,12 +211,30 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
                 if let Some(s) = &c.owner.quality { owner["quality"] = json!(s); }
                 if let Some(s) = &c.owner.parking_mode { owner["parkingMode"] = json!(s); }
                 if let Some(v) = c.owner.time_lapse_fps { owner["timeLapseFps"] = json!(v); }
+                if !c.owner.suggested_fields.is_empty() { owner["suggestedFields"] = json!(c.owner.suggested_fields); }
                 json!({"id":c.id,"evidenceIndices":c.evidence_indices,"folderIndices":c.folder_indices,"owner":owner})
             }).collect();
             body["cohorts"] = json!(cohorts);
         }
         if let Some(c) = &a.contributor {
             body["contributor"] = json!({"dashcamTalkUsername":private_username(c)?});
+        }
+        while serde_json::to_vec(&body)
+            .map_err(|_| "Intake encoding failed")?
+            .len()
+            > 16384
+            && body.get("temporalEvidence").is_some()
+        {
+            let t = &mut body["temporalEvidence"];
+            if t["cohorts"].as_array_mut().unwrap().pop().is_some() {
+                t["omittedCohortCount"] = json!(
+                    t["cohortCount"].as_u64().unwrap()
+                        - t["cohorts"].as_array().unwrap().len() as u64
+                );
+            } else {
+                body.as_object_mut().unwrap().remove("temporalEvidence");
+            }
+            review.warning.push_str(" Optional temporal summary reduced/omitted to fit 16 KiB; paired measurements preserved.");
         }
         let bytes = serde_json::to_string(&body).map_err(|_| "Intake encoding failed")?;
         if bytes.len() > 16384 {

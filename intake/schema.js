@@ -43,7 +43,7 @@ function structure(s){
   array(s.observedLayouts,0,64);unique(s.observedLayouts.map(e=>[e.folderIndex,e.channel,e.mode]));for(const e of s.observedLayouts){exact(e,['folderIndex','channel','mode']);folderIndex(e.folderIndex,s);role(e);}
 }
 function settings(o,identity=false) {
-  exact(o,identity?['manufacturer','model','channelCount']:['channelCount'],['firmware','quality','qualityLabel','parkingMode','parkingModeLabel','timeLapseFps']);
+  exact(o,identity?['manufacturer','model','channelCount']:['channelCount'],['firmware','quality','qualityLabel','parkingMode','parkingModeLabel','timeLapseFps','suggestedFields']);
   if(identity){label(o.manufacturer,64);label(o.model,64);}number(o.channelCount,8,true);
   if(o.firmware!==undefined)label(o.firmware,32);
   if(o.quality!==undefined)choice(o.quality,['low','normal','medium','high','maximum','extreme','other','unknown']);
@@ -54,10 +54,25 @@ function settings(o,identity=false) {
     if(o[mode]==='other'&&s===undefined)throw Error('missing_setting_label');
   }
   if(o.timeLapseFps!==undefined)number(o.timeLapseFps,240);
+  if(o.suggestedFields!==undefined){array(o.suggestedFields,0,2);unique(o.suggestedFields);for(const k of o.suggestedFields){choice(k,['parkingMode','timeLapseFps']);if(o[k]===undefined)throw Error('missing_suggested_value');}}
+}
+function temporalEvidence(t){
+  exact(t,['version','inventoryComplete','temporalLimited','cohortCount','omittedCohortCount','ownerConfirmed','cohorts']);
+  if(t.version!==1||t.ownerConfirmed!==false||typeof t.inventoryComplete!=='boolean'||typeof t.temporalLimited!=='boolean')throw Error('invalid_temporal');
+  for(const n of [t.cohortCount,t.omittedCohortCount])if(!Number.isInteger(n)||n<0||n>16384)throw Error('invalid_temporal_count');
+  array(t.cohorts,0,8);if(t.cohorts.length+t.omittedCohortCount!==t.cohortCount)throw Error('invalid_temporal_count');
+  for(const c of t.cohorts){
+    exact(c,['channel','recordingContext','suggestion','confidence','reasonCode','adjacentPairCount','playbackFps','durationMedianSeconds','startIntervalMedianSeconds','estimatedCaptureFps','relativeDrivingBitrate']);
+    choice(c.channel,CHANNELS);choice(c.recordingContext,['driving','parking','unknown']);choice(c.suggestion,[null,'continuous_like','low_bitrate_continuous_like','time_lapse_like','event_like']);choice(c.confidence,['low','medium']);choice(c.reasonCode,['consistent_adjacent_timing','comparable_lower_bitrate','irregular_correlated_bursts','mixed_or_incomplete','insufficient_evidence']);
+    if(!Number.isInteger(c.adjacentPairCount)||c.adjacentPairCount<0||c.adjacentPairCount>16383)throw Error('invalid_temporal_count');
+    for(const [k,max] of [['playbackFps',240],['durationMedianSeconds',86400],['startIntervalMedianSeconds',604800],['estimatedCaptureFps',240],['relativeDrivingBitrate',100]])if(c[k]!==null)number(c[k],max);
+    if((!t.inventoryComplete||t.temporalLimited||c.adjacentPairCount<4)&&(c.suggestion!==null||c.startIntervalMedianSeconds!==null||c.estimatedCaptureFps!==null||c.relativeDrivingBitrate!==null))throw Error('incomplete_temporal_cadence');
+  }
 }
 export function validate(p) {
-  exact(p,['schemaVersion','owner','evidence'],['structure','contributor','cohorts']);if(p.schemaVersion!==1)throw Error('invalid_version');
+  exact(p,['schemaVersion','owner','evidence'],['structure','contributor','cohorts','temporalEvidence']);if(p.schemaVersion!==1)throw Error('invalid_version');
   settings(p.owner,true);
+  if(p.temporalEvidence!==undefined)temporalEvidence(p.temporalEvidence);
   if(p.contributor!==undefined){
     exact(p.contributor,['dashcamTalkUsername']);
     if(typeof p.contributor.dashcamTalkUsername!=='string'||! /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]{0,38}[A-Za-z0-9])?$/.test(p.contributor.dashcamTalkUsername))throw Error('invalid_contributor');

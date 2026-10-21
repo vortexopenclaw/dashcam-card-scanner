@@ -20,6 +20,7 @@ fn main() {
         parking_mode: "unknown".into(),
         parking_mode_label: None,
         time_lapse_fps: None,
+        suggested_fields: vec![],
     };
     let mut review = payload::prepare(&report, &labels).expect("review failed");
     review.payload_hash = intake::hash(review.submission_json.as_bytes());
