@@ -65,7 +65,17 @@ pub fn selected_samples(r: &Report) -> Vec<(usize, &crate::engine::Sample)> {
 // whose role maps are incomplete. Missing or conflicting mappings must not become
 // a claim merely because another sibling profile supplies a convenient answer.
 // A validated native camera restricts candidates, but never bypasses pattern matching.
+#[cfg(test)]
 fn sample_hints(name: &str, recognized_camera_id: Option<&str>) -> (&'static str, &'static str) {
+    sample_hints_for_folder(name, "", recognized_camera_id)
+}
+/// Shared local-review/intake hints. Only validated native identity authorizes
+/// folder context; owner labels never restrict the all-candidate consensus.
+pub(crate) fn sample_hints_for_folder(
+    name: &str,
+    folder: &str,
+    recognized_camera_id: Option<&str>,
+) -> (&'static str, &'static str) {
     static PATTERNS: std::sync::LazyLock<Vec<(String, Vec<regex::Regex>)>> =
         std::sync::LazyLock::new(|| {
             let catalog: Value =
@@ -100,7 +110,13 @@ fn sample_hints(name: &str, recognized_camera_id: Option<&str>) -> (&'static str
                     id == &camera.id && patterns.iter().any(|pattern| pattern.is_match(name))
                 })
         })
-        .map(|camera| crate::recognition::sample_hints(camera, name))
+        .map(|camera| {
+            if recognized_camera_id.is_some() {
+                crate::recognition::sample_hints_for_folder(camera, name, folder)
+            } else {
+                crate::recognition::sample_hints(camera, name)
+            }
+        })
         .collect::<Vec<_>>();
     consensus_hints(&hints)
 }
@@ -227,7 +243,11 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
             .map(|v| v.codec.as_str())
             .filter(|c| ["h264", "hevc", "av1", "mjpeg", "mpeg4"].contains(c))
             .unwrap_or("unknown");
-        let (channel, mode) = sample_hints(&sample.local_name, r.recognized_camera_id.as_deref());
+        let (channel, mode) = sample_hints_for_folder(
+            &sample.local_name,
+            &r.folders[index].path,
+            r.recognized_camera_id.as_deref(),
+        );
         evidence.push(json!({"folderIndex":index,"channel":channel,"mode":mode,"width":v.map(|v|v.width).filter(|n|*n>0 && *n<=16384),"height":v.map(|v|v.height).filter(|n|*n>0 && *n<=16384),"fps":positive(v.and_then(|v|v.nominal_frame_rate),240.),"bitrateKbps":positive(v.and_then(|v|v.video_bitrate),1e9).map(|n|n/1000.),"containerBitrateKbps":Value::Null,"sizeBytes":(sample.file_size_bytes>0 && sample.file_size_bytes<=1_000_000_000_000).then_some(sample.file_size_bytes),"durationSeconds":positive(v.map(|v|v.duration_seconds),86400.),"codec":codec}));
     }
     if total_media == 0 {
@@ -429,6 +449,144 @@ mod tests {
         injected["recognized_camera_id"] = json!("vantrue-n4-pro-s");
         let decoded: Report = serde_json::from_value(injected).unwrap();
         assert!(decoded.recognized_camera_id.is_none());
+    }
+    #[test]
+    fn a119_native_folder_context_reaches_selected_evidence_and_stays_out_of_json() {
+        use crate::engine::{Folder, Sample};
+        let name = "20300101120000_000001.MP4";
+        // Deliberately not lexical folder order: use selection's actual folder index.
+        let cases = [
+            ("DCIM/Parking/RO", "parking"),
+            ("DCIM/Movie", "normal"),
+            ("DCIM/Movie/RO", "protected"),
+            ("DCIM/Parking", "parking"),
+        ];
+        let mut report = Report {
+            scanned_files: 4,
+            folders: cases
+                .iter()
+                .map(|(path, _)| Folder {
+                    path: (*path).into(),
+                    file_count: 1,
+                    extensions: [("mp4".into(), 1)].into(),
+                    samples: vec![Sample {
+                        local_name: name.into(),
+                        filename_template: "SEQUENCE.MP4".into(),
+                        ..Default::default()
+                    }],
+                    ..Default::default()
+                })
+                .collect(),
+            ..Default::default()
+        };
+        let labels = Labels {
+            manufacturer: "VIOFO".into(),
+            model: "A119M Pro".into(),
+            channel_setup: "front".into(),
+            channel_count: 1,
+            firmware: String::new(),
+            settings: String::new(),
+            quality: "unknown".into(),
+            quality_label: None,
+            parking_mode: "buffered".into(),
+            parking_mode_label: Some("Auto Event Detection".into()),
+            time_lapse_fps: None,
+        };
+        let (_, camera) =
+            crate::recognition::recognize(std::path::Path::new("/Volumes/Untitled"), &report);
+        assert!(camera.is_none());
+        // Selecting the model and parking subtype is not native authority.
+        let unknown: Value = serde_json::from_str(&envelope(&report, &labels).unwrap()).unwrap();
+        for evidence in unknown["evidence"].as_array().unwrap() {
+            assert_eq!(evidence["channel"], "unknown");
+            assert_eq!(evidence["mode"], "unknown");
+        }
+        let (_, camera) =
+            crate::recognition::recognize(std::path::Path::new("/Volumes/A119M Pro"), &report);
+        report.recognized_camera_id = Some(camera.unwrap().id.clone());
+        assert_eq!(
+            report.recognized_camera_id.as_deref(),
+            Some("viofo-a119m-pro")
+        );
+        let body = envelope(&report, &labels).unwrap();
+        let value: Value = serde_json::from_str(&body).unwrap();
+        let evidence = value["evidence"].as_array().unwrap();
+        let selected = selected_samples(&report);
+        assert_eq!(selected.len(), 4);
+        assert_eq!(evidence.len(), selected.len());
+        for ((index, sample), evidence) in selected.iter().zip(evidence) {
+            let expected = ("front", cases[*index].1);
+            assert_eq!(
+                sample_hints_for_folder(
+                    &sample.local_name,
+                    &report.folders[*index].path,
+                    report.recognized_camera_id.as_deref()
+                ),
+                expected
+            );
+            assert_eq!(evidence["folderIndex"], *index);
+            assert_eq!(evidence["channel"], expected.0);
+            assert_eq!(evidence["mode"], expected.1);
+        }
+        assert_eq!(value["owner"]["parkingModeLabel"], "Auto Event Detection");
+        let review = crate::payload::prepare(&report, &labels).unwrap();
+        let serialized = serde_json::to_string(&report).unwrap();
+        for text in [
+            &body,
+            &serialized,
+            &review.public_json,
+            &review.private_json,
+        ] {
+            for forbidden in [
+                "recognizedCameraId",
+                "recognized_camera_id",
+                "viofo-a119m-pro",
+                name,
+                "/Volumes/",
+            ] {
+                assert!(!text.contains(forbidden), "leaked {forbidden}");
+            }
+        }
+        let mut injected: Value = serde_json::from_str(&serialized).unwrap();
+        injected["recognizedCameraId"] = json!("viofo-a119m-pro");
+        injected["recognized_camera_id"] = json!("viofo-a119m-pro");
+        let mut decoded: Report = serde_json::from_value(injected).unwrap();
+        assert!(decoded.recognized_camera_id.is_none());
+        // Restore only native basenames to isolate the identity boundary from the
+        // separate serialization-skipped basename boundary.
+        for folder in &mut decoded.folders {
+            assert!(folder.samples[0].local_name.is_empty());
+            folder.samples[0].local_name = name.into();
+        }
+        let roundtrip: Value = serde_json::from_str(&envelope(&decoded, &labels).unwrap()).unwrap();
+        for evidence in roundtrip["evidence"].as_array().unwrap() {
+            assert_eq!(evidence["channel"], "unknown");
+            assert_eq!(evidence["mode"], "unknown");
+        }
+        for (folder, _) in cases {
+            assert_eq!(
+                sample_hints_for_folder(name, folder, Some("missing-camera")),
+                ("unknown", "unknown")
+            );
+            assert_eq!(
+                sample_hints_for_folder("personal.MP4", folder, Some("viofo-a119m-pro")),
+                ("unknown", "unknown")
+            );
+            assert_eq!(
+                sample_hints_for_folder(name, folder, None),
+                ("unknown", "unknown")
+            );
+        }
+        assert_eq!(
+            sample_hints_for_folder(name, "personal/Parking", Some("viofo-a119m-pro")),
+            ("front", "unknown")
+        );
+        report.recognized_camera_id = Some("missing-camera".into());
+        let unknown: Value = serde_json::from_str(&envelope(&report, &labels).unwrap()).unwrap();
+        for evidence in unknown["evidence"].as_array().unwrap() {
+            assert_eq!(evidence["channel"], "unknown");
+            assert_eq!(evidence["mode"], "unknown");
+        }
     }
     #[test]
     fn existing_n4_hints_map_to_strict_roles_and_modes() {
