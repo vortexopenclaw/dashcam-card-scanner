@@ -1,6 +1,66 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! Local-only hints. Never attached to the engine report or outgoing payload.
 use crate::engine::Report;
+#[path = "stamp_ocr.rs"]
+mod stamp_ocr;
+#[cfg(test)]
+#[path = "stamp_ocr_tests.rs"]
+mod stamp_ocr_tests;
+
+/// Call once after inventory inside the native spawn_blocking scan, never per
+/// header. The progress callback carries no source data; cancellation is polled
+/// every 20ms while decoding. Non-macOS returns existing metadata-only hints.
+/// This returns catalog references, never recognized words or frame bytes.
+pub fn recognize_with_ocr(
+    root: &Path,
+    report: &Report,
+    cancel: &std::sync::atomic::AtomicBool,
+    mut progress: impl FnMut(),
+) -> (serde_json::Value, Option<&'static Camera>) {
+    if report.cancelled {
+        return (
+            serde_json::json!({"confidence":"unknown","reason":"Local recognition cancelled."}),
+            None,
+        );
+    }
+    let evidence = stamp_ocr::probe(root, report, cancel, &mut progress);
+    if report.cancelled || cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        return (
+            serde_json::json!({"confidence":"unknown","reason":"Local recognition cancelled."}),
+            None,
+        );
+    }
+    recognition_from_stamp(root, report, &evidence)
+}
+
+fn recognition_from_stamp(
+    root: &Path,
+    report: &Report,
+    evidence: &stamp_ocr::Evidence,
+) -> (serde_json::Value, Option<&'static Camera>) {
+    if let Some(c) = stamp_ocr::unique(evidence, report) {
+        return (
+            serde_json::json!({"manufacturer":c.manufacturer,"model":c.model,"channelCount":c.channel_count,"channelSetup":c.channel_setup,"confidence":"supported","reason":"Local bottom-of-frame model stamp corroborated by known filename and folder evidence; editable suggestion, not device authentication."}),
+            Some(c),
+        );
+    }
+    let (mut value, camera) = recognize_metadata(root, report);
+    // Even a single incompatible identity is a veto. A partial OCR batch must
+    // never let a spoofed root label override recognized contradictory evidence.
+    if !evidence.identities.is_empty() {
+        value
+            .as_object_mut()
+            .unwrap()
+            .retain(|key, _| !["model", "channelCount", "channelSetup"].contains(&key.as_str()));
+        value["confidence"] = serde_json::json!("unknown");
+        value["reason"] = serde_json::json!(
+            "Conflicting or incomplete local model-stamp evidence; choose the camera manually."
+        );
+        return (value, None);
+    }
+    (value, camera)
+}
+
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::Path, sync::LazyLock};
 #[derive(Clone, Deserialize, Serialize)]
@@ -100,9 +160,22 @@ pub fn sample_hints_for_folder(
     };
     (channel, folder_mode.map(str::to_owned).or(mode))
 }
-/// Exact identity needs a model label AND filename/structure corroboration.
+/// Backward-compatible once-per-scan recognition (model stamp or corroborated
+/// model label). Prefer recognize_with_ocr to share scan cancellation/progress.
 /// Shared sibling patterns alone never select an exact model.
 pub fn recognize(root: &Path, report: &Report) -> (serde_json::Value, Option<&'static Camera>) {
+    recognize_with_ocr(
+        root,
+        report,
+        &std::sync::atomic::AtomicBool::new(false),
+        || {},
+    )
+}
+
+fn recognize_metadata(
+    root: &Path,
+    report: &Report,
+) -> (serde_json::Value, Option<&'static Camera>) {
     let label = normalized(root.file_name().and_then(|s| s.to_str()).unwrap_or(""));
     let candidates: Vec<_> = catalog()
         .iter()
