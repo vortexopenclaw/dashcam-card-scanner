@@ -16,6 +16,8 @@ for(const [platform,radius,height] of [['macos','6px','28px'],['windows','4px','
    for(const theme of ['light','dark']){
     document.documentElement.dataset.theme=theme;const button=getComputedStyle(ui.scan);
     expect(button.fontSize).toBe('13px');expect(button.fontWeight).toBe('500');expect(button.borderRadius).toBe(radius);expect(button.minHeight).toBe(height);
+    const scannerNav=getComputedStyle(ui.scannerButton),settingsNav=getComputedStyle(ui.settingsButton);
+    expect(scannerNav.marginLeft).toBe('0px');expect(settingsNav.marginLeft).toBe('0px');expect(scannerNav.marginRight).toBe('0px');expect(settingsNav.marginRight).toBe('0px');expect(settingsNav.width).toBe(scannerNav.width);
     const row=getComputedStyle(ui.updateAction.parentElement);expect(row.display).toBe('flex');expect(row.gap).toBe('10px');expect(row.flexWrap).toBe('wrap');
     ui.updateBanner.hidden=false;const bannerButton=getComputedStyle(ui.bannerAction);expect(bannerButton.borderRadius).toBe(radius);expect(bannerButton.minHeight).toBe(height);const bannerRow=getComputedStyle(ui.bannerAction.parentElement);expect(bannerRow.display).toBe('flex');expect(bannerRow.gap).toBe('10px');expect(bannerRow.flexWrap).toBe('wrap');
    }
