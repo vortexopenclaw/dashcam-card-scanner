@@ -103,18 +103,32 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const updateSection=element('section');element('h2','App updates',updateSection);element('p','Check for the latest official app release.',updateSection);
   const runningVersion=element('p','Running version: loading…',updateSection);const updateActions=element('div','',updateSection);updateActions.className='actions';const updateAction=element('button','Check for updates',updateActions);const updateProgress=element('progress','',updateSection);updateProgress.hidden=true;updateProgress.setAttribute('aria-label','Update download progress');
   const updateStatus=element('p','',updateSection);updateStatus.setAttribute('role','status');settingsPanel.append(updateSection,closeSettings);for(const child of Array.from(root.children)){if(child!==sidebar&&child!==settingsPanel&&child!==mainScreen)mainScreen.append(child);}mainScreen.append(intro);
+  const updateBanner=element('section','',mainScreen);updateBanner.className='update-banner';updateBanner.hidden=true;updateBanner.setAttribute('aria-label','App update');mainScreen.prepend(updateBanner);
+  const bannerStatus=element('p','',updateBanner);bannerStatus.setAttribute('role','status');const bannerActions=element('div','',updateBanner);bannerActions.className='actions';const bannerAction=element('button','Update',bannerActions);const bannerProgress=element('progress','',updateBanner);bannerProgress.setAttribute('aria-label','Update download progress');bannerProgress.hidden=true;
+  let startupCheckPending=true;
   let review:Review|null=null;let report:Report|null=null;let busy=false;let version:string|null=null;
   let revision=0;let pendingVerification:{token:string;snapshot:string;opened:boolean;ticket?:string}|null=null;
   let verificationReady=false;let submitting=false;
   type UpdateState='idle'|'checking'|'available'|'downloading'|'installing'|'installed'|'current'|'error';
   let updateState:UpdateState='idle';let restartConfirmed=false;let restartPending=false;let submittedReport=false;
   const updateWorking=()=>['checking','downloading','installing'].includes(updateState)||restartPending;
-  const renderUpdate=()=>{updateAction.textContent=restartPending?'Restarting…':restartConfirmed?'Restart anyway':({idle:'Check for updates',checking:'Checking…',available:`Update to ${version}`,downloading:'Downloading…',installing:'Installing…',installed:'Restart to finish update',current:'Check for updates',error:'Retry update check'}[updateState]);updateAction.classList.toggle('primary',updateState==='available'||updateState==='installed');updateAction.dataset.state=updateState;updateProgress.hidden=updateState!=='downloading';updateSection.setAttribute('aria-busy',String(updateWorking()));setBusy(busy);};
+  const renderUpdate=()=>{
+    updateAction.textContent=restartPending?'Restarting…':restartConfirmed?'Restart anyway':({idle:'Check for updates',checking:'Checking…',available:`Update to ${version}`,downloading:'Downloading…',installing:'Installing…',installed:'Restart to finish update',current:'Check for updates',error:'Retry update check'}[updateState]);
+    updateAction.classList.toggle('primary',updateState==='available'||updateState==='installed');updateAction.dataset.state=updateState;
+    updateProgress.hidden=updateState!=='downloading';updateSection.setAttribute('aria-busy',String(updateWorking()));
+    // Both surfaces reflect the same state and invoke the same action handler.
+    updateBanner.hidden=['idle','current'].includes(updateState);bannerStatus.textContent=updateStatus.textContent;
+    bannerAction.textContent=updateState==='available'?'Update':updateAction.textContent;bannerAction.dataset.state=updateState;
+    bannerAction.classList.toggle('primary',updateState==='available'||updateState==='installed');
+    bannerProgress.hidden=updateProgress.hidden;bannerProgress.max=updateProgress.max;
+    if(updateProgress.hasAttribute('value'))bannerProgress.value=updateProgress.value;else bannerProgress.removeAttribute('value');
+    updateBanner.setAttribute('aria-busy',String(updateWorking()));setBusy(busy);
+  };
   void bridge.invoke<string>('app_version').then(value=>{runningVersion.textContent=typeof value==='string'&&value?`Running version: ${value}`:'Running version unavailable.';}).catch(()=>{runningVersion.textContent='Running version unavailable.';});
-  const invalidate=()=>{const pending=pendingVerification;if(pending)status.textContent='Report changed. Click Submit to verify the updated metadata.';revision++;submittedReport=false;review=null;pendingVerification=null;if(pending)void bridge.invoke('cancel_verification',{token:pending.token}).catch(()=>{});reviewPanel.hidden=true;setBusy(busy);};
+  const invalidate=()=>{restartConfirmed=false;const pending=pendingVerification;if(pending)status.textContent='Report changed. Click Submit to verify the updated metadata.';revision++;submittedReport=false;review=null;pendingVerification=null;if(pending)void bridge.invoke('cancel_verification',{token:pending.token}).catch(()=>{});reviewPanel.hidden=true;if(updateState==='installed')renderUpdate();else setBusy(busy);};
   username.oninput=()=>{preferences.username=username.value;invalidate();settingsStatus.textContent=saveSettings(preferences)?'Username saved locally.':'Unable to save preferences on this computer.';};
   Object.values(fields).forEach(f=>f.addEventListener('input',invalidate));Object.values(choices).forEach(f=>f.addEventListener('change',invalidate));cadence.addEventListener('input',invalidate);
-  const setBusy=(value:boolean)=>{busy=value;value=value||submitting||updateWorking();labels.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select').forEach(e=>e.disabled=value);groupPanel.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(e=>e.disabled=value);addGroup.disabled=value||cohorts.length>=16;username.disabled=value;select.disabled=value;scan.disabled=value || source.dataset.selected!=='yes';cancel.disabled=!busy;prepare.disabled=value || !!pendingVerification || !report || report.cancelled || report.scannedFiles===0;Object.entries(fields).forEach(([k,f])=>f.disabled=value||(cohorts.length>0&&!['manufacturer','model'].includes(k)));Object.values(choices).forEach(f=>f.disabled=value||cohorts.length>0);cadence.disabled=value||cohorts.length>0;publicExport.disabled=value;privateExport.disabled=value;submit.disabled=value||!verificationReady||!!pendingVerification||!report||report.cancelled||report.scannedFiles===0||review?.submissionAvailable===false;submit.textContent=pendingVerification?'Waiting for verification…':'Submit';updateAction.disabled=value||!!pendingVerification;};
+  const setBusy=(value:boolean)=>{busy=value;value=value||submitting||updateWorking();labels.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select').forEach(e=>e.disabled=value);groupPanel.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(e=>e.disabled=value);addGroup.disabled=value||cohorts.length>=16;username.disabled=value;select.disabled=value;scan.disabled=value || source.dataset.selected!=='yes';cancel.disabled=!busy;prepare.disabled=value || !!pendingVerification || !report || report.cancelled || report.scannedFiles===0;Object.entries(fields).forEach(([k,f])=>f.disabled=value||(cohorts.length>0&&!['manufacturer','model'].includes(k)));Object.values(choices).forEach(f=>f.disabled=value||cohorts.length>0);cadence.disabled=value||cohorts.length>0;publicExport.disabled=value;privateExport.disabled=value;submit.disabled=value||!verificationReady||!!pendingVerification||!report||report.cancelled||report.scannedFiles===0||review?.submissionAvailable===false;submit.textContent=pendingVerification?'Waiting for verification…':'Submit';updateAction.disabled=value||!!pendingVerification;bannerAction.disabled=updateAction.disabled;};
   const showHumanReview=()=>{humanReview.replaceChildren();element('h3',`${fields.manufacturer.value||'Unknown manufacturer'} ${fields.model.value||'Unknown model'}`,humanReview);element('p',`${report?.scannedFiles??0} files in ${report?.folders.length??0} folders. ${report?.reviewSamples?.length??report?.sampledFiles??0} bounded video samples; this does not establish coverage of every recording or configuration.`,humanReview);
     for(const c of cohorts){element('h3',`Setup ${c.id} · ${c.owner.channelCount?c.owner.channelCount+' channels':'channel count unknown'}`,humanReview);element('p',`Owner-reported: firmware ${c.owner.firmware||'unknown'} · quality ${c.owner.qualityLabel||c.owner.quality||'unknown'} · parking ${c.owner.parkingModeLabel||c.owner.parkingMode||'unknown'} · capture cadence ${c.owner.timeLapseFps??'unknown'} fps. Samples: ${(report?.reviewSamples||[]).filter(s=>assignments.get(s.index)===c.id).map(s=>s.index+1).join(', ')||'none'}.`,humanReview);}
     if(!cohorts.length)element('p',`Owner-reported: ${choices.channelCount.value} channels · quality ${choices.quality.selectedOptions[0]?.textContent} · parking ${choices.parkingMode.selectedOptions[0]?.textContent}. These settings are not verified across every recording.`,humanReview);
@@ -171,15 +185,15 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   ]).then(()=>{verificationReady=true;setBusy(busy);}).catch(()=>{status.textContent='In-app verification is unavailable. Restart the app to retry; local report copies remain available.';});
   const checkForUpdate=async()=>{
     if(busy||submitting||pendingVerification||updateWorking()||updateState==='installed')return;
-    version=null;updateState='checking';updateStatus.textContent='Checking for updates…';renderUpdate();
-    try{version=await bridge.invoke<string|null>('check_update');updateState=version?'available':'current';updateStatus.textContent=version?`Version ${version} is available. Nothing installs until you choose Update.`:'No update available.';}
+    startupCheckPending=false;version=null;updateState='checking';updateStatus.textContent='Checking for updates…';renderUpdate();
+    try{await updateProgressReady;version=await bridge.invoke<string|null>('check_update');updateState=version?'available':'current';updateStatus.textContent=version?`Version ${version} is available. Nothing installs until you choose Update.`:'No update available.';}
     catch(e){version=null;updateState='error';updateStatus.textContent=`Unable to check for updates: ${String(e)}. Retry when ready.`;}
     renderUpdate();
   };
-  updateAction.onclick=async()=>{
+  const performUpdate=async()=>{
     if(busy||submitting||pendingVerification||updateWorking())return;
     if(updateState==='installed'){
-      if(report&&!submittedReport&&!restartConfirmed){restartConfirmed=true;updateStatus.textContent=`Version ${version} is installed. Restarting will discard your unsent report and camera settings. Save your report first, or click Restart anyway to discard it.`;renderUpdate();return;}
+      if(((report&&!submittedReport)||(!report&&ownerEdited)||pendingVerification)&&!restartConfirmed){restartConfirmed=true;updateStatus.textContent=`Version ${version} is installed. Restarting will discard your unsent report and camera settings. Save your report first, or click Restart anyway to discard it.`;renderUpdate();return;}
       restartPending=true;updateStatus.textContent='Restarting to finish the update…';renderUpdate();
       try{await bridge.invoke('restart_app',{consent:true});}
       catch(e){restartPending=false;restartConfirmed=false;updateStatus.textContent=`Version ${version} is installed, but restart failed: ${String(e)}. Try restarting again.`;renderUpdate();}
@@ -191,8 +205,11 @@ export function mount(root:HTMLElement,bridge:Bridge) {
     try{await bridge.invoke('install_update',{version:target,consent:true});updateState='installed';updateStatus.textContent=`Version ${target} installed. The running version above stays unchanged until you restart. Restart to finish the update.`;}
     catch(e){version=null;updateState='error';updateStatus.textContent=`Update failed: ${String(e)}. Retry to check for updates again.`;}
     renderUpdate();
+    // The install click also consents to restart, but never to discarding owner work.
+    if(updateState==='installed')await performUpdate();
   };
-  void bridge.listen<{phase:string;downloaded:number;total:number|null}>('update-progress',({payload:p})=>{
+  updateAction.onclick=performUpdate;bannerAction.onclick=performUpdate;
+  const updateProgressReady=bridge.listen<{phase:string;downloaded:number;total:number|null}>('update-progress',({payload:p})=>{
     if(!['downloading','installing'].includes(updateState))return;
     if(p.phase==='downloading'&&updateState==='downloading'){
       if(Number.isFinite(p.total)&&p.total!>0&&Number.isFinite(p.downloaded)){updateProgress.max=p.total!;updateProgress.value=Math.max(0,Math.min(p.downloaded,p.total!));updateStatus.textContent=`Downloading version ${version}: ${Math.floor(updateProgress.value/updateProgress.max*100)}%`;}
@@ -200,11 +217,20 @@ export function mount(root:HTMLElement,bridge:Bridge) {
     }else if(p.phase==='installing'){updateState='installing';updateStatus.textContent=`Installing version ${version}…`;}
     // Only the resolved install command confirms success; ignore unknown phases.
     renderUpdate();
-  }).catch(()=>{});
+  });
+  // Observe registration failures even when the owner closes the app before checking.
+  void updateProgressReady.catch(()=>{});
+  const startupCheck=()=>{
+    if(!root.isConnected||!startupCheckPending)return;
+    // A source picker/scan/verification wins the startup race. Do not lose the check.
+    if(busy||submitting||pendingVerification||polling||updateWorking()){window.setTimeout(startupCheck,250);return;}
+    void checkForUpdate();
+  };
+  window.setTimeout(startupCheck,500);
   for(const button of [select,submit])button.classList.add('primary');
   void bridge.listen<{phase:string;entries:number;files:number;probed:number}>('scan-progress',({payload:p})=>{status.textContent=`${p.phase}: ${p.entries} entries, ${p.files} files, ${p.probed} video probes.`;}).catch(e=>status.textContent=`Progress unavailable: ${String(e)}`);
   let knownCards=new Set<string>();let discoveryReady=false;let polling=false;
   const discover=async()=>{if(polling||busy||updateWorking()||document.hidden||!root.isConnected)return;polling=true;try{const result=await bridge.invoke<{id:string;label:string;path:string}[]>('discover_cards');const cards=Array.isArray(result)?result:[];const added=cards.filter(c=>!knownCards.has(c.id));knownCards=new Set(cards.map(c=>c.id));if(discoveryReady&&added.length===1&&!report&&!ownerEdited&&!review&&source.dataset.selected!=='yes'&&!busy&&!mainScreen.hidden){await run(async()=>{const path=await bridge.invoke<string>('select_discovered_card',{id:added[0].id});resetSource();source.textContent=path;source.dataset.selected='yes';await scanSource();});}discoveryReady=true;}catch{}finally{polling=false;}};
   void discover();const poll=window.setInterval(()=>{if(!root.isConnected)window.clearInterval(poll);else void discover();},4000);
-  return {fields,status,source,choices,scan,prepare,select,submit,publicView,privateView,reviewPanel,cancel,theme,username,manufacturerPick,modelPick,settingsButton,settingsPanel,updateAction,updateStatus,updateProgress,runningVersion,addGroup,sampleList,groupForms,humanReview,submissionStatus,technical,more,submission};
+  return {fields,status,source,choices,scan,prepare,select,submit,publicView,privateView,reviewPanel,cancel,theme,username,manufacturerPick,modelPick,settingsButton,settingsPanel,updateAction,updateStatus,updateProgress,runningVersion,updateBanner,bannerAction,bannerStatus,bannerProgress,addGroup,sampleList,groupForms,humanReview,submissionStatus,technical,more,submission};
 }
