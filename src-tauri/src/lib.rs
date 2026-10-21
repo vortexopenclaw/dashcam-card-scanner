@@ -175,9 +175,9 @@ async fn scan_source(
     let samples:Vec<_>=intake::selected_samples(&result).iter().enumerate().map(|(index,(folder,sample))| {
         let mut value=serde_json::json!({"index":index,"folderIndex":folder,"folder":result.folders[*folder].path,"localName":sample.local_name,"filenameTemplate":sample.filename_template,"sizeBytes":sample.file_size_bytes,"video":sample.video});
         if let Some(camera)=camera {
-            let (channel,mode)=recognition::sample_hints(camera,&sample.local_name);
-            if let Some(channel)=channel { value["channel"]=serde_json::json!(channel); }
-            if let Some(mode)=mode { value["mode"]=serde_json::json!(mode); }
+            let (channel,mode)=recognition::sample_hints_for_folder(camera,&sample.local_name,&result.folders[*folder].path);
+            if let Some(channel)=channel { value["roleHint"]=serde_json::json!(channel); }
+            if let Some(mode)=mode { value["modeHint"]=serde_json::json!(mode); }
         }
         value
     }).collect();
