@@ -1,0 +1,11 @@
+diff --git a/src-tauri/src/lib.rs b/src-tauri/src/lib.rs
+--- a/src-tauri/src/lib.rs
++++ b/src-tauri/src/lib.rs
+@@ -19,6 +19,7 @@
+ use tauri_plugin_dialog::DialogExt;
+ mod ipc;
+ mod observed_channels;
++pub mod mode_evidence;
+ use tauri_plugin_updater::UpdaterExt;
+ #[derive(Default)]
+ struct Data {

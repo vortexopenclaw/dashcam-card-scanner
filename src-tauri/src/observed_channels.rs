@@ -117,6 +117,20 @@ struct Evidence {
     ambiguous: bool,
     conflict: bool,
 }
+// Manufacturer-documented BlackVue S (substream) / L (live-event) files
+// are alternate encodings of the same source role, not additional cameras.
+// This is observation-only; it does not broaden native model recognition.
+pub(crate) fn profile_name<'a>(name: &'a str, id: &str) -> std::borrow::Cow<'a, str> {
+    static PROXY: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"^\d{8}_\d{6}_[NEMPI][FR][SL]\.mp4$").unwrap());
+    if id.starts_with("blackvue-") && name.len() <= 256 && PROXY.is_match(name) {
+        let mut original = name.to_owned();
+        original.remove(name.len() - 5);
+        original.into()
+    } else {
+        name.into()
+    }
+}
 impl Evidence {
     fn name(&mut self, name: &str, id: Option<&str>) {
         if name.len() > 256 {
@@ -126,8 +140,9 @@ impl Evidence {
         let mut roles = BTreeSet::new();
         let mut matched = false;
         for p in PROFILES.iter().filter(|p| id.is_none_or(|id| id == p.id)) {
+            let name = profile_name(name, &p.id);
             for r in &p.rules {
-                let Some(c) = r.regex.captures(name) else {
+                let Some(c) = r.regex.captures(&name) else {
                     continue;
                 };
                 matched = true;
@@ -147,9 +162,11 @@ impl Evidence {
             // A validated identity must not conceal known evidence from another
             // camera; unrelated personal filenames are otherwise ignored.
             if id.is_some()
-                && PROFILES
-                    .iter()
-                    .any(|p| p.rules.iter().any(|r| r.regex.is_match(name)))
+                && PROFILES.iter().any(|p| {
+                    p.rules
+                        .iter()
+                        .any(|r| r.regex.is_match(&profile_name(name, &p.id)))
+                })
             {
                 self.conflict = true;
             }
@@ -167,6 +184,30 @@ impl Evidence {
             self.conflict = true;
         }
     }
+}
+pub(crate) fn sample_role(name: &str, id: &str) -> Option<String> {
+    let mut e = Evidence::default();
+    e.name(name, Some(id));
+    (!e.ambiguous && !e.conflict && e.roles.len() == 1)
+        .then(|| e.roles.into_iter().next())
+        .flatten()
+}
+
+pub(crate) fn is_media(name: &str) -> bool {
+    name.rsplit_once('.').is_some_and(|(_, ext)| {
+        matches!(
+            ext.to_ascii_lowercase().as_str(),
+            "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv" | "jpg" | "jpeg" | "png"
+        )
+    })
+}
+pub(crate) fn media_count(folder: &crate::engine::Folder) -> u64 {
+    folder
+        .extensions
+        .iter()
+        .filter(|(ext, _)| is_media(&format!("x.{ext}")))
+        .map(|(_, n)| *n)
+        .sum()
 }
 // These are generalized templates, NOT original basenames. A template is usable
 // only when *every* possible sequence length yields the same grounded role.
@@ -233,8 +274,31 @@ pub fn observed_channels(report: &Report, validated_native_id: Option<&str>) -> 
         );
     }
     let mut evidence = Evidence::default();
+    let whole_native_names = report.temporal.complete_for(report);
+    if whole_native_names {
+        for name in report.temporal.names() {
+            evidence.name(name, id);
+        }
+    }
     let mut templates = BTreeSet::new();
     for folder in &report.folders {
+        // Some brands' finite filename shapes are currently erased to `unknown`
+        // by the inventory template generator. A capped sample cannot exclude a
+        // later incompatible camera/role in those files. Do not invent witnesses.
+        if !whole_native_names
+            && media_count(folder)
+                > folder
+                    .samples
+                    .iter()
+                    .filter(|s| is_media(&s.local_name))
+                    .count() as u64
+            && folder
+                .filename_templates
+                .iter()
+                .any(|t| template_names(t).is_empty())
+        {
+            return empty("unknown", "Unsampled media has unresolved filename structure; confirm the editable setup manually.");
+        }
         for sample in &folder.samples {
             evidence.name(&sample.local_name, id);
             // Native intake consensus remains authoritative for actual samples.

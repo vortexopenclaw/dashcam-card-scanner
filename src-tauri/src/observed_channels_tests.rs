@@ -16,14 +16,21 @@ fn scan(files: &[(&str, &[u8])]) -> Report {
         before.push((
             path.clone(),
             std::fs::metadata(path).unwrap().modified().unwrap(),
-            bytes.to_vec(),
+            {
+                use sha2::{Digest, Sha256};
+                Sha256::digest(bytes).to_vec()
+            },
         ));
     }
     let report = engine::scan(root.path(), &AtomicBool::new(false), |_| {}).unwrap();
     assert_eq!(report.scanned_files, files.len() as u64);
     assert!(report.inventory_complete);
     for (path, mtime, bytes) in before {
-        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        use sha2::{Digest, Sha256};
+        assert_eq!(
+            Sha256::digest(std::fs::read(&path).unwrap()).to_vec(),
+            bytes
+        );
         assert_eq!(std::fs::metadata(path).unwrap().modified().unwrap(), mtime);
     }
     report
@@ -259,4 +266,81 @@ fn deterministic_five_role_bound_and_limit_fail_closed() {
     assert_eq!(r.count, None);
     assert!(r.reason.contains("limit"));
     assert_eq!(r, observed_channels(&report, None));
+}
+#[test]
+fn blackvue_proxy_and_live_files_share_grounded_roles() {
+    for id in [None, Some("blackvue-elite-9")] {
+        let r = result(
+            &[
+                "BlackVue/Record/20300101_120000_NF.mp4",
+                "BlackVue/Record/20300101_120000_NFS.mp4",
+                "BlackVue/Record/20300101_120000_PRL.mp4",
+            ],
+            id,
+        );
+        assert_eq!(r.roles, ["front", "rear"]);
+    }
+    assert_eq!(
+        result(
+            &["BlackVue/Record/20300101_120000_PFS.mp4"],
+            Some("viofo-t340")
+        )
+        .count,
+        None
+    );
+    assert_eq!(
+        result(&["BlackVue/Record/20300101_120000_PFX.mp4"], None).count,
+        None
+    );
+}
+#[test]
+fn thinkware_roles_work_with_and_without_native_identity() {
+    for id in [None, Some("thinkware-arc-700")] {
+        let r = result(
+            &[
+                "cont_rec/REC_20300101_120000_F.MP4",
+                "parking_rec/REC_20300101_120000_R.MP4",
+            ],
+            id,
+        );
+        assert_eq!(r.roles, ["front", "rear"]);
+    }
+}
+#[test]
+fn same_role_from_incompatible_models_is_not_one_camera() {
+    let r = result(
+        &[
+            "DCIM/Movie/20300101120000_000001.MP4",
+            "BlackVue/Record/20300101_120000_NF.mp4",
+        ],
+        None,
+    );
+    assert_eq!(r.count, None);
+    assert_eq!(r.confidence, "conflicting");
+}
+#[test]
+fn opaque_unsampled_late_channels_do_not_produce_false_single_count() {
+    let mut names: Vec<_> = (0..80)
+        .map(|i| format!("cont_rec/REC_20300101_120000{i:02}_F.MP4"))
+        .collect();
+    // Use valid per-second names; every filename template is currently unknown.
+    for (i, name) in names.iter_mut().enumerate() {
+        *name = format!("cont_rec/REC_20300101_12{:02}{:02}_F.MP4", i / 60, i % 60);
+    }
+    names.push("cont_rec/REC_20300101_130000_R.MP4".into());
+    let mut report = scan(
+        &names
+            .iter()
+            .map(|n| (n.as_str(), b"video".as_slice()))
+            .collect::<Vec<_>>(),
+    );
+    assert!(report.sampled_files <= 64);
+    assert_eq!(
+        observed_channels(&report, Some("thinkware-arc-700")).count,
+        Some(2)
+    );
+    report.temporal = Default::default();
+    let r = observed_channels(&report, Some("thinkware-arc-700"));
+    assert_eq!(r.count, None);
+    assert!(r.reason.contains("Unsampled"));
 }
