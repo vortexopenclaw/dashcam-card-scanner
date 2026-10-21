@@ -113,4 +113,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_ID: ${{ needs.draft.outputs.release_id }}
-        run: node scripts/check-draft.mjs
+        run: |
+          node scripts/name-release-assets.mjs
+          node scripts/check-draft.mjs
