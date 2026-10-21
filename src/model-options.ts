@@ -60,4 +60,4 @@ export function mergeModelOptions(native:Pick<ModelOption,'id'|'manufacturer'|'m
  for(const c of native){const previous=result.get(identity(c));result.set(identity(c),{...previous,id:c.id,manufacturer:c.manufacturer,model:c.model,provenance:previous?.provenance||'native-catalog'});}
  return [...result.values()];
 }
-export function modelOptionLabel(c:ModelOption):string{return c.model+(c.provenance==='owner-provided-prerelease'?' — owner-provided prerelease':'');}
+export function modelOptionLabel(c:ModelOption):string{return c.model;}

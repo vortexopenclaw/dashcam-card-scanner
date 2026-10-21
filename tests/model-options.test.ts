@@ -26,7 +26,7 @@ test('UI roster has official source evidence, unique identities and no recogniti
  for(const brand of ['Viofo','Vantrue','Thinkware','BlackVue','Garmin','Nextbase','70mai','Rexing','Rove','Wolfbox','Vueroid'])expect(brands.has(brand)).toBe(true);
  expect(modelOptions.length).toBeGreaterThan(100);expect(new Set(modelOptions.map(c=>c.manufacturer.toLowerCase()+'|'+c.model.toLowerCase())).size).toBe(modelOptions.length);
  for(const c of modelOptions){expect(c.source).toMatch(/^https:\/\//);expect(c).not.toHaveProperty('patterns');expect(c).not.toHaveProperty('channelCount');expect(c).not.toHaveProperty('channelSetup');}
- const prerelease=modelOptions.find(c=>c.model==='E1 Pro S')!;expect(prerelease.provenance).toBe('owner-provided-prerelease');expect(prerelease.fixedSingleChannel).toBe(true);expect(modelOptionLabel(prerelease)).toContain('owner-provided prerelease');
+ const prerelease=modelOptions.find(c=>c.model==='E1 Pro S')!;expect(prerelease.provenance).toBe('owner-provided-prerelease');expect(prerelease.fixedSingleChannel).toBe(true);expect(modelOptionLabel(prerelease)).toBe('E1 Pro S');
 });
 test('merge deduplicates native identities case-insensitively, retains native IDs/exact strings, and never trusts their maximums',()=>{
  const merged=mergeModelOptions([{id:'native-single',manufacturer:'VANTRUE',model:'E1 Pro'},{id:'native-multi',manufacturer:'Vantrue',model:'N5S'}]);
@@ -37,7 +37,7 @@ test('verified single channel prefills; multicamera, native maximum and unknown 
  const {ui}=setup(undefined,[{id:'max',manufacturer:'Vantrue',model:'N5S',channelCount:4,channelSetup:'front + rear + cabin'}]);
  await settle();ui.select.click();await settle();change(ui.manufacturerPick,'Vantrue');pickModel(ui,'E1 Lite');expect(ui.choices.channelCount.value).toBe('1');expect(ui.fields.channelSetup.value).toBe('front');
  pickModel(ui,'N5S');expect(ui.choices.channelCount.value).toBe('Select count');expect(ui.fields.channelSetup.value).toBe('');
- pickModel(ui,'E1 Pro S — owner-provided prerelease');expect(ui.choices.channelCount.value).toBe('1');expect(ui.fields.model.value).toBe('E1 Pro S');
+ pickModel(ui,'E1 Pro S');expect(ui.choices.channelCount.value).toBe('1');expect(ui.fields.model.value).toBe('E1 Pro S');
  change(ui.modelPick,'other');expect(ui.choices.channelCount.value).toBe('Select count');expect(ui.fields.channelSetup.value).toBe('');
  change(ui.manufacturerPick,'Viofo');pickModel(ui,'A329S 1CH');expect(ui.choices.channelCount.value).toBe('Select count');pickModel(ui,'A119 MINI 2');expect(ui.choices.channelCount.value).toBe('1');
 });
@@ -64,7 +64,7 @@ test('late native catalog changes only option IDs, preserving selected UI identi
  resolve([{id:'native-e1pro',manufacturer:'Vantrue',model:'E1 Pro',channelCount:1,channelSetup:'front'}]);await settle();expect(ui.modelPick.value).toBe('native-e1pro');expect(ui.fields.model.value).toBe('E1 Pro');expect(ui.choices.channelCount.value).toBe('2');expect(ui.fields.channelSetup.value).toBe('owner channels');expect(ui.choices.quality.value).toBe('vantrue-platepix');expect(ui.reviewPanel.hidden).toBe(false);expect(prepared(invoke).labels).toMatchObject({model:'E1 Pro',channelCount:2,quality:'other',qualityLabel:'PlatePix'});
 });
 test.each([['vantrue-standard','Standard'],['vantrue-platepix','PlatePix']])('%s round trips exact label through simple preview, groups and back without custom text or bitrate tier',async(value,label)=>{
- const {ui,invoke}=setup();ui.select.click();await settle();change(ui.manufacturerPick,'Vantrue');pickModel(ui,'E1 Pro S — owner-provided prerelease');change(ui.choices.quality,value);
+ const {ui,invoke}=setup();ui.select.click();await settle();change(ui.manufacturerPick,'Vantrue');pickModel(ui,'E1 Pro S');change(ui.choices.quality,value);
  const custom=ui.choices.quality.parentElement!.querySelector('input')!;expect(custom.hidden).toBe(true);expect(custom.value).toBe('');ui.prepare.click();await settle();expect(prepared(invoke).labels).toMatchObject({quality:'other',qualityLabel:label});expect(ui.choices.quality.value).toBe(value);
  ui.addGroup.click();const quality=()=>ui.groupForms.querySelector<HTMLSelectElement>('[data-setting=quality]')!;expect(quality().value).toBe(value);expect(quality().parentElement!.querySelector('input')!.hidden).toBe(true);ui.prepare.click();await settle();expect(prepared(invoke).annotations.cohorts[0].owner).toMatchObject({quality:'other',qualityLabel:label});
  change(ui.manufacturerPick,'Vantrue');expect(quality().value).toBe(value);expect(quality().selectedOptions[0].textContent).toBe(label);
