@@ -67,6 +67,10 @@ pub struct MetadataCoverage {
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Report {
+    /// Native whole-inventory adjacency evidence, independent of representative samples.
+    /// Both directions skipped: imported JSON cannot manufacture temporal authority.
+    #[serde(skip)]
+    pub temporal: crate::mode_evidence::TemporalInventory,
     // Trusted native recognition context only; never accepted from or sent to JSON.
     #[serde(skip)]
     pub recognized_camera_id: Option<String>,
@@ -606,6 +610,9 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                     self.report.probe_failures += 1;
                     issue(&mut self.report, "video_header_unmeasured", false);
                 }
+                self.report
+                    .temporal
+                    .record(&name.to_string_lossy(), &path, result.as_ref());
                 let sample = Sample {
                     file_size_bytes: result.as_ref().map_or(meta.len(), |v| v.file_size_bytes),
                     video: result.clone(),
