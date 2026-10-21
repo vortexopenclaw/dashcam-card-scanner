@@ -46,6 +46,10 @@ impl TemporalInventory {
 /// not a generic model preset or a historical differently configured unit.
 pub struct DrivingBaseline<'a> {
     pub native_id: &'a str,
+    /// Canonical source role, never a resolution-derived channel guess.
+    pub channel: &'a str,
+    /// `original`, `substream`, or `live_event`; alternate encodings never mix.
+    pub representation: &'a str,
     pub firmware: &'a str,
     pub codec: &'a str,
     pub width: u32,
@@ -87,6 +91,7 @@ struct Clip<'a> {
     seq: Option<u64>,
     entry: &'a Entry,
     context: &'static str,
+    representation: &'static str,
 }
 fn median(mut v: Vec<f64>) -> f64 {
     v.sort_by(f64::total_cmp);
@@ -147,6 +152,12 @@ fn cadence_transition(clips: &[Clip<'_>], i: usize) -> bool {
     if i < 4 || i + 2 >= clips.len() {
         return false;
     }
+    if clips[i - 4..i + 3]
+        .iter()
+        .any(|c| c.context != clips[i].context)
+    {
+        return false;
+    }
     let before: Vec<_> = (i - 3..i)
         .map(|j| (clips[j].start - clips[j - 1].start) as f64)
         .collect();
@@ -163,6 +174,12 @@ fn cadence_transition(clips: &[Clip<'_>], i: usize) -> bool {
 }
 fn rate_transition(clips: &[Clip<'_>], i: usize) -> bool {
     if i < 3 || i + 2 >= clips.len() {
+        return false;
+    }
+    if clips[i - 3..i + 3]
+        .iter()
+        .any(|c| c.context != clips[i].context)
+    {
         return false;
     }
     let values = |range: std::ops::Range<usize>| {
@@ -280,6 +297,8 @@ fn cohort(
             let rate = median(rates.clone());
             let baseline = baselines.iter().find(|b| {
                 b.native_id == id
+                    && b.channel == role
+                    && b.representation == run[0].representation
                     && Some(b.firmware) == firmware
                     && !b.firmware.is_empty()
                     && b.codec == v.codec
@@ -292,6 +311,10 @@ fn cohort(
             });
             if let Some(b) = baseline {
                 let relative = rate / b.median_video_bitrate;
+                // Reject overflow, underflow and unusable extremes before IPC.
+                if !relative.is_finite() || !(1e-9..=1e9).contains(&relative) {
+                    return out;
+                }
                 out.relative_driving_bitrate = Some(relative);
                 if run[0].context == "parking"
                     && relative <= 0.5
@@ -402,21 +425,54 @@ pub fn infer_temporal_parking(
             seq,
             entry,
             context,
+            representation: if observed_channels::profile_name(&entry.name, id) != entry.name {
+                if entry.name.ends_with("S.mp4") {
+                    "substream"
+                } else {
+                    "live_event"
+                }
+            } else {
+                "original"
+            },
         });
     }
     // Sort before partitioning by settings: filtering a changing encoding first
     // would manufacture regularly spaced 'adjacency' across intervening clips.
-    let mut aligned: Option<Vec<i64>> = None;
+    let mut aligned: Option<Vec<Vec<i64>>> = None;
     let mut alignment_ok = true;
     for (role, clips) in &mut channels {
+        // Manufacturer-defined representations, not arbitrary same-time dedup.
+        // Prefer originals, then S substreams, then L live-event encodings.
+        let primary = ["original", "substream", "live_event"]
+            .into_iter()
+            .find(|r| clips.iter().any(|c| c.representation == *r))
+            .unwrap();
+        let primary_starts: std::collections::BTreeSet<_> = clips
+            .iter()
+            .filter(|c| c.representation == primary)
+            .map(|c| (c.start, c.context))
+            .collect();
+        unresolved |= clips
+            .iter()
+            .any(|c| !primary_starts.contains(&(c.start, c.context)));
+        clips.retain(|c| c.representation == primary);
         clips.sort_by_key(|c| c.start);
-        let starts: Vec<_> = clips.iter().map(|c| c.start).collect();
+        // Align parking episodes only: unrelated driving coverage may differ.
+        // Preserve episode breaks so separate parking runs cannot be joined.
+        let mut starts: Vec<Vec<i64>> = Vec::new();
+        for (i, c) in clips.iter().enumerate() {
+            if c.context == "parking" {
+                if i == 0 || clips[i - 1].context != "parking" {
+                    starts.push(Vec::new());
+                }
+                starts.last_mut().unwrap().push(c.start);
+            }
+        }
         if let Some(reference) = &aligned {
             alignment_ok &= starts.len() == reference.len()
-                && starts
-                    .iter()
-                    .zip(reference)
-                    .all(|(a, b)| (a - b).abs() <= 1);
+                && starts.iter().zip(reference).all(|(a, b)| {
+                    a.len() == b.len() && a.iter().zip(b).all(|(a, b)| (a - b).abs() <= 1)
+                });
         } else {
             aligned = Some(starts);
         }
@@ -432,7 +488,10 @@ pub fn infer_temporal_parking(
                     .zip(clips[i].seq)
                     .is_some_and(|(a, b)| a.checked_add(1) != Some(b));
             if boundary {
-                if i < clips.len() {
+                if i < clips.len()
+                    && clips[i - 1].context == clips[i].context
+                    && clips[i].context != "driving"
+                {
                     unresolved = true;
                 }
                 out.cohorts

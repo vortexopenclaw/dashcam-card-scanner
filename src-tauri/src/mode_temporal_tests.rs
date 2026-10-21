@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
+#[path = "mode_temporal_review_tests.rs"]
+mod review_regressions;
 use sha2::{Digest, Sha256};
 use std::sync::atomic::AtomicBool;
 fn bmff(duration: f64, fps: f64, frame_bytes: u32) -> Vec<u8> {
@@ -140,6 +142,8 @@ fn matching_firmware_encoding_baseline_strengthens_only_continuous_family() {
     );
     let baseline = DrivingBaseline {
         native_id: "viofo-t340",
+        channel: "front",
+        representation: "original",
         firmware: "known-v1",
         codec: "h264",
         width: 1920,
@@ -159,6 +163,8 @@ fn matching_firmware_encoding_baseline_strengthens_only_continuous_family() {
     ] {
         let b = DrivingBaseline {
             native_id: "viofo-t340",
+            channel: "front",
+            representation: "original",
             firmware,
             codec,
             width,
@@ -358,4 +364,139 @@ fn actual_traversal_temporal_cap_preserves_complete_inventory_and_source() {
         );
         assert_eq!(std::fs::metadata(p).unwrap().modified().unwrap(), mtime);
     }
+}
+#[test]
+fn review_mixed_driving_parking() {
+    let starts: Vec<u32> = (0..16)
+        .map(|i| 43200 + if i < 8 { i * 60 } else { 480 + (i - 8) * 600 })
+        .collect();
+    let mut r = scan(&starts, 60.0, 30.0, &["F"]);
+    for e in &mut r.temporal.entries {
+        let n = e.name.clone();
+        let driving =
+            timestamp(&n).unwrap().0 < timestamp("2030_0101_120800_000009PF.MP4").unwrap().0;
+        e.name = format!("REC_20300101_{}_F.MP4", &n[10..16]);
+        e.folder = if driving {
+            "cont_rec"
+        } else {
+            "motion_timelapse_rec"
+        }
+        .into();
+        e.video.as_mut().unwrap().video_bitrate = Some(if driving { 24000.0 } else { 2400.0 });
+    }
+    let e = infer_temporal_parking(&r, Some("thinkware-arc-700"), None, &[]);
+    println!("REVIEW_MIXED {e:?}");
+    assert_eq!(e.suggestion, Some("time_lapse_like"));
+    assert!(e
+        .cohorts
+        .iter()
+        .any(|c| c.recording_context == "parking" && c.suggestion == Some("time_lapse_like")));
+}
+#[test]
+fn review_blackvue_proxy_duplicates() {
+    let mut r = scan(
+        &(0..8).map(|i| 43200 + i * 600).collect::<Vec<_>>(),
+        60.0,
+        30.0,
+        &["F"],
+    );
+    for e in &mut r.temporal.entries {
+        e.name = format!("20300101_{}_PF.mp4", &e.name[10..16]);
+        e.folder = "BlackVue/Record".into();
+    }
+    let plain = infer_temporal_parking(&r, Some("blackvue-elite-9"), None, &[]);
+    assert_eq!(plain.suggestion, Some("time_lapse_like"));
+    let mut proxy = r.temporal.entries.clone();
+    for e in &mut proxy {
+        e.name = e.name.replace("_PF.mp4", "_PFS.mp4");
+    }
+    r.temporal.entries.extend(proxy);
+    r.temporal.seen *= 2;
+    r.metadata_coverage.recognized_files *= 2;
+    let e = infer_temporal_parking(&r, Some("blackvue-elite-9"), None, &[]);
+    println!("REVIEW_PROXY {e:?}");
+    assert_eq!(e.suggestion, Some("time_lapse_like"));
+    assert_eq!(e.cohorts.len(), 1);
+    let mut reversed = r.clone();
+    reversed.temporal.entries.reverse();
+    assert_eq!(
+        infer_temporal_parking(&reversed, Some("blackvue-elite-9"), None, &[]).suggestion,
+        e.suggestion
+    );
+    // A missing primary is not silently filled with a different representation.
+    r.temporal.entries.remove(0);
+    r.temporal.seen -= 1;
+    r.metadata_coverage.recognized_files -= 1;
+    assert_eq!(
+        infer_temporal_parking(&r, Some("blackvue-elite-9"), None, &[]).suggestion,
+        None
+    );
+}
+#[test]
+fn review_baseline_requires_source_role_and_representation() {
+    let r = scan(
+        &(0..8).map(|i| 43200 + i * 60).collect::<Vec<_>>(),
+        60.0,
+        30.0,
+        &["F", "R"],
+    );
+    for (channel, representation) in [
+        ("front", "original"),
+        ("rear", "original"),
+        ("front", "substream"),
+    ] {
+        let b = DrivingBaseline {
+            native_id: "viofo-t340",
+            channel,
+            representation,
+            firmware: "v1",
+            codec: "h264",
+            width: 1920,
+            height: 1080,
+            playback_fps: 30.0,
+            median_video_bitrate: 24000.0,
+            measured_clips: 5,
+        };
+        let e = infer_temporal_parking(&r, Some("viofo-t340"), Some("v1"), &[b]);
+        for c in &e.cohorts {
+            assert_eq!(
+                c.relative_driving_bitrate.is_some(),
+                c.channel == channel && representation == "original",
+                "{c:?}"
+            );
+        }
+        assert_eq!(
+            e.suggestion,
+            if representation == "original" {
+                None
+            } else {
+                Some("continuous_like")
+            }
+        );
+    }
+}
+
+#[test]
+fn review_baseline_ratio_nonfinite() {
+    let r = scan(
+        &(0..8).map(|i| 43200 + i * 60).collect::<Vec<_>>(),
+        60.0,
+        30.0,
+        &["F"],
+    );
+    let b = DrivingBaseline {
+        native_id: "viofo-t340",
+        channel: "front",
+        representation: "original",
+        firmware: "v1",
+        codec: "h264",
+        width: 1920,
+        height: 1080,
+        playback_fps: 30.0,
+        median_video_bitrate: f64::MIN_POSITIVE,
+        measured_clips: 5,
+    };
+    let e = infer_temporal_parking(&r, Some("viofo-t340"), Some("v1"), &[b]);
+    println!("REVIEW_RATIO {:?}", e.cohorts[0].relative_driving_bitrate);
+    assert_eq!(e.cohorts[0].relative_driving_bitrate, None);
 }
