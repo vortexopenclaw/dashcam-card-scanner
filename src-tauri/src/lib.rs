@@ -2,6 +2,7 @@
 pub mod annotations;
 pub mod engine;
 pub mod intake;
+pub mod mode_evidence;
 pub mod payload;
 pub mod recognition;
 pub mod video;
@@ -142,7 +143,7 @@ async fn scan_source(
     };
     s.cancel.store(false, Ordering::SeqCst);
     let cancel = s.cancel.clone();
-    let (result, mut camera_recognition, channel_evidence) = tauri::async_runtime::spawn_blocking(move || {
+    let (result, mut camera_recognition, channel_evidence, parking_evidence) = tauri::async_runtime::spawn_blocking(move || {
         let mut result = engine::scan(&source, &cancel, |p| {
             let _ = app.emit("scan-progress", p);
         })?;
@@ -152,7 +153,8 @@ async fn scan_source(
         if cancel.load(Ordering::SeqCst) { result.cancelled = true; }
         result.recognized_camera_id = camera.map(|camera| camera.id.clone());
         let channel_evidence = observed_channels::observed_channels(&result, result.recognized_camera_id.as_deref());
-        Ok::<_, String>((result, camera_recognition, channel_evidence))
+        let parking_evidence = mode_evidence::parking_evidence(&result, result.recognized_camera_id.as_deref());
+        Ok::<_, String>((result, camera_recognition, channel_evidence, parking_evidence))
     })
     .await
     .map_err(|_| "Scan task failed")??;
@@ -174,6 +176,7 @@ async fn scan_source(
         let (channel,mode)=intake::sample_hints_for_folder(&sample.local_name,&result.folders[*folder].path,result.recognized_camera_id.as_deref());
         if channel != "unknown" { value["roleHint"]=serde_json::json!(channel); }
         if mode != "unknown" { value["modeHint"]=serde_json::json!(mode); }
+        value["modeEvidence"]=serde_json::json!(mode_evidence::file_mode_evidence(&sample.local_name,&result.folders[*folder].path,result.recognized_camera_id.as_deref()));
         value
     }).collect();
     let mut value = serde_json::to_value(&result).map_err(|_| "Scan encoding failed")?;
@@ -181,6 +184,8 @@ async fn scan_source(
     value["channelEvidence"] =
         serde_json::to_value(channel_evidence).map_err(|_| "Channel encoding failed")?;
     value["reviewSamples"] = serde_json::json!(samples);
+    value["parkingEvidence"] =
+        serde_json::to_value(parking_evidence).map_err(|_| "Parking evidence encoding failed")?;
     Ok(value)
 }
 #[tauri::command]
