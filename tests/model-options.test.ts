@@ -33,6 +33,9 @@ test('merge deduplicates native identities case-insensitively, retains native ID
  expect(merged.filter(c=>c.model==='E1 Pro')).toHaveLength(1);expect(merged.find(c=>c.model==='E1 Pro')).toMatchObject({id:'native-single',manufacturer:'VANTRUE',fixedSingleChannel:true});
  expect(merged.find(c=>c.id==='native-multi')?.fixedSingleChannel).toBe(false);
 });
+test.each(['WM1','VS1','A119 V3','A119 MINI','A119 MINI 2','A119M Pro'])('Viofo %s prefills a single front channel',async(model)=>{
+ const {ui}=setup();await settle();ui.select.click();await settle();change(ui.manufacturerPick,'Viofo');pickModel(ui,model);expect(ui.choices.channelCount.value).toBe('1');expect(ui.fields.channelSetup.value).toBe('front');
+});
 test('verified single channel prefills; multicamera, native maximum and unknown models do not',async()=>{
  const {ui}=setup(undefined,[{id:'max',manufacturer:'Vantrue',model:'N5S',channelCount:4,channelSetup:'front + rear + cabin'}]);
  await settle();ui.select.click();await settle();change(ui.manufacturerPick,'Vantrue');pickModel(ui,'E1 Lite');expect(ui.choices.channelCount.value).toBe('1');expect(ui.fields.channelSetup.value).toBe('front');

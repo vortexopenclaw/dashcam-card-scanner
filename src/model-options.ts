@@ -9,11 +9,11 @@ export type ModelOption={id:string;manufacturer:string;model:string;source?:stri
 const models=(manufacturer:string,source:string,names:string[],single:string[]=[]):ModelOption[]=>names.map(model=>({id:`ui:${manufacturer}:${model}`,manufacturer,model,source,fixedSingleChannel:single.includes(model),provenance:'official-catalog'}));
 export const modelOptions:ModelOption[]=[
  ...models('Viofo','https://www.viofo.com/pages/support-product',[
-  'A119M Pro','A119 MINI 2','A119 V3','VS1','A229 Pro 1CH','A229 Plus 1CH','A329S 1CH',
+  'A119M Pro','A119 MINI','A119 MINI 2','A119 V3','VS1','WM1','A229 Pro 1CH','A229 Plus 1CH','A329S 1CH',
   'A149 Pro Duo','T330 2CH','T330 3CH','T330W 2CH','T330W 3CH','T340 3CH','T340 4CH','T340W 3CH','T340WW 4CH','T340TW 4CH',
   'A329S 2CH','A329S 2CH IR','A329S 3CH','A329SW 2CH','A329SW 3CH','A329T 2CH','A329T 3CH','A329TC 3CH','A329TW 3CH','A329WW 3CH',
   'A229 Ultra-W 2CH','A229 Pro Tele 2CH','A229 Pro Tele 3CH','T330T 3CH','T330WW 3CH','T330TW 3CH',
- ],['A119M Pro','A119 MINI 2','A119 V3','VS1']),
+ ],['A119M Pro','A119 MINI','A119 MINI 2','A119 V3','VS1','WM1']),
  ...models('Vantrue','https://www.vantrue.com/collections/all-dash-cam',[
   'N5S','N4 Pro S','N4S','N2X','N5','N4 Pro',
  ]),
