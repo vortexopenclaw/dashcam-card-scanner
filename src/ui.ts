@@ -98,8 +98,10 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const more=element('details','',reviewPanel);element('summary','More options',more);element('p','Keep a local copy or share manually if online submission is unavailable. Saved reports do not submit or publish anything. Choose a new file outside your card; existing files are never overwritten. Your saved DashCamTalk username is excluded.',more);
   const exports=element('div','',more);exports.className='actions';const publicExport=element('button','Save report to file…',exports);const privateExport=element('button','Save detailed measurements…',exports);
   const submission=element('div');submission.hidden=true;
-  const disclosure=element('p','Submit sends metadata only to Vortex Radar for research review. No footage is uploaded. Verification opens in the app before sending.',submission);disclosure.className='submission-disclosure';
-  const submit=element('button','Submit',submission);submit.disabled=true;
+  const disclosure=element('p','Submit sends metadata only to Vortex Radar for research review. No footage is uploaded.',submission);disclosure.className='submission-disclosure';
+  const submitActions=element('div','',submission);submitActions.className='submission-actions';
+  const submit=element('button','Submit',submitActions);submit.disabled=true;
+  const submitResult=element('p','',submitActions);submitResult.setAttribute('role','status');submitResult.setAttribute('aria-live','polite');submitResult.setAttribute('aria-atomic','true');
   const updateSection=element('section');element('h2','App updates',updateSection);element('p','Check for the latest official app release.',updateSection);
   const runningVersion=element('p','Running version: loading…',updateSection);const updateActions=element('div','',updateSection);updateActions.className='actions';const updateAction=element('button','Check for updates',updateActions);const updateProgress=element('progress','',updateSection);updateProgress.hidden=true;updateProgress.setAttribute('aria-label','Update download progress');
   const updateStatus=element('p','',updateSection);updateStatus.setAttribute('role','status');settingsPanel.append(updateSection,closeSettings);for(const child of Array.from(root.children)){if(child!==sidebar&&child!==settingsPanel&&child!==mainScreen)mainScreen.append(child);}mainScreen.append(intro);
@@ -107,8 +109,8 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const bannerStatus=element('p','',updateBanner);bannerStatus.setAttribute('role','status');const bannerActions=element('div','',updateBanner);bannerActions.className='actions';const bannerAction=element('button','Update',bannerActions);const bannerProgress=element('progress','',updateBanner);bannerProgress.setAttribute('aria-label','Update download progress');bannerProgress.hidden=true;
   let startupCheckPending=true;
   let review:Review|null=null;let report:Report|null=null;let busy=false;let version:string|null=null;
-  let revision=0;let pendingVerification:{token:string;snapshot:string;opened:boolean;ticket?:string}|null=null;
-  let verificationReady=false;let submitting=false;
+  let revision=0;let submitting=false;
+  const submittedHashes=new Set<string>();const submittedSnapshots=new Set<string>();
   type UpdateState='idle'|'checking'|'available'|'downloading'|'installing'|'installed'|'current'|'error';
   let updateState:UpdateState='idle';let restartPending=false;let submittedReport=false;
   const updateWorking=()=>['checking','downloading','installing'].includes(updateState)||restartPending;
@@ -125,10 +127,10 @@ export function mount(root:HTMLElement,bridge:Bridge) {
     updateBanner.setAttribute('aria-busy',String(updateWorking()));setBusy(busy);
   };
   void bridge.invoke<string>('app_version').then(value=>{runningVersion.textContent=typeof value==='string'&&value?`Running version: ${value}`:'Running version unavailable.';}).catch(()=>{runningVersion.textContent='Running version unavailable.';});
-  const invalidate=()=>{const pending=pendingVerification;if(pending)status.textContent='Report changed. Click Submit to verify the updated metadata.';revision++;submittedReport=false;review=null;pendingVerification=null;if(pending)void bridge.invoke('cancel_verification',{token:pending.token}).catch(()=>{});reviewPanel.hidden=true;if(updateState==='installed')renderUpdate();else setBusy(busy);};
+  const invalidate=()=>{revision++;submittedReport=!!report&&submittedSnapshots.has(currentSnapshot());review=null;submitResult.textContent=submittedReport?'Report submitted. Thank you!':'';reviewPanel.hidden=true;if(updateState==='installed')renderUpdate();else setBusy(busy);};
   username.oninput=()=>{preferences.username=username.value;invalidate();settingsStatus.textContent=saveSettings(preferences)?'Username saved locally.':'Unable to save preferences on this computer.';};
   Object.values(fields).forEach(f=>f.addEventListener('input',invalidate));Object.values(choices).forEach(f=>f.addEventListener('change',invalidate));cadence.addEventListener('input',invalidate);
-  const setBusy=(value:boolean)=>{busy=value;value=value||submitting||updateWorking();labels.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select').forEach(e=>e.disabled=value);groupPanel.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(e=>e.disabled=value);addGroup.disabled=value||cohorts.length>=16;username.disabled=value;select.disabled=value;scan.disabled=value || source.dataset.selected!=='yes';cancel.disabled=!busy;prepare.disabled=value || !!pendingVerification || !report || report.cancelled || report.scannedFiles===0;Object.entries(fields).forEach(([k,f])=>f.disabled=value||(cohorts.length>0&&!['manufacturer','model'].includes(k)));Object.values(choices).forEach(f=>f.disabled=value||cohorts.length>0);cadence.disabled=value||cohorts.length>0;publicExport.disabled=value;privateExport.disabled=value;submit.disabled=value||!verificationReady||!!pendingVerification||!report||report.cancelled||report.scannedFiles===0||review?.submissionAvailable===false;submit.textContent=pendingVerification?'Waiting for verification…':'Submit';updateAction.disabled=value||!!pendingVerification;bannerAction.disabled=updateAction.disabled;};
+  const setBusy=(value:boolean)=>{busy=value;value=value||submitting||updateWorking();labels.querySelectorAll<HTMLInputElement|HTMLSelectElement>('input,select').forEach(e=>e.disabled=value);groupPanel.querySelectorAll<HTMLInputElement|HTMLSelectElement|HTMLButtonElement>('input,select,button').forEach(e=>e.disabled=value);addGroup.disabled=value||cohorts.length>=16;username.disabled=value;select.disabled=value;scan.disabled=value || source.dataset.selected!=='yes';cancel.disabled=!busy||submitting;prepare.disabled=value || !report || report.cancelled || report.scannedFiles===0;Object.entries(fields).forEach(([k,f])=>f.disabled=value||(cohorts.length>0&&!['manufacturer','model'].includes(k)));Object.values(choices).forEach(f=>f.disabled=value||cohorts.length>0);cadence.disabled=value||cohorts.length>0;publicExport.disabled=value;privateExport.disabled=value;submit.disabled=value||submittedReport||!report||report.cancelled||report.scannedFiles===0||review?.submissionAvailable===false;submit.textContent=submitting?'Sending…':submittedReport?'Submitted ✓':'Submit';updateAction.disabled=value;bannerAction.disabled=updateAction.disabled;};
   const showHumanReview=()=>{humanReview.replaceChildren();element('h3',`${fields.manufacturer.value||'Unknown manufacturer'} ${fields.model.value||'Unknown model'}`,humanReview);element('p',`${report?.scannedFiles??0} files in ${report?.folders.length??0} folders. ${report?.reviewSamples?.length??report?.sampledFiles??0} bounded video samples; this does not establish coverage of every recording or configuration.`,humanReview);
     for(const c of cohorts){element('h3',`Setup ${c.id} · ${c.owner.channelCount?c.owner.channelCount+' channels':'channel count unknown'}`,humanReview);element('p',`Owner-reported: firmware ${c.owner.firmware||'unknown'} · quality ${c.owner.qualityLabel||c.owner.quality||'unknown'} · parking ${c.owner.parkingModeLabel||c.owner.parkingMode||'unknown'} · capture cadence ${c.owner.timeLapseFps??'unknown'} fps. Samples: ${(report?.reviewSamples||[]).filter(s=>assignments.get(s.index)===c.id).map(s=>s.index+1).join(', ')||'none'}.`,humanReview);}
     if(!cohorts.length)element('p',`Owner-reported: ${choices.channelCount.value} channels · quality ${choices.quality.selectedOptions[0]?.textContent} · parking ${choices.parkingMode.selectedOptions[0]?.textContent}. These settings are not verified across every recording.`,humanReview);
@@ -137,9 +139,9 @@ export function mount(root:HTMLElement,bridge:Bridge) {
     element('p','Parking mode above is owner-reported context, not a measured recording mode. Sample mode and channel hints below come only from native recording evidence.',samplesDetail);
     const measured=element('ul','',samplesDetail);for(const s of report?.reviewSamples||[]){const v=s.video;const ownerParking=cohorts.length?cohorts.find(c=>c.id===assignments.get(s.index))?.owner.parkingModeLabel:selectedLabel('parkingMode');element('li',`Sample ${s.index+1}: ${s.folder} · ${rounded(s.sizeBytes??v?.fileSizeBytes,0)} bytes / ${rounded(v?.durationSeconds)} seconds · ${v?`${v.codec} ${v.width}×${v.height}, ${rounded(v.nominalFrameRate,2)} playback fps, ${rounded(v.videoBitrate==null?null:v.videoBitrate/1_000_000,2)} Mbps video bitrate`:'measurements unavailable'}. Recording mode: ${s.modeHint||'unknown'} · Channel role: ${s.roleHint||'unknown'}. Owner-reported parking setting: ${ownerParking||'not provided'}.`,measured);}
     element('p',username.value.trim()?`Contributor: ${username.value.trim()}`:'No DashCamTalk username included.',humanReview);
-    submissionStatus.textContent=review?.submissionAvailable===false?'Online submission is currently unavailable: it is not enabled in this build. You can still review your report. More options lets you keep a local copy or share manually.':!review?.submissionJson?'This report is not ready for online submission. Confirm your camera settings; unknown data can remain in your local report. See Technical details for any other limits.':'Ready to submit. Technical details and local copies are optional.';
+    submissionStatus.textContent=submittedReport?'Report submitted. Thank you!':review?.submissionAvailable===false?'Online submission is currently unavailable: it is not enabled in this build. You can still review your report. More options lets you keep a local copy or share manually.':!review?.submissionJson?'This report is not ready for online submission. Confirm your camera settings; unknown data can remain in your local report. See Technical details for any other limits.':'Ready to submit. Technical details and local copies are optional.';
   };
-  const run=async(fn:()=>Promise<void>)=>{if(busy||submitting||updateWorking())return;setBusy(true);try{await fn();}catch(e){(settingsPanel.hidden?status:settingsStatus).textContent=String(e);}finally{setBusy(false);}};
+  const run=async(fn:()=>Promise<void>)=>{if(busy||submitting||updateWorking())return;setBusy(true);try{await fn();}catch{(settingsPanel.hidden?status:settingsStatus).textContent='Unable to complete this action. Please try again.';}finally{setBusy(false);}};
   let ownerEdited=false;labels.addEventListener('input',()=>ownerEdited=true);labels.addEventListener('change',()=>ownerEdited=true);
   // Choosing a source is replacement, even at the same mount path. Rescan alone retains owner intent.
   const resetSource=()=>{invalidate();report=null;ownerEdited=false;cohorts=[];assignments.clear();for(const field of Object.values(fields))field.value='';for(const input of [customChannels,customQuality,customParking,cadence])input.value='';otherTimelapse.checked=false;choices.channelCount.value='Select count';choices.quality.value='unknown';choices.parkingMode.value='unknown';manufacturerPick.value='';refreshBrand();refreshModels();labels.hidden=true;recognitionNote.hidden=true;recognitionNote.textContent='';groupPanel.hidden=true;optionalPreview.hidden=true;submission.hidden=true;groupPanel.open=false;sampleDetails.open=false;summary.textContent='';humanReview.replaceChildren();publicView.textContent='';privateView.textContent='';pairedView.textContent='';hashView.textContent='';warning.textContent='';technical.open=false;more.open=false;renderGroups();renderSamples();};
@@ -148,50 +150,43 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   scan.onclick=()=>run(scanSource);
   cancel.onclick=()=>{void bridge.invoke('cancel_scan').catch(e=>status.textContent=String(e));status.textContent='Cancellation requested; waiting for current bounded read.';};
   const outgoing=()=>{const values={settings:'',...Object.fromEntries(Object.entries(fields).map(([key,f])=>[key,f.value])),channelCount:choices.channelCount.value==='Other'?Number(customChannels.value):choices.channelCount.value==='Select count'?0:Number(choices.channelCount.value),quality:choices.quality.value,qualityLabel:selectedLabel('quality'),parkingMode:choices.parkingMode.value,parkingModeLabel:selectedLabel('parkingMode'),timeLapseFps:!cadenceLabel.hidden&&cadence.value?Number(cadence.value):null};const groups=cohorts.map(c=>({...c,evidenceIndices:(report?.reviewSamples||[]).filter(s=>assignments.get(s.index)===c.id).map(s=>s.index),folderIndices:[...new Set((report?.reviewSamples||[]).filter(s=>assignments.get(s.index)===c.id).map(s=>s.folderIndex))]})); return {labels:values,annotations:{cohorts:groups,assignmentsRequired:cohorts.length>0,contributor:username.value.trim()?{dashcamTalkUsername:username.value.trim()}:null}};};
-  const prepareCurrent=async()=>{if(cohorts.some(c=>(c.owner.quality==='other'&&!c.owner.qualityLabel?.trim())||(c.owner.parkingMode==='other'&&!c.owner.parkingModeLabel?.trim()))){status.textContent='Describe each Other setting before submitting.';return null;}if(!cohorts.length&&((choices.quality.value==='other'&&!customQuality.value.trim())||(choices.parkingMode.value==='other'&&!customParking.value.trim()))){status.textContent='Describe the Other setting before submitting.';return null;}
-    invalidate();const currentRevision=revision;const payload=outgoing();const snapshot=JSON.stringify(payload);
+  const prepareCurrent=async()=>{if(cohorts.some(c=>(c.owner.quality==='other'&&!c.owner.qualityLabel?.trim())||(c.owner.parkingMode==='other'&&!c.owner.parkingModeLabel?.trim()))){status.textContent='Describe each Other setting before submitting.';if(submitting)submitResult.textContent=status.textContent;return null;}if(!cohorts.length&&((choices.quality.value==='other'&&!customQuality.value.trim())||(choices.parkingMode.value==='other'&&!customParking.value.trim()))){status.textContent='Describe the Other setting before submitting.';if(submitting)submitResult.textContent=status.textContent;return null;}
+    const currentRevision=revision;const payload=outgoing();const snapshot=JSON.stringify(payload);
     const prepared=await bridge.invoke<Review>('prepare_review',payload);
     if(currentRevision!==revision||snapshot!==JSON.stringify(outgoing()))return null;
-    review=prepared;publicView.textContent=review.publicJson;privateView.textContent=review.submissionJson||'No valid bounded intake envelope. See warning; local exports remain available.';pairedView.textContent=review.privateJson;hashView.textContent='Payload SHA-256: '+review.payloadHash;warning.textContent=review.warning;showHumanReview();reviewPanel.hidden=false;
-    return {token:review.token,snapshot};
+    review=prepared;submittedReport=submittedHashes.has(review.payloadHash);publicView.textContent=review.publicJson;privateView.textContent=review.submissionJson||'No valid bounded intake envelope. See warning; local exports remain available.';pairedView.textContent=review.privateJson;hashView.textContent='Payload SHA-256: '+review.payloadHash;warning.textContent=review.warning;showHumanReview();reviewPanel.hidden=false;
+    submittedReport=submittedHashes.has(review.payloadHash);if(submittedReport)submitResult.textContent='Report submitted. Thank you!';else if(!submitting)submitResult.textContent='';
+    return {token:review.token,snapshot,hash:review.payloadHash,revision:currentRevision};
   };
-  prepare.onclick=()=>{if(pendingVerification)return;void run(async()=>{if(await prepareCurrent())status.textContent='Report preview ready. Nothing has been sent.';});};
+  prepare.onclick=()=>{void run(async()=>{if(await prepareCurrent())status.textContent='Report preview ready. Nothing has been sent.';});};
   for(const [button,kind] of [[publicExport,'public'],[privateExport,'private']] as const)button.onclick=()=>run(async()=>{if(!review)return;const saved=await bridge.invoke<boolean>('export_review',{token:review.token,kind});status.textContent=saved?'Export saved outside source. Nothing submitted.':'Export cancelled.';});
-  submit.onclick=()=>{if(pendingVerification||submitting||!verificationReady)return;void run(async()=>{
-    const prepared=await prepareCurrent();if(!prepared||!review)return;
-    if(review.submissionAvailable===false||!review.submissionJson){status.textContent=submissionStatus.textContent;return;}
-    const attempt={...prepared,opened:false,ticket:undefined as string|undefined};pendingVerification=attempt;setBusy(true);status.textContent='Complete verification in the app to send your report.';
-    try{await bridge.invoke('begin_verification',{token:prepared.token});if(pendingVerification===attempt){attempt.opened=true;const ticket=attempt.ticket;attempt.ticket=undefined;if(ticket)await completeVerification({token:attempt.token,ticket});}}
-    catch(e){if(pendingVerification===attempt){pendingVerification=null;void bridge.invoke('cancel_verification',{token:prepared.token}).catch(()=>{});status.textContent=`Verification could not start: ${String(e)}. Click Submit to retry.`;}}
+  // Keep submission history in memory only; the native payload hash is authoritative.
+  const currentSnapshot=()=>JSON.stringify({report,payload:outgoing()});
+  submit.onclick=()=>{if(submitting||submittedReport)return;void run(async()=>{
+    submitting=true;submitResult.textContent='Sending…';setBusy(true);
+    try{
+      const prepared=await prepareCurrent();if(!prepared||!review){if(!submitResult.textContent||submitResult.textContent==='Sending…')submitResult.textContent='Report changed or needs attention. Confirm your settings and click Submit again.';return;}
+      if(submittedHashes.has(prepared.hash)){submittedReport=true;submitResult.textContent='Report submitted. Thank you!';return;}
+      if(review.submissionAvailable===false||!review.submissionJson){submitResult.textContent=submissionStatus.textContent;return;}
+      if(!/^[a-f0-9]{64}$/.test(prepared.hash))throw Error('Invalid prepared report');
+      const snapshot=currentSnapshot();
+      const receipt=await bridge.invoke<string>('submit_review',{token:prepared.token,consent:true});
+      if(typeof receipt!=='string'||receipt!==prepared.hash)throw Error('Invalid receipt');
+      submittedHashes.add(prepared.hash);submittedSnapshots.add(snapshot);
+      if(prepared.revision!==revision||prepared.snapshot!==JSON.stringify(outgoing())){submitResult.textContent='Previous report submitted. Current settings have changed; click Submit to send an updated report.';return;}
+      submittedReport=true;submitResult.textContent='Report submitted. Thank you!';submissionStatus.textContent=submitResult.textContent;
+    }catch{submitResult.textContent='Unable to confirm submission. Check your connection and click Submit to retry.';}
+    finally{submitting=false;setBusy(busy);}
   });};
-  const completeVerification=async(p:{token:string;ticket:string})=>{
-    const pending=pendingVerification;
-    if(!pending||p.token!==pending.token||p.token!==review?.token||pending.snapshot!==JSON.stringify(outgoing())||typeof p.ticket!=='string'||!p.ticket.trim())return;
-    // Native begin_verification holds its busy guard until the opening command resolves.
-    if(!pending.opened){if(!pending.ticket)pending.ticket=p.ticket;return;}
-    // Consume this attempt before IPC; duplicate events must never reuse its ticket.
-    pendingVerification=null;submitting=true;setBusy(true);status.textContent='Sending metadata…';
-    try{const id=await bridge.invoke<string>('submit_review',{token:pending.token,consent:true,ticket:p.ticket});
-      if(typeof id!=='string'||id!==review?.payloadHash)throw Error('No valid server receipt received for this report');
-      if(review?.token!==pending.token||pending.snapshot!==JSON.stringify(outgoing()))return;
-      invalidate();submittedReport=true;status.textContent=`Server confirmed receipt: ${id}. Evidence awaits maintainer review; it is not automatically published.`;
-    }catch(e){status.textContent=`Submission failed: ${String(e)}. Click Submit to verify and retry.`;}finally{submitting=false;setBusy(false);}
-  };
-  const verificationEnded=(p:{token:string;reason?:string},failed:boolean)=>{if(!pendingVerification||p.token!==pendingVerification.token)return;pendingVerification=null;status.textContent=!failed||p.reason==='cancelled'?'Verification cancelled. Nothing sent. Click Submit to retry.':p.reason==='expired'?'Verification expired. Nothing sent. Click Submit to retry.':'Verification failed. Click Submit to retry.';setBusy(busy);};
-  void Promise.all([
-    bridge.listen<{token:string;ticket:string}>('verification-complete',({payload})=>{void completeVerification(payload);}),
-    bridge.listen<{token:string}>('verification-cancelled',({payload})=>verificationEnded(payload,false)),
-    bridge.listen<{token:string;message?:string}>('verification-failed',({payload})=>verificationEnded(payload,true))
-  ]).then(()=>{verificationReady=true;setBusy(busy);}).catch(()=>{status.textContent='In-app verification is unavailable. Restart the app to retry; local report copies remain available.';});
   const checkForUpdate=async()=>{
-    if(busy||submitting||pendingVerification||updateWorking()||updateState==='installed')return;
+    if(busy||submitting||updateWorking()||updateState==='installed')return;
     startupCheckPending=false;version=null;updateState='checking';updateStatus.textContent='Checking for updates…';renderUpdate();
     try{await updateProgressReady;version=await bridge.invoke<string|null>('check_update');updateState=version?'available':'current';updateStatus.textContent=version?`Version ${version} is available. Update installs and restarts automatically; any unsent report will be cleared.`:'No update available.';}
     catch(e){version=null;updateState='error';updateStatus.textContent=`Unable to check for updates: ${String(e)}. Retry when ready.`;}
     renderUpdate();
   };
   const performUpdate=async()=>{
-    if(busy||submitting||pendingVerification||updateWorking())return;
+    if(busy||submitting||updateWorking())return;
     if(updateState==='installed'){
       restartPending=true;updateStatus.textContent='Restarting to finish the update…';renderUpdate();
       try{await bridge.invoke('restart_app',{consent:true});}
@@ -221,8 +216,8 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   void updateProgressReady.catch(()=>{});
   const startupCheck=()=>{
     if(!root.isConnected||!startupCheckPending)return;
-    // A source picker/scan/verification wins the startup race. Do not lose the check.
-    if(busy||submitting||pendingVerification||polling||updateWorking()){window.setTimeout(startupCheck,250);return;}
+    // A source picker/scan wins the startup race. Do not lose the check.
+    if(busy||submitting||polling||updateWorking()){window.setTimeout(startupCheck,250);return;}
     void checkForUpdate();
   };
   window.setTimeout(startupCheck,500);
@@ -231,5 +226,5 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   let knownCards=new Set<string>();let discoveryReady=false;let polling=false;
   const discover=async()=>{if(polling||busy||updateWorking()||document.hidden||!root.isConnected)return;polling=true;try{const result=await bridge.invoke<{id:string;label:string;path:string}[]>('discover_cards');const cards=Array.isArray(result)?result:[];const added=cards.filter(c=>!knownCards.has(c.id));knownCards=new Set(cards.map(c=>c.id));if((discoveryReady?added:cards).length===1&&!report&&!ownerEdited&&!review&&source.dataset.selected!=='yes'&&!busy&&!mainScreen.hidden){await run(async()=>{const path=await bridge.invoke<string>('select_discovered_card',{id:added[0].id});resetSource();source.textContent=path;source.dataset.selected='yes';await scanSource();});}discoveryReady=true;}catch{}finally{polling=false;}};
   void discover();const poll=window.setInterval(()=>{if(!root.isConnected)window.clearInterval(poll);else void discover();},4000);
-  return {fields,status,source,choices,scan,prepare,select,submit,publicView,privateView,reviewPanel,cancel,theme,username,manufacturerPick,modelPick,settingsButton,settingsPanel,updateAction,updateStatus,updateProgress,runningVersion,updateBanner,bannerAction,bannerStatus,bannerProgress,addGroup,sampleList,groupForms,humanReview,submissionStatus,technical,more,submission};
+  return {fields,status,source,choices,scan,prepare,select,submit,publicView,privateView,reviewPanel,cancel,theme,username,manufacturerPick,modelPick,settingsButton,settingsPanel,updateAction,updateStatus,updateProgress,runningVersion,updateBanner,bannerAction,bannerStatus,bannerProgress,addGroup,sampleList,groupForms,humanReview,submissionStatus,submitResult,technical,more,submission};
 }

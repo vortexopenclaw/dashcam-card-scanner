@@ -46,16 +46,16 @@ function setup(){
  const close=()=> (ui.settingsPanel.lastElementChild as HTMLButtonElement).click();
  return {ui,root,invoke,emit,close,handlers};
 }
-test('startup waits for active verification; a submitted unchanged report permits one-click restart',async()=>{
- vi.useFakeTimers();const {ui,invoke,handlers}=setup();invoke.mockImplementation(async cmd=>{
+test('startup waits for direct upload; submitted report permits one-click restart',async()=>{
+ vi.useFakeTimers();const {ui,invoke}=setup();const receipt='a'.repeat(64);const upload=deferred<string>();invoke.mockImplementation(async cmd=>{
   if(cmd==='choose_source')return '/card';if(cmd==='scan_source')return {scannedFiles:1,folders:[],probeAttempts:0,probeFailures:0};
-  if(cmd==='prepare_review')return {token:'review-1',publicJson:'{}',privateJson:'{}',submissionJson:'{}',payloadHash:'receipt',warning:''};
-  if(cmd==='submit_review')return 'receipt';if(cmd==='check_update')return '0.1.5';return null;
+  if(cmd==='prepare_review')return {token:'review-1',publicJson:'{}',privateJson:'{}',submissionJson:'{}',payloadHash:receipt,warning:''};
+  if(cmd==='submit_review')return upload.promise;if(cmd==='check_update')return '0.1.5';return null;
  });
  ui.select.click();await vi.advanceTimersByTimeAsync(0);ui.fields.model.value='Owner model';ui.fields.model.dispatchEvent(new Event('input',{bubbles:true}));ui.submit.click();await vi.advanceTimersByTimeAsync(1000);
- expect(commandCalls(invoke,'begin_verification')).toHaveLength(1);expect(commandCalls(invoke,'check_update')).toHaveLength(0);
- handlers.get('verification-complete')!({payload:{token:'review-1',ticket:'ticket'}});await vi.advanceTimersByTimeAsync(250);
- expect(ui.status.textContent).toContain('Server confirmed receipt');expect(commandCalls(invoke,'check_update')).toHaveLength(1);
+ expect(commandCalls(invoke,'submit_review')).toEqual([['submit_review',{token:'review-1',consent:true}]]);expect(commandCalls(invoke,'check_update')).toHaveLength(0);
+ expect(ui.submit.textContent).toBe('Sending…');ui.settingsButton.click();expect(ui.updateAction.disabled).toBe(true);(ui.settingsPanel.lastElementChild as HTMLButtonElement).click();
+ upload.resolve(receipt);await vi.advanceTimersByTimeAsync(250);expect(ui.submitResult.textContent).toBe('Report submitted. Thank you!');expect(commandCalls(invoke,'check_update')).toHaveLength(1);
  ui.bannerAction.click();await vi.advanceTimersByTimeAsync(0);expect(commandCalls(invoke,'restart_app')).toEqual([['restart_app',{consent:true}]]);
 });
 test('Settings and banner share one explicit install with progress and automatic safe restart',async()=>{
