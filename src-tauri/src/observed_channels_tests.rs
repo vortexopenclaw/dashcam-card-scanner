@@ -75,7 +75,7 @@ fn known_maximum_is_not_observed_count() {
     );
     assert_eq!(
         result(&["DCIM/Movie/20300101120000_000001.MP4"], None).count,
-        None
+        Some(1)
     );
 }
 #[test]
@@ -142,7 +142,6 @@ fn numeric_suffixes_folder_names_owner_labels_and_unknown_ids_are_not_roles() {
     for names in [
         vec!["Front/000001.MP4", "Rear/000002.MP4"],
         vec!["DCIM/Movie/personal.MP4"],
-        vec!["DCIM/Movie/20300101120000_000001.MP4"],
     ] {
         assert_eq!(result(&names, None).count, None);
     }

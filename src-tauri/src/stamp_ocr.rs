@@ -240,7 +240,8 @@ mod macos {
             };
             let text = text.trim();
             if text.is_empty() {
-                evidence.complete = false;
+                // A successfully examined frame can have its model stamp disabled.
+                // No match is not a contradictory identity or a failed worker.
                 continue;
             }
             for token in text.split(',') {

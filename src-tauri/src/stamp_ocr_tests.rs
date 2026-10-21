@@ -76,6 +76,7 @@ fn actual_native_decoder_and_vision() {
         ("mixed", None),
         ("top-only", None),
         ("large-tail", Some("viofo-a119m-pro")),
+        ("partial-display", Some("viofo-a119m-pro")),
     ] {
         let root = base.join(name);
         let r = crate::engine::scan(&root, &cancel, |_| {}).unwrap();
@@ -87,6 +88,13 @@ fn actual_native_decoder_and_vision() {
             c.map_or("unknown", |c| c.id.as_str())
         );
         assert_eq!(c.map(|c| c.id.as_str()), expected, "{name}: {v}");
+        if let Some(camera) = c {
+            let mut native = r.clone();
+            native.recognized_camera_id = Some(camera.id.clone());
+            let channels = crate::observed_channels::observed_channels(&native, Some(&camera.id));
+            assert_eq!(channels.count, Some(1), "{name} channel prefill");
+            assert_eq!(channels.setup.as_deref(), Some("front"));
+        }
         assert!(!v.to_string().contains("20261021"));
         if name == "mini" {
             let evidence = stamp_ocr::probe(&root, &r, &cancel, &mut || {});

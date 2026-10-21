@@ -20,7 +20,7 @@ for case, stamps in {
     "positive": ["VIOFO A119M Pro"], "blank": [], "mini": ["VIOFO A119 Mini 2"],
     "conflicting": ["VIOFO A119M Pro", "VIOFO A119 Mini 2"],
     "mixed": ["VIOFO A119M Pro"], "top-only": ["VIOFO A119M Pro"],
-    "large-tail": ["VIOFO A119M Pro"],
+    "large-tail": ["VIOFO A119M Pro"], "partial-display": ["VIOFO A119M Pro"],
 }.items():
     folder = root / case / "DCIM/Movie"
     folder.mkdir(parents=True)
@@ -45,6 +45,7 @@ with large.open("wb") as file:
     file.seek(padding - 8, 1)
     file.write(original[offset:])
 shutil.copy2(root / "mini/DCIM/Movie" / name, root / "mixed/DCIM/Movie/20261021120100_000002.MP4")
+shutil.copy2(root / "blank/DCIM/Movie" / name, root / "partial-display/DCIM/Movie/20261021120100_000002.MP4")
 (root / "fifo/DCIM/Movie").mkdir(parents=True)
 os.mkfifo(root / "fifo/DCIM/Movie" / name)
 for case in ["symlink-file", "symlink-dir"]:

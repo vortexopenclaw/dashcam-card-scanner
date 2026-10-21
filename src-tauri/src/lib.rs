@@ -18,6 +18,7 @@ use std::{
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 mod ipc;
+mod observed_channels;
 use tauri_plugin_updater::UpdaterExt;
 #[derive(Default)]
 struct Data {
@@ -141,17 +142,32 @@ async fn scan_source(
     };
     s.cancel.store(false, Ordering::SeqCst);
     let cancel = s.cancel.clone();
-    let recognition_root = source.clone();
-    let mut result = tauri::async_runtime::spawn_blocking(move || {
-        engine::scan(&source, &cancel, |p| {
+    let (result, mut camera_recognition, channel_evidence) = tauri::async_runtime::spawn_blocking(move || {
+        let mut result = engine::scan(&source, &cancel, |p| {
             let _ = app.emit("scan-progress", p);
-        })
+        })?;
+        let (camera_recognition, camera) = recognition::recognize_with_ocr(&source, &result, &cancel, || {
+            let _ = app.emit("scan-progress", serde_json::json!({"phase":"Reading camera model", "entries":result.entries_seen,"files":result.scanned_files,"probed":result.probe_attempts}));
+        });
+        if cancel.load(Ordering::SeqCst) { result.cancelled = true; }
+        result.recognized_camera_id = camera.map(|camera| camera.id.clone());
+        let channel_evidence = observed_channels::observed_channels(&result, result.recognized_camera_id.as_deref());
+        Ok::<_, String>((result, camera_recognition, channel_evidence))
     })
     .await
     .map_err(|_| "Scan task failed")??;
+    // Only observed card roles prefill channel count, not the profile's maximum.
+    if let Some(fields) = camera_recognition.as_object_mut() {
+        fields.remove("channelCount");
+        fields.remove("channelSetup");
+        if let Some(count) = channel_evidence.count {
+            fields.insert("channelCount".into(), serde_json::json!(count));
+        }
+        if let Some(setup) = &channel_evidence.setup {
+            fields.insert("channelSetup".into(), serde_json::json!(setup));
+        }
+    }
     // Local IPC-only review associations; report serializers never contain basenames.
-    let (camera_recognition, camera) = recognition::recognize(&recognition_root, &result);
-    result.recognized_camera_id = camera.map(|camera| camera.id.clone());
     lock(&s)?.report = Some(result.clone());
     let samples:Vec<_>=intake::selected_samples(&result).iter().enumerate().map(|(index,(folder,sample))| {
         let mut value=serde_json::json!({"index":index,"folderIndex":folder,"folder":result.folders[*folder].path,"localName":sample.local_name,"filenameTemplate":sample.filename_template,"sizeBytes":sample.file_size_bytes,"video":sample.video});
@@ -162,6 +178,8 @@ async fn scan_source(
     }).collect();
     let mut value = serde_json::to_value(&result).map_err(|_| "Scan encoding failed")?;
     value["cameraRecognition"] = camera_recognition;
+    value["channelEvidence"] =
+        serde_json::to_value(channel_evidence).map_err(|_| "Channel encoding failed")?;
     value["reviewSamples"] = serde_json::json!(samples);
     Ok(value)
 }

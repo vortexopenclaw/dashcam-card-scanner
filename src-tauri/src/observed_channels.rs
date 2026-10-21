@@ -24,6 +24,7 @@ struct Rule {
 struct Profile {
     id: String,
     roles: BTreeSet<String>,
+    single_channel: bool,
     rules: Vec<Rule>,
 }
 static PROFILES: LazyLock<Vec<Profile>> = LazyLock::new(|| {
@@ -35,6 +36,7 @@ static PROFILES: LazyLock<Vec<Profile>> = LazyLock::new(|| {
         .iter()
         .map(|c| Profile {
             id: c["id"].as_str().expect("id").into(),
+            single_channel: c["channelCount"].as_u64() == Some(1),
             roles: c["channelSetup"]
                 .as_str()
                 .unwrap_or("")
@@ -131,11 +133,8 @@ impl Evidence {
                 matched = true;
                 candidates.insert(p.id.clone());
                 let hint = rule_role(p, r, &c).or_else(|| {
-                    (p.id == "viofo-a119m-pro"
-                        && name.ends_with(".MP4")
-                        && p.roles.len() == 1
-                        && p.roles.contains("front"))
-                    .then_some("front")
+                    (p.single_channel && p.roles.len() == 1 && p.roles.contains("front"))
+                        .then_some("front")
                 });
                 if let Some(hint) = hint {
                     roles.insert(hint.to_owned());

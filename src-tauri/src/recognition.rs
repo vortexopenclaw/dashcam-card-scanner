@@ -130,9 +130,13 @@ pub fn sample_hints(camera: &Camera, name: &str) -> (Option<String>, Option<Stri
         // although the filename has no channel token. Callers must use validated
         // native context (or all-candidate consensus), never an owner's selection.
         let channel = channel.or_else(|| {
-            (camera.id == "viofo-a119m-pro"
-                && camera.channel_count == 1
-                && camera.channel_setup == "front")
+            catalog()
+                .iter()
+                .any(|known| {
+                    known.id == camera.id
+                        && known.channel_count == 1
+                        && known.channel_setup == "front"
+                })
                 .then(|| "front".to_owned())
         });
         return (channel, mode);

@@ -495,10 +495,11 @@ mod tests {
         let (_, camera) =
             crate::recognition::recognize(std::path::Path::new("/Volumes/Untitled"), &report);
         assert!(camera.is_none());
-        // Selecting the model and parking subtype is not native authority.
+        // Matching known single-front siblings agrees on the role, not the exact
+        // model or mode. Owner-selected labels still provide no native authority.
         let unknown: Value = serde_json::from_str(&envelope(&report, &labels).unwrap()).unwrap();
         for evidence in unknown["evidence"].as_array().unwrap() {
-            assert_eq!(evidence["channel"], "unknown");
+            assert_eq!(evidence["channel"], "front");
             assert_eq!(evidence["mode"], "unknown");
         }
         let (_, camera) =
@@ -560,7 +561,7 @@ mod tests {
         }
         let roundtrip: Value = serde_json::from_str(&envelope(&decoded, &labels).unwrap()).unwrap();
         for evidence in roundtrip["evidence"].as_array().unwrap() {
-            assert_eq!(evidence["channel"], "unknown");
+            assert_eq!(evidence["channel"], "front");
             assert_eq!(evidence["mode"], "unknown");
         }
         for (folder, _) in cases {
@@ -574,7 +575,7 @@ mod tests {
             );
             assert_eq!(
                 sample_hints_for_folder(name, folder, None),
-                ("unknown", "unknown")
+                ("front", "unknown")
             );
         }
         assert_eq!(
