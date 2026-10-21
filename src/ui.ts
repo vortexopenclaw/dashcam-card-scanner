@@ -29,6 +29,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const intro=element('details');intro.className='about';element('summary','About scanning & privacy',intro);
   element('p','Scanning never copies media or writes to your card. Filenames appear only in local review, not saved reports or submissions. Source paths, dates, GPS, config contents and device identifiers are excluded. Unknown folders get anonymous labels. An optional forum username is included only in the private submission you review and approve.',intro);
   element('p','The built-in reader measures supported MP4, MOV and M4V recordings. Other formats and unavailable measurements are reported, never invented. This is not a card-health or continuity test.',intro);
+  element('p','Video-stamp OCR is temporarily disabled in this release. Model suggestions use card patterns; choose your model if it is not identified.',intro);
   const select=element('button','Choose card / folder');const source=element('p','No folder selected (path stays local).');source.className='source';
   const actions=element('div');actions.className='actions';const scan=element('button','Rescan',actions);scan.disabled=true;const cancel=element('button','Cancel',actions);cancel.disabled=true;
   const status=element('p','Ready.');status.setAttribute('role','status');status.setAttribute('aria-live','polite');

@@ -7,6 +7,8 @@ pub mod payload;
 pub mod recognition;
 pub mod video;
 pub mod volumes;
+/// Compiled release policy; renderer input and environment overrides cannot enable OCR.
+pub const MODEL_READING_MODE: &str = env!("SCANNER_MODEL_READING_MODE");
 use payload::{Labels, Review};
 use std::{
     io::Write,
@@ -181,6 +183,7 @@ async fn scan_source(
     }).collect();
     let mut value = serde_json::to_value(&result).map_err(|_| "Scan encoding failed")?;
     value["cameraRecognition"] = camera_recognition;
+    value["modelReadingMode"] = serde_json::json!(MODEL_READING_MODE);
     value["channelEvidence"] =
         serde_json::to_value(channel_evidence).map_err(|_| "Channel encoding failed")?;
     value["reviewSamples"] = serde_json::json!(samples);
