@@ -3,12 +3,47 @@
 import {beforeEach,test,expect,vi} from 'vitest';
 import {readFileSync} from 'node:fs';
 import {modelOptions,mergeModelOptions,modelOptionLabel} from '../src/model-options';
+import {fixedSingleCapabilities} from '../src/fixed-single-capabilities';
 import {mount,type Bridge} from '../src/ui';
 const settle=()=>new Promise(resolve=>setTimeout(resolve,0));
 const change=(el:HTMLSelectElement,value:string)=>{el.value=value;el.dispatchEvent(new Event('change',{bubbles:true}));};
 const input=(el:HTMLInputElement,value:string)=>{el.value=value;el.dispatchEvent(new Event('input',{bubbles:true}));};
 const pickModel=(ui:ReturnType<typeof mount>,name:string)=>change(ui.modelPick,[...ui.modelPick.options].find(o=>o.textContent===name)!.value);
 const hash='a'.repeat(64);
+const key=(c:{manufacturer:string;model:string})=>`${c.manufacturer.toLowerCase()}|${c.model.toLowerCase()}`;
+test.each(fixedSingleCapabilities)('$manufacturer $model is selectable and prefills only one front channel',async capability=>{
+ const option=modelOptions.find(c=>key(c)===key(capability))!;
+ expect(option.fixedSingleChannel).toBe(true);expect(capability.sources.length).toBeGreaterThan(0);
+ const {ui}=setup();await settle();ui.select.click();await settle();
+ expect([...ui.manufacturerPick.options].some(o=>o.value===option.manufacturer)).toBe(true);
+ change(ui.manufacturerPick,option.manufacturer);pickModel(ui,option.model);
+ expect(ui.choices.channelCount.value).toBe('1');expect(ui.fields.channelSetup.value).toBe('front');
+});
+test.each(fixedSingleCapabilities.flatMap(c=>[c.model,...c.aliases||[]].map(model=>({...c,model}))))('$manufacturer $model native canonical/alias keeps exact report strings',capability=>{
+ const native={id:'native-exact',manufacturer:capability.manufacturer.toUpperCase(),model:capability.model.toUpperCase()};
+ const merged=mergeModelOptions([native]);
+ expect(merged.find(c=>c.id===native.id)).toMatchObject({...native,fixedSingleChannel:true});
+ expect(merged).toHaveLength(modelOptions.length);
+});
+test('coverage manifest accounts for every final research row and static positive identity',()=>{
+ const coverage=JSON.parse(readFileSync('docs/model-capability-coverage.json','utf8'));
+ expect(coverage.integratedPositiveCount).toBe(fixedSingleCapabilities.length);
+ expect(coverage.positiveBrandCount).toBe(new Set(fixedSingleCapabilities.map(c=>c.manufacturer)).size);
+ expect(coverage.deferredCount).toBe(coverage.excludedFromFixedSingle.length);
+ expect(coverage.inputRows).toBe(coverage.deferredCount+fixedSingleCapabilities.length);
+ expect(modelOptions.filter(c=>c.fixedSingleChannel)).toHaveLength(fixedSingleCapabilities.length);
+});
+test.each([
+ ['Vueroid','S1 4K Infinite'],['Vueroid','S1 QHD Infinite'],['Vantrue','S1 Pro'],['Vantrue','S1 Pro Max'],
+ ['Vantrue','S1 Pro 1CH'],['Vantrue','S1 Pro Max 1CH'],['Blueskysea','B4K'],['Miofive','S1'],
+ ['Redtiger','F7NS'],['Redtiger','F8'],['Kenwood','DRV-A310W'],['Nexar','Beam2 mini'],
+ ['BlackVue','DR750X-1CH Plus'],['BlackVue','ELITE 10-1CH'],['G1W','G1W-C'],['G1W','G1WC'],
+])('%s %s cannot gain a fixed-single prefill through native membership',async(manufacturer,model)=>{
+ const {ui}=setup(undefined,[{id:'negative-native',manufacturer,model,channelCount:1}]);await settle();ui.select.click();await settle();
+ change(ui.manufacturerPick,manufacturer);pickModel(ui,model);
+ expect(mergeModelOptions([{id:'negative-native',manufacturer,model}]).find(c=>c.id==='negative-native')?.fixedSingleChannel).not.toBe(true);
+ expect(ui.choices.channelCount.value).toBe('Select count');expect(ui.fields.channelSetup.value).toBe('');
+});
 function setup(recognition?:Record<string,unknown>,native:unknown=[]){
  const root=document.createElement('main');document.body.append(root);
  const report={cameraRecognition:recognition,scannedFiles:1,folders:[],probeAttempts:0,probeFailures:0};
@@ -60,7 +95,7 @@ test('candidate-only recognition does not promote dropdown roster entries into a
  const {ui}=setup({manufacturer:'Vantrue',candidates:[{model:'E1 Lite'}]});ui.select.click();await settle();expect(ui.fields.model.value).toBe('');expect(ui.choices.channelCount.value).toBe('Select count');
 });
 test('native observed channels remain independent of model choice',async()=>{
- const {ui}=setup({manufacturer:'Vantrue',model:'N5S',channelCount:2,channelSetup:'front + rear'});ui.select.click();await settle();expect(ui.choices.channelCount.value).toBe('2');pickModel(ui,'N4S');expect(ui.choices.channelCount.value).toBe('2');expect(ui.fields.channelSetup.value).toBe('front + rear');
+ const {ui}=setup({manufacturer:'Vantrue',model:'N5S',channelCount:2,channelSetup:'front + rear'});ui.select.click();await settle();expect(ui.choices.channelCount.value).toBe('2');pickModel(ui,'N4S');expect(ui.choices.channelCount.value).toBe('2');expect(ui.fields.channelSetup.value).toBe('front + rear');pickModel(ui,'E1');expect(ui.choices.channelCount.value).toBe('2');expect(ui.fields.channelSetup.value).toBe('front + rear');
 });
 test('UI choices survive native catalog rejection without changing recognition evidence',async()=>{
  const root=document.createElement('main');document.body.append(root);const invoke=vi.fn(async(cmd:string)=>{if(cmd==='camera_catalog')throw Error('unavailable');return null;});const ui=mount(root,{invoke,listen:async()=>()=>{}} as Bridge);await settle();change(ui.manufacturerPick,'Garmin');pickModel(ui,'Dash Cam Mini 3');expect(ui.choices.channelCount.value).toBe('1');expect(invoke).toHaveBeenCalledWith('camera_catalog');expect(root.textContent).toContain('not a list of models the scanner can recognize');

@@ -5,7 +5,8 @@
  * Only fixed single-camera models get a count suggestion; kits/expandable units
  * deliberately have no count here (even when their product name includes CH).
  */
-export type ModelOption={id:string;manufacturer:string;model:string;source?:string;fixedSingleChannel?:boolean;provenance?:'official-catalog'|'owner-provided-prerelease'|'owner-confirmed'|'native-catalog'};
+import {fixedSingleCapabilities} from './fixed-single-capabilities';
+export type ModelOption={id:string;manufacturer:string;model:string;source?:string;aliases?:string[];fixedSingleChannel?:boolean;provenance?:'official-catalog'|'official-manual'|'manufacturer-manual-mirror'|'official-product-support'|'owner-provided-prerelease'|'owner-confirmed'|'native-catalog'};
 const models=(manufacturer:string,source:string,names:string[],single:string[]=[]):ModelOption[]=>names.map(model=>({id:`ui:${manufacturer}:${model}`,manufacturer,model,source,fixedSingleChannel:single.includes(model),provenance:'official-catalog'}));
 export const modelOptions:ModelOption[]=[
  ...models('Viofo','https://www.viofo.com/pages/support-product',[
@@ -55,11 +56,21 @@ export const modelOptions:ModelOption[]=[
  ...models('Vueroid','https://vueroid.com/product/d21-lte-fhd/',['D21 LTE FHD']),
 ];
 const identity=(c:Pick<ModelOption,'manufacturer'|'model'>)=>`${c.manufacturer.trim().toLowerCase()}\0${c.model.trim().toLowerCase()}`;
-/** Retain native IDs/exact report strings for existing identities, but NEVER copy
- * native maximum channel counts or setup strings into an owner observation. */
+// Preserve existing labels/IDs and every multichannel choice; enrich only audited positives.
+for(const capability of fixedSingleCapabilities){
+ const existing=modelOptions.find(c=>identity(c)===identity(capability));
+ const c:ModelOption=existing||{id:`ui:${capability.manufacturer}:${capability.model}`,manufacturer:capability.manufacturer,model:capability.model};
+ c.fixedSingleChannel=true;c.aliases=capability.aliases;c.source=capability.sources[0];
+ if(c.provenance!=='owner-provided-prerelease')c.provenance=capability.provenance;
+ if(!existing)modelOptions.push(c);
+}
+/** Retain native IDs/exact report strings for canonical identities and verified
+ * same-manufacturer aliases. Never copy native maximum counts or setup strings. */
 export function mergeModelOptions(native:Pick<ModelOption,'id'|'manufacturer'|'model'>[]):ModelOption[]{
  const result=new Map(modelOptions.map(c=>[identity(c),{...c}]));
- for(const c of native){const previous=result.get(identity(c));result.set(identity(c),{...previous,id:c.id,manufacturer:c.manufacturer,model:c.model,provenance:previous?.provenance||'native-catalog'});}
+ const canonical=new Map<string,string>();
+ for(const c of modelOptions){const key=identity(c);canonical.set(key,key);for(const model of c.aliases||[])canonical.set(identity({...c,model}),key);}
+ for(const c of native){const key=canonical.get(identity(c))||identity(c);const previous=result.get(key);result.set(key,{...previous,id:c.id,manufacturer:c.manufacturer,model:c.model,provenance:previous?.provenance||'native-catalog'});}
  return [...result.values()];
 }
 export function modelOptionLabel(c:ModelOption):string{return c.model;}
