@@ -7,6 +7,9 @@ use std::{path::Path, sync::atomic::AtomicBool};
 pub(super) struct Evidence {
     pub identities: std::collections::BTreeSet<usize>,
     pub complete: bool,
+    /// False only for unsupported platforms or no eligible local media. Failures
+    /// after an eligible sample is selected must veto label-based exact identity.
+    pub attempted: bool,
 }
 
 #[cfg(not(all(target_os = "macos", not(scanner_no_native_ocr))))]
@@ -14,6 +17,7 @@ pub(super) fn probe(_: &Path, _: &Report, _: &AtomicBool, _: &mut dyn FnMut()) -
     Evidence {
         identities: Default::default(),
         complete: false,
+        attempted: false,
     }
 }
 
@@ -104,10 +108,12 @@ mod macos {
         let mut evidence = Evidence {
             identities: Default::default(),
             complete: true,
+            attempted: false,
         };
         let fail = || Evidence {
             identities: Default::default(),
             complete: false,
+            attempted: true,
         };
         if cancel.load(Ordering::Relaxed) {
             return fail();
@@ -162,6 +168,7 @@ mod macos {
                 break;
             }
             attempts += 1;
+            evidence.attempted = true;
             progress();
             let Ok(dir) = crate::engine::open_dir_secure(&root.join(&folder.path)) else {
                 evidence.complete = false;

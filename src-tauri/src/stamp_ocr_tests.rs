@@ -24,6 +24,7 @@ fn stamp_requires_unique_complete_corroborated_identity() {
     let evidence = |ids: &[usize], complete| stamp_ocr::Evidence {
         identities: ids.iter().copied().collect(),
         complete,
+        attempted: true,
     };
     let pro = index("viofo-a119m-pro");
     let mini = index("viofo-a119-mini-2");
@@ -38,12 +39,65 @@ fn stamp_requires_unique_complete_corroborated_identity() {
         evidence(&[pro, mini], true),
         evidence(&[mini], false),
         evidence(&[pro], false),
+        evidence(&[], false),
     ] {
         let (v, c) = recognition_from_stamp(Path::new("/Volumes/A119M Pro"), &r, &e);
         assert!(c.is_none());
         assert!(v.get("model").is_none());
     }
     assert!(stamp_ocr::unique(&evidence(&[pro], true), &Report::default()).is_none());
+}
+
+#[test]
+fn metadata_fallback_distinguishes_unavailable_blank_and_failed_ocr() {
+    for (attempted, complete, allowed) in [
+        (false, false, true),
+        (true, true, true),
+        (true, false, false),
+    ] {
+        let evidence = stamp_ocr::Evidence {
+            identities: Default::default(),
+            attempted,
+            complete,
+        };
+        let (value, camera) =
+            recognition_from_stamp(Path::new("/Volumes/A119M Pro"), &report(), &evidence);
+        assert_eq!(camera.is_some(), allowed);
+        assert_eq!(value.get("model").is_some(), allowed);
+        assert_eq!(value.get("channelCount").is_some(), allowed);
+        assert_eq!(value.get("channelSetup").is_some(), allowed);
+        if !allowed {
+            assert_eq!(value["confidence"], "unknown");
+        }
+    }
+}
+
+#[test]
+#[cfg(all(target_os = "macos", not(scanner_no_native_ocr)))]
+fn failed_native_ocr_vetoes_exact_label_but_ineligible_ts_retains_fallback() {
+    let temp = tempfile::tempdir().unwrap();
+    let base = temp.path().canonicalize().unwrap();
+    let root = base.join("A119M Pro");
+    std::fs::create_dir_all(root.join("DCIM/Movie")).unwrap();
+    let file = root.join("DCIM/Movie/20261021120000_000001.MP4");
+    std::fs::write(&file, b"SYNTHETIC_INVALID_VIDEO").unwrap();
+    let evidence = stamp_ocr::probe(&root, &report(), &AtomicBool::new(false), &mut || {});
+    assert!(evidence.attempted && !evidence.complete && evidence.identities.is_empty());
+    let (value, camera) = recognition_from_stamp(&root, &report(), &evidence);
+    assert!(camera.is_none() && value.get("model").is_none());
+    assert_eq!(std::fs::read(&file).unwrap(), b"SYNTHETIC_INVALID_VIDEO");
+    // Intentional metadata-only support for a format the native OCR never attempts.
+    let root = base.join("OttoSafe Cam");
+    std::fs::create_dir_all(root.join("norm")).unwrap();
+    let mut r = report();
+    r.folders[0].path = "norm".into();
+    r.folders[0].samples[0].local_name = "2026_10_21_120000_01.TS".into();
+    let evidence = stamp_ocr::probe(&root, &r, &AtomicBool::new(false), &mut || {});
+    assert!(!evidence.attempted && !evidence.complete);
+    assert_eq!(
+        recognition_from_stamp(&root, &r, &evidence).1.unwrap().id,
+        "ottocast-ottosafe-cam"
+    );
 }
 
 #[test]

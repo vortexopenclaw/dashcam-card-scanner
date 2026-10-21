@@ -47,7 +47,7 @@ fn recognition_from_stamp(
     let (mut value, camera) = recognize_metadata(root, report);
     // Even a single incompatible identity is a veto. A partial OCR batch must
     // never let a spoofed root label override recognized contradictory evidence.
-    if !evidence.identities.is_empty() {
+    if !evidence.identities.is_empty() || (evidence.attempted && !evidence.complete) {
         value
             .as_object_mut()
             .unwrap()
@@ -327,7 +327,7 @@ mod tests {
             });
         }
         report.folders.push(folder);
-        let (v, c) = recognize(Path::new("/Volumes/N4 Pro S"), &report);
+        let (v, c) = recognize_metadata(Path::new("/Volumes/N4 Pro S"), &report);
         assert_eq!(c.unwrap().id, "vantrue-n4-pro-s");
         assert_eq!(v["channelCount"], 3);
         let text = serde_json::to_string(&v).unwrap();
@@ -336,11 +336,11 @@ mod tests {
             .1
             .is_none());
         report.folders[0].samples[2].video.as_mut().unwrap().width = 1920;
-        assert!(recognize(Path::new("/Volumes/N4 Pro S"), &report)
+        assert!(recognize_metadata(Path::new("/Volumes/N4 Pro S"), &report)
             .1
             .is_none());
         report.folders[0].samples[0].video = None;
-        assert!(recognize(Path::new("/Volumes/N4 Pro S"), &report)
+        assert!(recognize_metadata(Path::new("/Volumes/N4 Pro S"), &report)
             .1
             .is_none());
     }
@@ -401,7 +401,19 @@ mod tests {
     #[test]
     fn validated_a119_model_has_broad_context_not_parking_subtype() {
         let report = a119_report();
-        let (_, camera) = recognize(Path::new("/Volumes/A119M Pro"), &report);
+        let (_, camera) = recognition_from_stamp(
+            Path::new("/Volumes/Untitled"),
+            &report,
+            &stamp_ocr::Evidence {
+                identities: [catalog()
+                    .iter()
+                    .position(|c| c.id == "viofo-a119m-pro")
+                    .unwrap()]
+                .into(),
+                complete: true,
+                attempted: true,
+            },
+        );
         let camera = camera.unwrap();
         assert_eq!(camera.id, "viofo-a119m-pro");
         for (folder, mode) in [
