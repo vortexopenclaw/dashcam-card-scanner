@@ -179,8 +179,51 @@ mod macos {
             }
             // No pathname is ever passed to AVFoundation: fd 0 owns the opened inode,
             // so swapping root/directories/filename cannot redirect the decoder.
+            // Defense in depth: the decoder receives no inherited credentials,
+            // cannot use the network/exec/keychain service, and cannot read common
+            // credential stores. This is not a complete filesystem allowlist:
+            // Apple's Vision runtime still needs its model/cache resources.
+            let Some(home) = std::env::var_os("HOME").map(std::path::PathBuf::from) else {
+                evidence.complete = false;
+                continue;
+            };
+            let media = root.join(&folder.path).join(name);
+            let quote = |p: &Path| serde_json::to_string(&p.to_string_lossy()).unwrap();
+            let stores = [
+                ".ssh",
+                ".aws",
+                ".azure",
+                ".config",
+                ".kube",
+                ".gnupg",
+                ".hermes",
+                ".openclaw",
+                ".docker",
+                ".netrc",
+                ".env",
+                "Library/Keychains",
+                "Library/Cookies",
+                "Library/Safari",
+                "Library/Application Support/1Password",
+                "Library/Application Support/Google/Chrome",
+                "Library/Application Support/Firefox",
+            ];
+            let denied = stores
+                .iter()
+                .map(|p| format!("(subpath {})", quote(&home.join(p))))
+                .collect::<String>();
+            let policy = format!(
+                r#"(version 1)(allow default)(deny network*)(deny process-exec)(deny process-fork)(deny mach-lookup (global-name "com.apple.securityd") (global-name "com.apple.coreservices.launchservicesd"))(deny file-read* file-write* {denied} (regex #"(^|/)[.]env([.][^/]*)?$"))(deny file-write* (subpath {}))(allow file-read* (literal {}) (subpath {}))(allow file-write* (subpath {}))"#,
+                quote(&root),
+                quote(&media),
+                quote(&helper.0),
+                quote(&helper.0)
+            );
             let mut child = match Command::new(helper.0.join("model-stamp"))
+                .env_clear()
+                .env("PATH", "/usr/bin:/bin")
                 .arg(&stamps)
+                .arg(policy)
                 .stdin(Stdio::from(file.into_std()))
                 .stdout(Stdio::piped())
                 .stderr(Stdio::null())

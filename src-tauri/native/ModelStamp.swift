@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-// Private bounded worker. The only media capability is an inherited read-only fd 0.
+// Private bounded decoder uses read-only fd 0. The sandbox is a partial
+// denylist, not a complete filesystem capability boundary; see SECURITY.md.
 // No source paths, images, recognized words, timestamps or other OSD leave this process.
 import AVFoundation
 import Foundation
 import Vision
+@_silgen_name("sandbox_init")
+private func initializeSandbox(_ profile: UnsafePointer<CChar>, _ flags: UInt64,
+    _ error: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?) -> Int32
+@_silgen_name("sandbox_free_error")
+private func freeSandboxError(_ error: UnsafeMutablePointer<CChar>?)
 
 func compact(_ text: String) -> String {
     text.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
@@ -60,10 +66,18 @@ struct ModelStamp {
     static func run() {
         // Parent also enforces a stricter per-file and whole-scan timeout/cancellation.
         DispatchQueue.global().asyncAfter(deadline: .now() + 70) { _exit(2) }
-        guard CommandLine.arguments.count == 2,
+        guard CommandLine.arguments.count == 3,
               let data = CommandLine.arguments[1].data(using: .utf8),
               let stamps = try? JSONDecoder().decode([String].self, from: data),
               stamps.count <= 100, stamps.allSatisfy({ $0.count <= 100 }) else { _exit(2) }
+        // Fail closed before touching untrusted video or calling Apple's decoder.
+        // The parent constructs the profile from its validated native selection.
+        var sandboxError: UnsafeMutablePointer<CChar>? = nil
+        let applied = CommandLine.arguments[2].withCString {
+            initializeSandbox($0, 0, &sandboxError)
+        }
+        if let sandboxError { freeSandboxError(sandboxError) }
+        guard applied == 0 else { _exit(2) }
         var statBuffer = stat()
         guard fstat(STDIN_FILENO, &statBuffer) == 0,
               statBuffer.st_mode & S_IFMT == S_IFREG,
@@ -78,6 +92,7 @@ struct ModelStamp {
         generator.requestedTimeToleranceBefore = .zero
         generator.requestedTimeToleranceAfter = CMTime(seconds: 0.15, preferredTimescale: 600)
         var matches = Set<Int>()
+        var successfulFrames = 0
         // Fixed two frames, not proportional to clip length or whole-card file count.
         for seconds in [0.0, 1.0] {
             autoreleasepool {
@@ -92,6 +107,7 @@ struct ModelStamp {
                 request.usesLanguageCorrection = false
                 // No custom words: never bias absent/ambiguous stamps toward a candidate.
                 guard (try? VNImageRequestHandler(cgImage: bottom).perform([request])) != nil else { return }
+                successfulFrames += 1
                 for observation in request.results ?? [] {
                     guard let text = observation.topCandidates(1).first, text.confidence >= 0.75 else { continue }
                     let token = compact(text.string)
@@ -104,6 +120,7 @@ struct ModelStamp {
         }
         withExtendedLifetime(source) {}
         generator.cancelAllCGImageGeneration()
+        guard successfulFrames > 0 else { _exit(2) }
         print(matches.sorted().map(String.init).joined(separator: ","))
     }
 }

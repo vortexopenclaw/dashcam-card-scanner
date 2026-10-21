@@ -19,7 +19,7 @@ fn main() {
         let status = Command::new("xcrun")
             .args(["swiftc", "-parse-as-library", "-O", "-target"])
             .arg(format!("{swift_arch}-apple-macosx11.0"))
-            .args(["native/ModelStamp.swift", "-o"])
+            .args(["native/ModelStamp.swift", "-lsandbox", "-o"])
             .arg(&output)
             .status()
             .expect("macOS OCR requires the Apple Swift compiler at build time");

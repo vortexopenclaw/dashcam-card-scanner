@@ -325,6 +325,20 @@ fn matching_receipt(receipt: &[u8], hash: &str) -> Result<(), String> {
     }
     Ok(())
 }
+fn submission_rejection(status: u16, bytes: &[u8]) -> &'static str {
+    let value = serde_json::from_slice::<serde_json::Value>(bytes).ok();
+    let code = value
+        .as_ref()
+        .and_then(|v| v.get("error"))
+        .and_then(|v| v.as_str());
+    match (status, code) {
+        (429, Some("storage_capacity")) => "submission:storage_capacity",
+        (429, _) => "submission:rate_limited",
+        (400 | 413 | 422, _) => "submission:invalid_report",
+        (500..=599, _) => "submission:service_unavailable",
+        _ => "submission:service_rejected",
+    }
+}
 #[tauri::command]
 async fn submit_review(
     token: String,
@@ -334,18 +348,21 @@ async fn submit_review(
     let _busy = begin(&s)?;
     let r = submission_snapshot(&s, &token, consent)?;
     let (client, request) = direct_request(&r.submission_json)?;
-    let mut response = client
-        .execute(request)
-        .await
-        .map_err(|_| "No confirmed receipt. Retry the same prepared report when connected.")?;
-    if response.status() != reqwest::StatusCode::ACCEPTED {
-        return Err(format!(
-            "Intake rejected submission (HTTP {}). Retry the same prepared report later.",
-            response.status().as_u16()
-        ));
-    }
+    let mut response = client.execute(request).await.map_err(|error| {
+        if error.is_timeout() {
+            "submission:network_timeout"
+        } else {
+            "submission:network_unavailable"
+        }
+    })?;
+    let response_status = response.status();
     if response.content_length().is_some_and(|n| n > 16384) {
-        return Err("Invalid intake receipt".into());
+        return Err(if response_status == reqwest::StatusCode::ACCEPTED {
+            "submission:receipt_unconfirmed"
+        } else {
+            submission_rejection(response_status.as_u16(), &[])
+        }
+        .into());
     }
     let mut receipt = Vec::new();
     while let Some(chunk) = response
@@ -354,11 +371,14 @@ async fn submit_review(
         .map_err(|_| "Invalid intake receipt")?
     {
         if receipt.len() + chunk.len() > 16384 {
-            return Err("Oversize intake receipt".into());
+            return Err("submission:receipt_unconfirmed".into());
         }
         receipt.extend_from_slice(&chunk);
     }
-    matching_receipt(&receipt, &r.payload_hash)?;
+    if response_status != reqwest::StatusCode::ACCEPTED {
+        return Err(submission_rejection(response_status.as_u16(), &receipt).into());
+    }
+    matching_receipt(&receipt, &r.payload_hash).map_err(|_| "submission:receipt_unconfirmed")?;
     lock(&s)?.review = None;
     Ok(r.payload_hash)
 }
@@ -442,6 +462,33 @@ fn updater_ready() -> bool {
         .as_str()
         .is_some_and(|s| !s.starts_with("REPLACE_") && s.len() > 40)
 }
+fn approved_update_target(url: &tauri::Url, version: &str) -> bool {
+    if url.scheme() != "https"
+        || url.host_str() != Some("github.com")
+        || !url.username().is_empty()
+        || url.password().is_some()
+        || url.port().is_some()
+        || url.query().is_some()
+        || url.fragment().is_some()
+    {
+        return false;
+    }
+    let Some(segments) = url.path_segments() else {
+        return false;
+    };
+    let parts: Vec<_> = segments.collect();
+    parts.len() == 6
+        && parts[..4]
+            == [
+                "vortexopenclaw",
+                "dashcam-card-scanner",
+                "releases",
+                "download",
+            ]
+        && [format!("v{version}"), format!("v{version}-mac")].contains(&parts[4].to_owned())
+        && !parts[5].is_empty()
+        && !parts[5].contains('%')
+}
 #[tauri::command]
 async fn check_update(
     app: tauri::AppHandle,
@@ -455,11 +502,25 @@ async fn check_update(
         return Err("Updates are disabled in this review build: official public verification key is not provisioned. Unsigned updates are never installed.".into());
     }
     let update = app
-        .updater()
+        .updater_builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .configure_client(|b| {
+            b.https_only(true)
+                .connect_timeout(std::time::Duration::from_secs(10))
+        })
+        .build()
         .map_err(|_| "Updater unavailable")?
         .check()
         .await
         .map_err(|error| format!("Update check failed. {}", update_error(&error)))?;
+    if update
+        .as_ref()
+        .is_some_and(|u| !approved_update_target(&u.download_url, &u.version))
+    {
+        return Err(
+            "Update source rejected. Only official versioned release assets are allowed.".into(),
+        );
+    }
     let version = update.map(|u| u.version);
     lock(&s)?.update = version.clone();
     Ok(version)
@@ -476,14 +537,21 @@ async fn install_update(
         return Err("Check updates and approve this version first.".into());
     }
 
-    let update = app
-        .updater()
+    let mut update = app
+        .updater_builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .configure_client(|b| {
+            b.https_only(true)
+                .connect_timeout(std::time::Duration::from_secs(10))
+        })
+        .build()
         .map_err(|_| "Updater unavailable")?
         .check()
         .await
         .map_err(|error| format!("Update recheck failed. {}", update_error(&error)))?
-        .filter(|u| u.version == version)
-        .ok_or("Update changed; check again.")?;
+        .filter(|u| u.version == version && approved_update_target(&u.download_url, &u.version))
+        .ok_or("Update source or version changed; check again.")?;
+    update.timeout = Some(std::time::Duration::from_secs(600));
     let progress = Mutex::new(UpdateProgress::default());
     let _ = app.emit("update-progress", progress.lock().unwrap().clone());
     update
@@ -551,6 +619,87 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn updates_require_official_immutable_same_version_release_assets() {
+        for tag in ["v0.1.8", "v0.1.8-mac"] {
+            let url = format!("https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/{tag}/Dashcam-Card-Scanner.app.tar.gz");
+            assert!(approved_update_target(&url.parse().unwrap(), "0.1.8"));
+        }
+        for bad in [
+            "http://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/a",
+            "https://evil.example/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/a",
+            "https://github.com/attacker/dashcam-card-scanner/releases/download/v0.1.8/a",
+            "https://github.com/vortexopenclaw/other/releases/download/v0.1.8/a",
+            "https://github.com/vortexopenclaw/dashcam-card-scanner/releases/latest/download/a",
+            "https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.9/a",
+            "https://user@github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/a",
+            "https://github.com:8443/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/a",
+            "https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/a?redirect=https://evil.example",
+            "https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/a#fragment",
+            "https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/a%2Foutside",
+        ] {
+            assert!(!approved_update_target(&bad.parse().unwrap(), "0.1.8"), "{bad}");
+        }
+    }
+    #[test]
+    #[ignore = "developer-only live synthetic intake acceptance; explicit fixture required"]
+    fn live_native_direct_submission_receives_matching_receipt() {
+        let path = std::env::var_os("SCANNER_LIVE_SYNTHETIC_SUBMISSION")
+            .expect("explicit synthetic fixture required");
+        let bytes = std::fs::read_to_string(path).unwrap();
+        let fixture: serde_json::Value = serde_json::from_str(&bytes).unwrap();
+        assert_eq!(fixture["owner"]["manufacturer"], "Synthetic");
+        assert_eq!(fixture["owner"]["model"], "Fixture");
+        let hash = intake::hash(bytes.as_bytes());
+        tauri::async_runtime::block_on(async {
+            let (client, request) = direct_request(&bytes).unwrap();
+            let mut response = match client.execute(request).await {
+                Ok(response) => response,
+                Err(error) => panic!(
+                    "Native synthetic transport failed: timeout={} connect={}",
+                    error.is_timeout(),
+                    error.is_connect()
+                ),
+            };
+            let status = response.status();
+            let mut receipt = Vec::new();
+            while let Some(chunk) = response
+                .chunk()
+                .await
+                .expect("bounded response read failed")
+            {
+                assert!(receipt.len() + chunk.len() <= 16384);
+                receipt.extend_from_slice(&chunk);
+            }
+            println!("Native synthetic intake HTTP {}", status.as_u16());
+            assert_eq!(status, reqwest::StatusCode::ACCEPTED);
+            matching_receipt(&receipt, &hash).unwrap();
+            println!("Native exact-byte matching receipt verified; no owner media used.");
+        });
+    }
+    #[test]
+    fn submission_failures_classify_only_allowlisted_status_and_codes() {
+        assert_eq!(
+            submission_rejection(429, br#"{"error":"storage_capacity"}"#),
+            "submission:storage_capacity"
+        );
+        assert_eq!(
+            submission_rejection(429, br#"{"error":"rate_limited"}"#),
+            "submission:rate_limited"
+        );
+        assert_eq!(
+            submission_rejection(400, b"private upstream text"),
+            "submission:invalid_report"
+        );
+        assert_eq!(
+            submission_rejection(503, b"private upstream text"),
+            "submission:service_unavailable"
+        );
+        assert_eq!(
+            submission_rejection(403, br#"{"error":"AUDIT_ONLY_FAKE_SECRET"}"#),
+            "submission:service_rejected"
+        );
+    }
     #[test]
     fn direct_request_is_fixed_https_exact_bytes_without_authorization() {
         let bytes = "{\"synthetic\":true}\n";
