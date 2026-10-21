@@ -666,6 +666,15 @@
  use quote::quote;
  use syn::Data;
  
+@@ -20,7 +20,7 @@
+             klass.set_template_from_resource(&#resource);
+         },
+         TemplateSource::String(template) => quote! {
+-            klass.set_template(&#template);
++            klass.set_template(#template.as_bytes());
+         },
+     }
+ }
 @@ -29,7 +29,7 @@
      let crate_ident = crate_ident_new();
      let attributed_fields = match parse_fields(fields) {

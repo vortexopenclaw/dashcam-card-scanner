@@ -33,6 +33,11 @@ backend and syn 1 dependency, not an advisory exemption.
   local implementation, **not** a claimed verbatim upstream macro backport.
   Current gtk-rs glib-macros 0.20.12 likewise has no proc-macro-error backend,
   but wholesale substitution changes generated GLib APIs and closure syntax.
+- **gtk3-macros inline templates**: the real Linux regression exposed an
+  existing upstream `template(string = ...)` type mismatch: GTK3 expects
+  `&[u8]`, not `&&str`. Emit the literal's `.as_bytes()` explicitly. Keep the
+  inline-template fixture; do not replace it with another variant to hide the
+  failed expansion. This is a local compatibility fix in the recorded delta.
 - Do **not** substitute `proc-macro-error2 2.0.1`: live RustSec reports
   **RUSTSEC-2026-0173**, also unmaintained. That attempted route was rejected.
 

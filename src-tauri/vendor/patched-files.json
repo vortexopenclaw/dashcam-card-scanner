@@ -14,5 +14,5 @@
   "glib-macros-0.18.5/src/derived_properties_attribute.rs": "b53f4f29fd4124f5761936a7a9f0b792d442d656e5a6c7154dc8437f6e1e1c69",
   "gtk3-macros-0.18.2/Cargo.toml": "bcfb696934d5016f5ac09ed98890f0ed791d8cf411636c4b2af6b3920465bf45",
   "gtk3-macros-0.18.2/src/lib.rs": "1875356033073a07cc54e05acbc2055505475c47f44383e967f69362592268ea",
-  "gtk3-macros-0.18.2/src/composite_template_derive.rs": "0aac2d33597151e043c8373c739f8e2b1dada278977265d738355bb7d48f3227"
+  "gtk3-macros-0.18.2/src/composite_template_derive.rs": "450d863750be0901a9c8bf3ec4b8d873ed929550e8cf317386b4b394ae302c86"
 }
