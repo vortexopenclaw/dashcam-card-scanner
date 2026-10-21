@@ -1,0 +1,14 @@
+{
+  "glib-0.18.5": {
+    "archive_sha256": "233daaf6e83ae6a12a52055f568f9d7cf4671dabb78ff9560ab6da230ce00ee5",
+    "url": "https://static.crates.io/crates/glib/glib-0.18.5.crate"
+  },
+  "glib-macros-0.18.5": {
+    "archive_sha256": "0bb0228f477c0900c880fd78c8759b95c7636dbd7842707f49e132378aa2acdc",
+    "url": "https://static.crates.io/crates/glib-macros/glib-macros-0.18.5.crate"
+  },
+  "gtk3-macros-0.18.2": {
+    "archive_sha256": "52ff3c5b21f14f0736fed6dcfc0bfb4225ebf5725f3c0209edeec181e4d73e9d",
+    "url": "https://static.crates.io/crates/gtk3-macros/gtk3-macros-0.18.2.crate"
+  }
+}

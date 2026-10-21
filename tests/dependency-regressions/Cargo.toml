@@ -1,0 +1,17 @@
+[package]
+name = "scanner-dependency-regressions"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+glib = "=0.18.5"
+gtk3-macros = "=0.18.2"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "=0.18.2"
+
+[patch.crates-io]
+glib = { path = "../../src-tauri/vendor/glib-0.18.5" }
+glib-macros = { path = "../../src-tauri/vendor/glib-macros-0.18.5" }
+gtk3-macros = { path = "../../src-tauri/vendor/gtk3-macros-0.18.2" }
