@@ -5,7 +5,7 @@
  * Only fixed single-camera models get a count suggestion; kits/expandable units
  * deliberately have no count here (even when their product name includes CH).
  */
-export type ModelOption={id:string;manufacturer:string;model:string;source?:string;fixedSingleChannel?:boolean;provenance?:'official-catalog'|'owner-provided-prerelease'|'native-catalog'};
+export type ModelOption={id:string;manufacturer:string;model:string;source?:string;fixedSingleChannel?:boolean;provenance?:'official-catalog'|'owner-provided-prerelease'|'owner-confirmed'|'native-catalog'};
 const models=(manufacturer:string,source:string,names:string[],single:string[]=[]):ModelOption[]=>names.map(model=>({id:`ui:${manufacturer}:${model}`,manufacturer,model,source,fixedSingleChannel:single.includes(model),provenance:'official-catalog'}));
 export const modelOptions:ModelOption[]=[
  ...models('Viofo','https://www.viofo.com/pages/support-product',[
@@ -48,6 +48,8 @@ export const modelOptions:ModelOption[]=[
  ...models('Rexing','https://www.rexingusa.com/product/v1p-3/',['V1P 3rd Generation']),
  ...models('Rove','https://www.rovedashcam.com/products/rove-r2-4k-car-dashcam',['R2-4K'],['R2-4K']),
  ...models('Rove','https://www.rovedashcam.com/products/rove-r3-dash-cam-3-channel-built-in-wifi-gps-1440p-1080p-1080p-front-cabin-rear',['R3']),
+ // Owner-confirmed and independently listed in Rove's single-channel collection.
+ {id:'ui:Rove:R2-4K Pro',manufacturer:'Rove',model:'R2-4K Pro',fixedSingleChannel:true,source:'https://www.rovedashcam.com/collections/single-channel',provenance:'official-catalog'},
  ...models('Wolfbox','https://wolfbox.com/pages/manual',['G900 PRO','G900TriPro','G850 PRO','G850 V02','G850','X5','X3','i17-3 V02','i07','i05','i03','D07S','D07PRO','D07','G930','G930 V02','G840S','G840H','G900','T10','G890']),
  ...models('Vueroid','https://vueroid.com/product/vueroid-d21-4k-2ch/',['D21 4K 2CH','S1 4K Infinite','S1 QHD Infinite','D20-Q2-PLUS','D20-F2','D20-F2E']),
  ...models('Vueroid','https://vueroid.com/product/d21-lte-fhd/',['D21 LTE FHD']),
