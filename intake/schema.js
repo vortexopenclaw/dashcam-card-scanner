@@ -84,6 +84,35 @@ export function validate(p) {
   }
   return p;
 }
+// Admission identity is deliberately conservative: object key order, JSON escapes,
+// whitespace and mathematically equal number spellings are immaterial. Arrays,
+// owner settings, contributor, cohorts and exact decimal measurements all remain.
+// Do not round through JS Number: distinct source decimal pairs can parse alike.
+export async function admissionHash(rawJSON) {
+  const tokens=rawJSON.match(/"(?:[^"\\]|\\.)*"|-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?|true|false|null|[{}\[\]:,]/g);
+  let i=0;
+  const value=()=>{
+    const t=tokens[i++];
+    if(t==='{'){
+      const fields=[];
+      while(tokens[i]!=='}'){
+        const key=JSON.stringify(JSON.parse(tokens[i++]));i++;fields.push([key,value()]);
+        if(tokens[i]!==',')break;i++;
+      }
+      i++;return '{'+fields.sort(([a],[b])=>a<b?-1:a>b?1:0).map(([k,v])=>k+':'+v).join(',')+'}';
+    }
+    if(t==='['){const items=[];while(tokens[i]!==']'){items.push(value());if(tokens[i]!==',')break;i++;}i++;return '['+items.join(',')+']';}
+    if(t[0]==='"')return JSON.stringify(JSON.parse(t));
+    if(['true','false','null'].includes(t))return t;
+    const m=/^(-?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/.exec(t);
+    let digits=(m[2]+(m[3]||'')).replace(/^0+/,'');
+    if(!digits)return '0';
+    let exponent=BigInt(m[4]||0)-BigInt((m[3]||'').length);
+    const trimmed=digits.replace(/0+$/,'');exponent+=BigInt(digits.length-trimmed.length);digits=trimmed;
+    return m[1]+digits+'e'+exponent;
+  };
+  return sha256('admission-v1:'+value());
+}
 export async function sha256(value) { return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', typeof value==='string'?new TextEncoder().encode(value):value)), b=>b.toString(16).padStart(2,'0')).join(''); }
 export async function readBytes(request,max=MAX_BODY) {
   if(Number(request.headers.get('content-length'))>max) throw Error('payload_too_large');

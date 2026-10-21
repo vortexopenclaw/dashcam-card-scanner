@@ -7,6 +7,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import worker,{IntakeGate} from '../worker.js';
+import {Storage} from './storage.js';
 import {parse,sha256,validate} from '../schema.js';
 import {evidenceHash,cohort,structureHash,review,pull,checkRecord} from '../review.js';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -15,7 +16,7 @@ async function record(p){validate(p);const rawJSON=JSON.stringify(p);return {id:
 async function directory(t){const d=await fs.mkdtemp(path.join(root,'.test-audit-'));t.after(()=>fs.rm(d,{recursive:true,force:true}));return d;}
 function credentials(t){for(const [k,v] of Object.entries({CF_ACCOUNT_ID:'a'.repeat(32),CF_KV_NAMESPACE_ID:'b'.repeat(32),CF_API_TOKEN:'synthetic-only'})){const old=process.env[k];process.env[k]=v;t.after(()=>{if(old===undefined)delete process.env[k];else process.env[k]=old;});}}
 test('BOM exact-byte upload rejected before redemption or storage, plain bytes retain integrity',async t=>{
- const data=new Map(),kv=new Map();const storage={async transaction(fn){return fn({get:async k=>structuredClone(data.get(k)),put:async(k,v)=>data.set(k,structuredClone(v))});}};
+ const storage=new Storage(),kv=new Map();
  const env={ENABLED:'true',IP_SALT:'s'.repeat(32),TURNSTILE_SECRET:'synthetic',TURNSTILE_SITE_KEY:'synthetic',ORIGIN:'https://intake.example',MAX_RECORDS:'10',MAX_STORED_BYTES:'100000',PENDING:{put:async(k,v)=>kv.set(k,v)}};
  const gate=new IntakeGate({storage},env);env.GATE={idFromName:x=>x,get:()=>({fetch:(url,init)=>gate.fetch(new Request(url,init))})};
  t.mock.method(globalThis,'fetch',async()=>Response.json({success:true,hostname:'intake.example',action:'scanner_upload'}));
@@ -23,9 +24,9 @@ test('BOM exact-byte upload rejected before redemption or storage, plain bytes r
  const bytes=Buffer.concat([Buffer.from([0xef,0xbb,0xbf]),Buffer.from(JSON.stringify(fixture()))]);
  assert.throws(()=>parse(bytes),/bom/i);
  const issue=async body=>{const r=await worker.fetch(new Request(env.ORIGIN+'/ticket',{method:'POST',headers,body:JSON.stringify({hash:await sha256(body),turnstile:'synthetic'})}),env);assert.equal(r.status,200);return (await r.json()).ticket;};
- const ticket=await issue(bytes),before=structuredClone(data.get('control').tickets);
+ const ticket=await issue(bytes),before=structuredClone(storage.data.get('control').tickets);
  const send=(body,ticket)=>worker.fetch(new Request(env.ORIGIN+'/submit',{method:'POST',headers:{...headers,authorization:'Bearer '+ticket},body}),env);
- assert.equal((await send(bytes,ticket)).status,400);assert.equal(kv.size,0);assert.deepEqual(data.get('control').tickets,before);assert.equal(data.get('control').records,0);
+ assert.equal((await send(bytes,ticket)).status,400);assert.equal(kv.size,0);assert.deepEqual(storage.data.get('control').tickets,before);assert.equal(storage.data.get('control').records,0);
  const plain=bytes.subarray(3);assert.equal((await send(plain,await issue(plain))).status,202);const stored=JSON.parse([...kv.values()][0]);await checkRecord(stored);assert.equal(stored.rawJSON,plain.toString());
 });
 test('numeric hash ignores optional positional refs but retains every measurement and paired samples',async()=>{

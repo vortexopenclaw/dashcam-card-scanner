@@ -1,0 +1,15 @@
+# PRIVATE remote-preview configuration template. Do not deploy this bridge.
+# Copy outside the repo and set the reviewed account_id and exact script_name.
+# main must be the absolute path to the reviewed intake/admin-bridge.js.
+name = "scanner-intake-private-maintenance-preview"
+main = "admin-bridge.js"
+compatibility_date = "2026-07-01"
+workers_dev = false
+preview_urls = false
+# account_id = "explicit-reviewed-cloudflare-account-id"
+
+[[durable_objects.bindings]]
+name = "GATE"
+class_name = "IntakeGate"
+script_name = "REPLACE_WITH_EXACT_EXISTING_INTAKE_SCRIPT_NAME"
+# No migrations: this connects to an existing object, never creates a new one.

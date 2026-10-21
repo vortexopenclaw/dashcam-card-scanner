@@ -6,10 +6,7 @@ import worker,{IntakeGate} from '../worker.js';
 import {sha256,MAX_BODY} from '../schema.js';
 import {checkRecord} from '../review.js';
 const fixture=()=>({schemaVersion:1,owner:{manufacturer:'Synthetic',model:'Direct',channelCount:1},evidence:[{channel:'front',mode:'normal',width:1920,height:1080,fps:30,bitrateKbps:10000,containerBitrateKbps:null,sizeBytes:10000000,durationSeconds:10,codec:'h264'}]});
-class Storage {
- constructor(){this.data=new Map();this.queue=Promise.resolve();}
- transaction(fn){const run=async()=>{const copy=new Map(structuredClone([...this.data]));const result=await fn({get:async k=>structuredClone(copy.get(k)),put:async(k,v)=>copy.set(k,structuredClone(v))});this.data=copy;return result;};const job=this.queue.then(run);this.queue=job.catch(()=>{});return job;}
-}
+import {Storage} from './storage.js';
 function setup(){const storage=new Storage(),kv=new Map();const env={ENABLED:'true',IP_SALT:'s'.repeat(32),ORIGIN:'https://intake.example',MAX_RECORDS:'1000',MAX_STORED_BYTES:'10000000',PENDING:{put:async(k,v)=>kv.set(k,v)}};const gate=new IntakeGate({storage},env);env.GATE={idFromName:x=>x,get:()=>({fetch:(url,init)=>gate.fetch(new Request(url,init))})};return {env,storage,kv};}
 const body=()=>JSON.stringify(fixture());
 const send=(c,bytes=body(),ip='192.0.2.1',route='/submit-direct')=>worker.fetch(new Request(c.env.ORIGIN+route,{method:'POST',headers:{'content-type':'application/json','cf-connecting-ip':ip},body:bytes}),c.env);
@@ -42,11 +39,9 @@ test('concurrent direct duplicates store one authoritative immutable record',asy
  const c=setup(),bytes=body();const rs=await Promise.all(Array.from({length:8},()=>send(c,bytes)));assert(rs.every(r=>r.status===202));const results=await Promise.all(rs.map(r=>r.json()));assert.equal(results.filter(r=>!r.duplicate).length,1);assert.equal(c.kv.size,1);assert.equal(c.storage.data.get('control').records,1);
  const record=JSON.parse([...c.kv.values()][0]);assert.deepEqual(record,c.storage.data.get('record/'+record.id));
 });
-test('direct per-IP 60 and shared global 500 attempts per hour; counters bounded',async()=>{
- const c=setup();for(let i=0;i<60;i++)assert.equal((await send(c)).status,202);assert.equal((await send(c)).status,429);assert.equal(c.storage.data.get('control').attempts,60);
- const d=setup();for(let i=0;i<500;i++)assert.equal((await send(d,body(),'192.0.2.'+(1+Math.floor(i/60)))).status,202);assert.equal((await send(d,body(),'192.0.2.99')).status,429);assert.equal(d.storage.data.get('control').attempts,500);assert(Object.keys(d.storage.data.get('control').rates).length<=256);
- const e=setup();for(let i=0;i<256;i++)assert.equal((await send(e,'{','198.51.100.'+i)).status,400);assert.equal((await send(e,'{','203.0.113.1')).status,429);assert.equal(Object.keys(e.storage.data.get('control').rates).length,256);
- const control=e.storage.data.get('control');control.hour--;assert.equal((await send(e)).status,202);assert.equal(e.storage.data.get('control').attempts,1);
+test('direct pre-validation per-bucket cap is separate from new admission budget',async()=>{
+ const c=setup();for(let i=0;i<60;i++)assert.equal((await send(c)).status,202);assert.equal((await send(c)).status,429);assert.equal(c.storage.data.get('control').rawAttempts,60);assert.equal(c.storage.data.get('control').attempts,1);
+ const control=c.storage.data.get('control');control.hour--;assert.equal((await send(c)).status,202);assert.equal(c.storage.data.get('control').attempts,0);assert.equal(c.storage.data.get('control').records,1);
 });
 test('direct count/byte capacity allows duplicate recovery but no new reports',async()=>{
  const c=setup();c.env.MAX_RECORDS='1';assert.equal((await send(c)).status,202);const first=[...c.kv.values()][0],other=fixture();other.owner.model='Other';assert.equal((await send(c,JSON.stringify(other))).status,429);assert.equal((await send(c)).status,202);assert.equal([...c.kv.values()][0],first);
