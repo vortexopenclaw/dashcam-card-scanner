@@ -8,6 +8,7 @@ import {createHash,webcrypto} from 'node:crypto';
 import Ajv2020 from 'ajv/dist/2020.js';
 // This exact unmodified reference snapshot is test-only and never bundled.
 import worker from './reference/legacy-worker.js';
+import {Storage} from '../intake/test/storage.js';
 import {validate as validateIntake,generalizeFilename} from '../intake/schema.js';
 let scratch,parsed,source,before;
 const u32=n=>{const b=Buffer.alloc(4);b.writeUInt32BE(n);return b;};
@@ -50,8 +51,8 @@ test('gateway v1 is a distinct bounded allowlist and hash binds exact reviewed b
 // Offline proof that the real scanner adapter, not a hand-written sample, persists exact pairs.
 test('scanner output passes challenged intake and exact persisted-record readback',async()=>{
  const {default:intakeWorker,IntakeGate}=await import('../intake/worker.js');
- const map=new Map();const kv=new Map();const storage={get:async k=>map.get(k),put:async(k,v)=>map.set(k,v),transaction:async fn=>fn(storage)};
- const env={ENABLED:'true',IP_SALT:'synthetic-offline-test-salt-0000000000000000',TURNSTILE_SECRET:'synthetic-offline-only',TURNSTILE_SITE_KEY:'synthetic',ORIGIN:'https://intake.example',MAX_RECORDS:'10',MAX_STORED_BYTES:'100000',PENDING:{put:async(k,v)=>kv.set(k,v)}};
+ const kv=new Map();const storage=new Storage();
+ const env={ENABLED:'true',IP_SALT:'synthetic-offline-test-salt-0000000000000000',TURNSTILE_SECRET:'synthetic-offline-only',TURNSTILE_SITE_KEY:'synthetic',ORIGIN:'https://intake.example',MAX_RECORDS:'10',MAX_STORED_BYTES:'100000',PENDING:{put:async(k,v)=>kv.set(k,v),delete:async k=>kv.delete(k)}};
  const gate=new IntakeGate({storage},env);env.GATE={idFromName:x=>x,get:()=>({fetch:(url,init)=>gate.fetch(new Request(url,init))})};
  const req=(route,body,headers={})=>new Request('https://intake.example'+route,{method:'POST',headers:{'Content-Type':'application/json',Origin:'https://intake.example','cf-connecting-ip':'192.0.2.1',...headers},body:typeof body==='string'?body:JSON.stringify(body)});
  const realFetch=globalThis.fetch;globalThis.fetch=async()=>Response.json({success:true,hostname:'intake.example',action:'scanner_upload'});
