@@ -15,12 +15,14 @@ use std::{
         Arc, Mutex,
     },
 };
+use tauri::Manager;
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
-use tauri_plugin_opener::OpenerExt;
+mod verification;
 use tauri_plugin_updater::UpdaterExt;
 #[derive(Default)]
 struct Data {
+    verification: Option<verification::Session>,
     source: Option<PathBuf>,
     report: Option<engine::Report>,
     review: Option<Review>,
@@ -30,6 +32,16 @@ struct Data {
     installed_update: Option<String>,
 }
 impl Data {
+    fn invalidate_verification(&mut self, app: &tauri::AppHandle) {
+        if let Some(v) = self.verification.take() {
+            close_verification_window(app, &v.label);
+            let _ = app.emit_to(
+                "main",
+                "verification-failed",
+                serde_json::json!({"token":v.token,"reason":"stale"}),
+            );
+        }
+    }
     fn begin_update_check(&mut self) -> bool {
         if self.installed_update.is_some() {
             return false;
@@ -85,10 +97,12 @@ async fn choose_source(
     s: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
     let _busy = begin(&s)?;
-    let chosen =
-        tauri::async_runtime::spawn_blocking(move || app.dialog().file().blocking_pick_folder())
-            .await
-            .map_err(|_| "Folder dialog failed")?;
+    let dialog_app = app.clone();
+    let chosen = tauri::async_runtime::spawn_blocking(move || {
+        dialog_app.dialog().file().blocking_pick_folder()
+    })
+    .await
+    .map_err(|_| "Folder dialog failed")?;
     if let Some(file) = chosen {
         let path = file.into_path().map_err(|_| "Local folders only")?;
         let path = engine::safe_root(&path)?;
@@ -96,6 +110,7 @@ async fn choose_source(
         let display = path.display().to_string();
         d.source = Some(path);
         d.report = None;
+        d.invalidate_verification(&app);
         d.review = None;
         Ok(Some(display))
     } else {
@@ -113,7 +128,11 @@ async fn discover_cards() -> Result<Vec<volumes::Card>, String> {
         .map_err(|_| "Card discovery failed".into())
 }
 #[tauri::command]
-async fn select_discovered_card(id: String, s: State<'_, AppState>) -> Result<String, String> {
+async fn select_discovered_card(
+    app: tauri::AppHandle,
+    id: String,
+    s: State<'_, AppState>,
+) -> Result<String, String> {
     let _busy = begin(&s)?;
     let path = tauri::async_runtime::spawn_blocking(move || volumes::select(&id))
         .await
@@ -122,6 +141,7 @@ async fn select_discovered_card(id: String, s: State<'_, AppState>) -> Result<St
     let display = path.display().to_string();
     d.source = Some(path);
     d.report = None;
+    d.invalidate_verification(&app);
     d.review = None;
     Ok(display)
 }
@@ -133,6 +153,7 @@ async fn scan_source(
     let _busy = begin(&s)?;
     let source = {
         let mut d = lock(&s)?;
+        d.invalidate_verification(&app);
         d.review = None;
         d.report = None;
         d.source.clone().ok_or("Choose a folder first.")?
@@ -171,12 +192,14 @@ fn cancel_scan(s: State<'_, AppState>) {
 }
 #[tauri::command]
 fn prepare_review(
+    app: tauri::AppHandle,
     labels: Labels,
     annotations: Option<annotations::Annotations>,
     s: State<'_, AppState>,
 ) -> Result<Review, String> {
     let _busy = begin(&s)?;
     let mut d = lock(&s)?;
+    d.invalidate_verification(&app);
     d.review = None;
     let report = d.report.as_ref().ok_or("Scan first.")?;
     let mut annotations = annotations.unwrap_or_default();
@@ -281,7 +304,7 @@ async fn export_review(
     }
 }
 #[tauri::command]
-fn begin_verification(
+async fn begin_verification(
     app: tauri::AppHandle,
     token: String,
     s: State<'_, AppState>,
@@ -294,13 +317,151 @@ fn begin_verification(
             "No valid bounded intake envelope. Check the review warning or export locally.".into(),
         );
     }
-    app.opener()
-        .open_url(
-            format!("{origin}/challenge#{}", r.payload_hash),
-            None::<&str>,
-        )
-        .map_err(|_| "Browser could not be opened")?;
-    Ok(format!("Verify hash {} in your browser, complete the challenge, then paste the one-use ticket here. Ticket expires after five minutes.",r.payload_hash))
+    if origin != verification::ORIGIN || !verification::hex64(&r.payload_hash) {
+        return Err("Verification origin unavailable".into());
+    }
+    let session = verification::Session::new(token.clone(), r.payload_hash);
+    let label = session.label.clone();
+    let url = session.url();
+    let old = lock(&s)?.verification.replace(session);
+    if let Some(old) = old {
+        if let Some(window) = app.get_webview_window(&old.label) {
+            let _ = window.close();
+        }
+    }
+    let nav_app = app.clone();
+    let nav_label = label.clone();
+    let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(url))
+        .title("Verify private report submission")
+        .inner_size(520.0, 620.0)
+        .incognito(true)
+        .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
+        .on_download(|_, _| false)
+        .on_navigation(move |url| {
+            // Completion is always cancelled, before any request/history entry.
+            if url.path() == "/app-complete" {
+                let state = nav_app.state::<AppState>();
+                let outcome = lock(&state).ok().and_then(|mut d| {
+                    let current = d
+                        .review
+                        .as_ref()
+                        .map(|r| (r.token.clone(), r.payload_hash.clone()));
+                    let session = d.verification.as_mut()?;
+                    let outcome = session.accept(
+                        &nav_label,
+                        current.as_ref().map(|(t, h)| (t.as_str(), h.as_str())),
+                        url,
+                    )?;
+                    Some((session.token.clone(), outcome))
+                });
+                if let Some((token, outcome)) = outcome {
+                    match outcome {
+                        verification::Outcome::Complete(ticket) => {
+                            let _ = nav_app.emit_to(
+                                "main",
+                                "verification-complete",
+                                serde_json::json!({"token":token,"ticket":ticket}),
+                            );
+                        }
+                        verification::Outcome::Failed(reason) => {
+                            let _ = nav_app.emit_to(
+                                "main",
+                                "verification-failed",
+                                serde_json::json!({"token":token,"reason":reason}),
+                            );
+                        }
+                    }
+                    close_verification_window(&nav_app, &nav_label);
+                }
+                return false;
+            }
+            verification::allowed_navigation(url)
+        })
+        .build();
+    let window = match window {
+        Ok(window) => window,
+        Err(_) => {
+            lock(&s)?.verification = None;
+            return Err("Verification window could not be opened. Please retry.".into());
+        }
+    };
+    let close_app = app.clone();
+    let close_label = label.clone();
+    window.on_window_event(move |event| {
+        if matches!(event, tauri::WindowEvent::Destroyed) {
+            let state = close_app.state::<AppState>();
+            if let Ok(mut d) = lock(&state) {
+                if d.verification
+                    .as_ref()
+                    .is_some_and(|v| v.label == close_label && !v.is_complete())
+                {
+                    if let Some(v) = d.verification.take() {
+                        let _ = close_app.emit_to(
+                            "main",
+                            "verification-failed",
+                            serde_json::json!({"token":v.token,"reason":"cancelled"}),
+                        );
+                    }
+                }
+            };
+        }
+    });
+    // A hung/blocked challenge must not leave the UI permanently waiting.
+    let timeout_app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(300)).await;
+        let state = timeout_app.state::<AppState>();
+        if let Ok(mut d) = lock(&state) {
+            if d.verification
+                .as_ref()
+                .is_some_and(|v| v.label == label && !v.is_complete())
+            {
+                if let Some(v) = d.verification.take() {
+                    let _ = timeout_app.emit_to(
+                        "main",
+                        "verification-failed",
+                        serde_json::json!({"token":v.token,"reason":"expired"}),
+                    );
+                    close_verification_window(&timeout_app, &label);
+                }
+            }
+        };
+    });
+    Ok("Complete verification in the in-app window. Submission continues automatically.".into())
+}
+fn close_verification_window(app: &tauri::AppHandle, label: &str) {
+    let handle = app.clone();
+    let label = label.to_owned();
+    // Never synchronously destroy a WebView inside its navigation delegate.
+    let _ = app.run_on_main_thread(move || {
+        if let Some(window) = handle.get_webview_window(&label) {
+            let _ = window.close();
+        }
+    });
+}
+#[tauri::command]
+fn cancel_verification(
+    app: tauri::AppHandle,
+    token: String,
+    s: State<'_, AppState>,
+) -> Result<(), String> {
+    let session = {
+        let mut d = lock(&s)?;
+        if d.verification.as_ref().is_some_and(|v| v.token == token) {
+            d.verification.take()
+        } else {
+            None
+        }
+    };
+    if let Some(v) = session {
+        close_verification_window(&app, &v.label);
+        let _ = app.emit_to(
+            "main",
+            "verification-failed",
+            serde_json::json!({"token":v.token,"reason":"cancelled"}),
+        );
+    }
+    Ok(())
 }
 #[tauri::command]
 async fn submit_review(
@@ -320,13 +481,12 @@ async fn submit_review(
             "No valid bounded intake envelope. Check the review warning or export locally.".into(),
         );
     }
-    if ticket.len() < 16
-        || ticket.len() > 4096
-        || !ticket
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
-    {
-        return Err("Invalid verification ticket".into());
+    let approved = lock(&s)?
+        .verification
+        .as_mut()
+        .is_some_and(|v| v.redeem(&token, &r.payload_hash, &ticket));
+    if !approved {
+        return Err("Verification is missing, expired or stale. Verify again.".into());
     }
     let client = reqwest::Client::builder()
         .https_only(true)
@@ -504,22 +664,37 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::default())
-        .invoke_handler(tauri::generate_handler![
-            choose_source,
-            camera_catalog,
-            discover_cards,
-            select_discovered_card,
-            scan_source,
-            cancel_scan,
-            prepare_review,
-            export_review,
-            begin_verification,
-            submit_review,
-            check_update,
-            install_update,
-            app_version,
-            restart_app
-        ])
+        .invoke_handler(|invoke| {
+            // Remote verification content has no custom application IPC.
+            let webview = invoke.message.webview_ref();
+            if !webview
+                .url()
+                .is_ok_and(|url| verification::trusted_main(webview.label(), &url))
+            {
+                invoke
+                    .resolver
+                    .reject("Remote application commands are forbidden");
+                return true;
+            }
+            let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
+                choose_source,
+                camera_catalog,
+                discover_cards,
+                select_discovered_card,
+                scan_source,
+                cancel_scan,
+                prepare_review,
+                export_review,
+                begin_verification,
+                cancel_verification,
+                submit_review,
+                check_update,
+                install_update,
+                app_version,
+                restart_app
+            ];
+            handler(invoke)
+        })
         .run(tauri::generate_context!())
         .expect("Application runtime failed");
 }
