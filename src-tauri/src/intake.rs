@@ -373,9 +373,14 @@ mod tests {
             assert_eq!(evidence["channel"], "unknown");
             assert_eq!(evidence["mode"], "unknown");
         }
-        let (_, camera) =
-            crate::recognition::recognize(std::path::Path::new("/Volumes/N4 Pro S"), &report);
-        report.recognized_camera_id = Some(camera.unwrap().id.clone());
+        // Serialization-unit fixture: inject a validated native catalog context.
+        // Exact recognition itself is exercised against real generated media;
+        // a nonexistent /Volumes label must not bypass failed OCR.
+        let camera = crate::recognition::catalog()
+            .iter()
+            .find(|camera| camera.id == "vantrue-n4-pro-s")
+            .unwrap();
+        report.recognized_camera_id = Some(camera.id.clone());
         assert_eq!(
             report.recognized_camera_id.as_deref(),
             Some("vantrue-n4-pro-s")
@@ -502,9 +507,14 @@ mod tests {
             assert_eq!(evidence["channel"], "front");
             assert_eq!(evidence["mode"], "unknown");
         }
-        let (_, camera) =
-            crate::recognition::recognize(std::path::Path::new("/Volumes/A119M Pro"), &report);
-        report.recognized_camera_id = Some(camera.unwrap().id.clone());
+        // Serialization-unit fixture: inject a validated native catalog context.
+        // Exact recognition itself is exercised against real generated media;
+        // a nonexistent /Volumes label must not bypass failed OCR.
+        let camera = crate::recognition::catalog()
+            .iter()
+            .find(|camera| camera.id == "viofo-a119m-pro")
+            .unwrap();
+        report.recognized_camera_id = Some(camera.id.clone());
         assert_eq!(
             report.recognized_camera_id.as_deref(),
             Some("viofo-a119m-pro")
