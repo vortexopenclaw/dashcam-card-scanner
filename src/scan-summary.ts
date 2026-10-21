@@ -25,7 +25,6 @@ export function describeScan(r:ScanResult,hasSetups=false):{summary:string;statu
   const details=Object.entries(r.issues??{}).filter(([,count])=>Number.isFinite(count)&&count>0)
     .map(([code,count])=>`${n(count)}: ${reasons[code]??'additional scan issues'}`).join('; ');
   if(details)summary+=` Scan details — ${details}.`;
-  if(c?.representativeSamplesLimited)summary+=` The report retains ${n(r.sampledFiles)} representative examples; this does not limit header inspection.`;
   let status=r.cancelled?'Scan cancelled. Rescan to finish inspecting the card.':!inventoryComplete
     ?'Scan incomplete. Some card entries could not be inspected; see the scan details below.'
     :c?.recognizedFiles===0?'Card scan complete. No video recordings were found.'
