@@ -66,9 +66,39 @@ pub fn sample_hints(camera: &Camera, name: &str) -> (Option<String>, Option<Stri
             .and_then(|g| c.get(g))
             .and_then(|v| p.modes.get(v.as_str()))
             .cloned();
+        // This profile's canonical evidence establishes a single front camera,
+        // although the filename has no channel token. Callers must use validated
+        // native context (or all-candidate consensus), never an owner's selection.
+        let channel = channel.or_else(|| {
+            (camera.id == "viofo-a119m-pro"
+                && camera.channel_count == 1
+                && camera.channel_setup == "front")
+                .then(|| "front".to_owned())
+        });
         return (channel, mode);
     }
     (None, None)
+}
+/// Folder-aware context for a validated native camera, not an owner assertion.
+/// Parking placement identifies only broad parking context, never capture cadence,
+/// Auto Event Detection, motion/impact cause, or another parking subtype.
+pub fn sample_hints_for_folder(
+    camera: &Camera,
+    name: &str,
+    folder: &str,
+) -> (Option<String>, Option<String>) {
+    let (channel, mode) = sample_hints(camera, name);
+    if camera.id != "viofo-a119m-pro" || !pattern_matches(camera, name) {
+        return (channel, mode);
+    }
+    let folder_mode = match folder {
+        "DCIM/Parking" | "DCIM/Parking/RO" => Some("parking"),
+        "DCIM/Movie" => Some("normal"),
+        // RO establishes protection, not driving/parking or trigger cause.
+        "DCIM/Movie/RO" => Some("protected"),
+        _ => None,
+    };
+    (channel, folder_mode.map(str::to_owned).or(mode))
 }
 /// Exact identity needs a model label AND filename/structure corroboration.
 /// Shared sibling patterns alone never select an exact model.
@@ -127,7 +157,21 @@ pub fn recognize(root: &Path, report: &Report) -> (serde_json::Value, Option<&'s
         })
         .map(|c| c.manufacturer.as_str())
         .collect();
-    let mut value = serde_json::json!({"confidence":"unknown","reason":"No unique model evidence. Shared filename patterns cannot identify an exact model."});
+    // Candidate suggestions are deliberately separate from the exact model and
+    // return no native Camera authority. Even a sole pattern match is not identity.
+    // Keep this IPC-only list bounded and free of source names, tags and paths.
+    let suggestions: Vec<_> = catalog()
+        .iter()
+        .filter(|c| {
+            report.folders.iter().any(|f| {
+                c.folders.iter().any(|p| p.eq_ignore_ascii_case(&f.path))
+                    && f.samples.iter().any(|s| pattern_matches(c, &s.local_name))
+            })
+        })
+        .take(16)
+        .map(|c| serde_json::json!({"id":c.id,"manufacturer":c.manufacturer,"model":c.model}))
+        .collect();
+    let mut value = serde_json::json!({"confidence":"unknown","reason":"No unique model evidence. Shared filename patterns cannot identify an exact model.","candidates":suggestions});
     if families.len() == 1 {
         value["manufacturer"] = serde_json::json!(families.first().unwrap());
         value["confidence"] = serde_json::json!("pattern");
@@ -222,6 +266,118 @@ mod tests {
         assert!(recognize(Path::new("/Volumes/N4 Pro S"), &report)
             .1
             .is_none());
+    }
+    fn a119_report() -> Report {
+        use crate::engine::{Folder, Sample};
+        Report {
+            folders: ["DCIM/Movie", "DCIM/Parking", "DCIM/Parking/RO"]
+                .iter()
+                .map(|path| Folder {
+                    path: (*path).into(),
+                    samples: vec![Sample {
+                        local_name: "20300101120000_000001.MP4".into(),
+                        ..Sample::default()
+                    }],
+                    ..Folder::default()
+                })
+                .collect(),
+            ..Report::default()
+        }
+    }
+    #[test]
+    fn untitled_shared_viofo_evidence_only_suggests_candidates() {
+        let report = a119_report();
+        let (value, camera) = recognize(Path::new("/Volumes/Untitled"), &report);
+        assert!(camera.is_none());
+        assert!(value.get("model").is_none());
+        assert!(value.get("channelCount").is_none());
+        assert_eq!(value["manufacturer"], "VIOFO");
+        let ids: Vec<_> = value["candidates"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["id"].as_str().unwrap())
+            .collect();
+        assert!(ids.contains(&"viofo-a119m-pro"));
+        assert!(ids.contains(&"viofo-a119-mini-2"));
+        let text = value.to_string();
+        assert!(
+            !text.contains("20300101") && !text.contains("/Volumes/") && !text.contains("DCIM")
+        );
+        // Neither a claimed model in renderer JSON nor arbitrary unsupported
+        // labels/tags may become native recognition authority.
+        let mut injected = serde_json::to_value(&report).unwrap();
+        injected["recognizedCameraId"] = serde_json::json!("viofo-a119m-pro");
+        let injected: Report = serde_json::from_value(injected).unwrap();
+        assert!(injected.recognized_camera_id.is_none());
+        for label in [
+            "Untitled",
+            "VIOFO",
+            "A119M Pro9.9_20300101",
+            "Unsupported Camera",
+        ] {
+            assert!(recognize(&Path::new("/Volumes").join(label), &report)
+                .1
+                .is_none());
+        }
+    }
+    #[test]
+    fn validated_a119_model_has_broad_context_not_parking_subtype() {
+        let report = a119_report();
+        let (_, camera) = recognize(Path::new("/Volumes/A119M Pro"), &report);
+        let camera = camera.unwrap();
+        assert_eq!(camera.id, "viofo-a119m-pro");
+        for (folder, mode) in [
+            ("DCIM/Movie", Some("normal")),
+            ("DCIM/Parking", Some("parking")),
+            ("DCIM/Parking/RO", Some("parking")),
+            ("DCIM/Movie/RO", Some("protected")),
+            ("DCIM/Photo", None),
+            ("personal/Parking", None),
+        ] {
+            assert_eq!(
+                sample_hints_for_folder(camera, "20300101120000_000001.MP4", folder),
+                (Some("front".into()), mode.map(str::to_owned))
+            );
+            assert_eq!(
+                sample_hints_for_folder(camera, "personal.MP4", folder),
+                (None, None)
+            );
+        }
+        assert_eq!(
+            sample_hints(camera, "20300101120000_000001.MP4"),
+            (Some("front".into()), None)
+        );
+        let mut unrelated = camera.clone();
+        unrelated.id = "unsupported-model".into();
+        assert_eq!(
+            sample_hints_for_folder(&unrelated, "20300101120000_000001.MP4", "DCIM/Parking"),
+            (None, None)
+        );
+    }
+    #[test]
+    fn arbitrary_model_strings_in_source_are_ignored_and_source_unchanged() {
+        use std::{fs, sync::atomic::AtomicBool};
+        let temp = tempfile::Builder::new()
+            .prefix("recognition-")
+            .tempdir_in(std::env::temp_dir().canonicalize().unwrap())
+            .unwrap();
+        let root = temp.path().join("Untitled");
+        fs::create_dir_all(root.join("DCIM/Movie")).unwrap();
+        // Synthetic unrecognized bytes, NOT a real camera metadata fixture.
+        let file = root.join("DCIM/Movie/20300101120000_000001.MP4");
+        let bytes = b"model=VIOFO A119M Pro; model=A119 Mini 2; generic encoder=Novatek";
+        fs::write(&file, bytes).unwrap();
+        let before = fs::metadata(&file).unwrap();
+        let report = crate::engine::scan(&root, &AtomicBool::new(false), |_| {}).unwrap();
+        let (value, camera) = recognize(&root, &report);
+        assert!(camera.is_none());
+        assert!(value.get("model").is_none());
+        assert_eq!(fs::read(&file).unwrap(), bytes);
+        let after = fs::metadata(&file).unwrap();
+        assert_eq!(before.len(), after.len());
+        assert_eq!(before.modified().unwrap(), after.modified().unwrap());
+        assert!(!serde_json::to_string(&report).unwrap().contains("A119M"));
     }
     #[test]
     fn n4_roles_are_grounded() {
