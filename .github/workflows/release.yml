@@ -34,7 +34,7 @@ jobs:
           EXISTING=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=100" --jq ".[] | select(.tag_name == \"v$VERSION\") | .id")
           if [ -n "$EXISTING" ]; then
             gh api "repos/$GITHUB_REPOSITORY/releases/$EXISTING" --jq '.draft' | python3 -c 'import sys; assert sys.stdin.read().strip() == "true", "Never overwrite a published release"'
-            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$EXISTING" -f target_commitish="$GITHUB_SHA" --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$EXISTING" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -F draft=true -F prerelease=false --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
           else
             gh api -X POST "repos/$GITHUB_REPOSITORY/releases" -f tag_name="v$VERSION" -f target_commitish="$GITHUB_SHA" -f name="Dashcam Card Scanner $VERSION" -F draft=true -F prerelease=false -f body="Do not publish unless every build and packaging verification job passes. Bundle integrity is necessary but NOT Gatekeeper distribution approval. macOS ad-hoc signed only, no Developer ID or notarization; Windows not Authenticode-signed. Updater signatures are not platform code signing. Linux updater: AppImage only." --jq '"id=" + (.id|tostring)' >> "$GITHUB_OUTPUT"
           fi
