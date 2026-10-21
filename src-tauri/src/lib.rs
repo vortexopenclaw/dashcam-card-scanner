@@ -15,14 +15,12 @@ use std::{
         Arc, Mutex,
     },
 };
-use tauri::Manager;
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
-mod verification;
+mod ipc;
 use tauri_plugin_updater::UpdaterExt;
 #[derive(Default)]
 struct Data {
-    verification: Option<verification::Session>,
     source: Option<PathBuf>,
     report: Option<engine::Report>,
     review: Option<Review>,
@@ -32,16 +30,6 @@ struct Data {
     installed_update: Option<String>,
 }
 impl Data {
-    fn invalidate_verification(&mut self, app: &tauri::AppHandle) {
-        if let Some(v) = self.verification.take() {
-            close_verification_window(app, &v.label);
-            let _ = app.emit_to(
-                "main",
-                "verification-failed",
-                serde_json::json!({"token":v.token,"reason":"stale"}),
-            );
-        }
-    }
     fn begin_update_check(&mut self) -> bool {
         if self.installed_update.is_some() {
             return false;
@@ -110,7 +98,6 @@ async fn choose_source(
         let display = path.display().to_string();
         d.source = Some(path);
         d.report = None;
-        d.invalidate_verification(&app);
         d.review = None;
         Ok(Some(display))
     } else {
@@ -128,11 +115,7 @@ async fn discover_cards() -> Result<Vec<volumes::Card>, String> {
         .map_err(|_| "Card discovery failed".into())
 }
 #[tauri::command]
-async fn select_discovered_card(
-    app: tauri::AppHandle,
-    id: String,
-    s: State<'_, AppState>,
-) -> Result<String, String> {
+async fn select_discovered_card(id: String, s: State<'_, AppState>) -> Result<String, String> {
     let _busy = begin(&s)?;
     let path = tauri::async_runtime::spawn_blocking(move || volumes::select(&id))
         .await
@@ -141,7 +124,6 @@ async fn select_discovered_card(
     let display = path.display().to_string();
     d.source = Some(path);
     d.report = None;
-    d.invalidate_verification(&app);
     d.review = None;
     Ok(display)
 }
@@ -153,7 +135,6 @@ async fn scan_source(
     let _busy = begin(&s)?;
     let source = {
         let mut d = lock(&s)?;
-        d.invalidate_verification(&app);
         d.review = None;
         d.report = None;
         d.source.clone().ok_or("Choose a folder first.")?
@@ -190,14 +171,12 @@ fn cancel_scan(s: State<'_, AppState>) {
 }
 #[tauri::command]
 fn prepare_review(
-    app: tauri::AppHandle,
     labels: Labels,
     annotations: Option<annotations::Annotations>,
     s: State<'_, AppState>,
 ) -> Result<Review, String> {
     let _busy = begin(&s)?;
     let mut d = lock(&s)?;
-    d.invalidate_verification(&app);
     d.review = None;
     let report = d.report.as_ref().ok_or("Scan first.")?;
     let mut annotations = annotations.unwrap_or_default();
@@ -301,163 +280,30 @@ async fn export_review(
         Ok(false)
     }
 }
-#[tauri::command]
-async fn begin_verification(
-    app: tauri::AppHandle,
-    token: String,
-    s: State<'_, AppState>,
-) -> Result<String, String> {
-    let _busy = begin(&s)?;
-    let origin = intake::origin()?;
-    let (r, _) = reviewed(&s, &token)?;
-    if r.submission_json.is_empty() {
-        return Err(
-            "No valid bounded intake envelope. Check the review warning or export locally.".into(),
-        );
+// Snapshot only after explicit Submit; preparation/export never initiate network I/O.
+fn submission_snapshot(s: &AppState, token: &str, consent: bool) -> Result<Review, String> {
+    if !consent {
+        return Err("Explicit submission consent is required.".into());
     }
-    if origin != verification::ORIGIN || !verification::hex64(&r.payload_hash) {
-        return Err("Verification origin unavailable".into());
+    let (r, _) = reviewed(s, token)?;
+    if r.submission_json.is_empty() || r.submission_json.len() > 16384 {
+        return Err("No valid bounded intake envelope. Prepare the report again.".into());
     }
-    let session = verification::Session::new(token.clone(), r.payload_hash);
-    let label = session.label.clone();
-    let url = session.url();
-    let old = lock(&s)?.verification.replace(session);
-    if let Some(old) = old {
-        if let Some(window) = app.get_webview_window(&old.label) {
-            let _ = window.close();
-        }
+    if intake::hash(r.submission_json.as_bytes()) != r.payload_hash {
+        return Err("Prepared payload integrity check failed".into());
     }
-    let nav_app = app.clone();
-    let nav_label = label.clone();
-    let window = tauri::WebviewWindowBuilder::new(&app, &label, tauri::WebviewUrl::External(url))
-        .title("Verify private report submission")
-        .inner_size(520.0, 620.0)
-        .incognito(true)
-        .on_new_window(|_, _| tauri::webview::NewWindowResponse::Deny)
-        .on_download(|_, _| false)
-        .on_navigation(move |url| {
-            // Completion is always cancelled, before any request/history entry.
-            if url.path() == "/app-complete" {
-                let state = nav_app.state::<AppState>();
-                let outcome = lock(&state).ok().and_then(|mut d| {
-                    let current = d
-                        .review
-                        .as_ref()
-                        .map(|r| (r.token.clone(), r.payload_hash.clone()));
-                    let session = d.verification.as_mut()?;
-                    let outcome = session.accept(
-                        &nav_label,
-                        current.as_ref().map(|(t, h)| (t.as_str(), h.as_str())),
-                        url,
-                    )?;
-                    Some((session.token.clone(), outcome))
-                });
-                if let Some((token, outcome)) = outcome {
-                    match outcome {
-                        verification::Outcome::Complete(ticket) => {
-                            let _ = nav_app.emit_to(
-                                "main",
-                                "verification-complete",
-                                serde_json::json!({"token":token,"ticket":ticket}),
-                            );
-                        }
-                        verification::Outcome::Failed(reason) => {
-                            let _ = nav_app.emit_to(
-                                "main",
-                                "verification-failed",
-                                serde_json::json!({"token":token,"reason":reason}),
-                            );
-                        }
-                    }
-                    close_verification_window(&nav_app, &nav_label);
-                }
-                return false;
-            }
-            verification::allowed_navigation(url)
-        })
-        .build();
-    let window = match window {
-        Ok(window) => window,
-        Err(_) => {
-            lock(&s)?.verification = None;
-            return Err("Verification window could not be opened. Please retry.".into());
-        }
-    };
-    let close_app = app.clone();
-    let close_label = label.clone();
-    window.on_window_event(move |event| {
-        if matches!(event, tauri::WindowEvent::Destroyed) {
-            let state = close_app.state::<AppState>();
-            if let Ok(mut d) = lock(&state) {
-                if d.verification
-                    .as_ref()
-                    .is_some_and(|v| v.label == close_label && !v.is_complete())
-                {
-                    if let Some(v) = d.verification.take() {
-                        let _ = close_app.emit_to(
-                            "main",
-                            "verification-failed",
-                            serde_json::json!({"token":v.token,"reason":"cancelled"}),
-                        );
-                    }
-                }
-            };
-        }
-    });
-    // A hung/blocked challenge must not leave the UI permanently waiting.
-    let timeout_app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(300)).await;
-        let state = timeout_app.state::<AppState>();
-        if let Ok(mut d) = lock(&state) {
-            if d.verification
-                .as_ref()
-                .is_some_and(|v| v.label == label && !v.is_complete())
-            {
-                if let Some(v) = d.verification.take() {
-                    let _ = timeout_app.emit_to(
-                        "main",
-                        "verification-failed",
-                        serde_json::json!({"token":v.token,"reason":"expired"}),
-                    );
-                    close_verification_window(&timeout_app, &label);
-                }
-            }
-        };
-    });
-    Ok("Complete verification in the in-app window. Submission continues automatically.".into())
+    Ok(r)
 }
-fn close_verification_window(app: &tauri::AppHandle, label: &str) {
-    let handle = app.clone();
-    let label = label.to_owned();
-    // Never synchronously destroy a WebView inside its navigation delegate.
-    let _ = app.run_on_main_thread(move || {
-        if let Some(window) = handle.get_webview_window(&label) {
-            let _ = window.close();
-        }
-    });
-}
-#[tauri::command]
-fn cancel_verification(
-    app: tauri::AppHandle,
-    token: String,
-    s: State<'_, AppState>,
-) -> Result<(), String> {
-    let session = {
-        let mut d = lock(&s)?;
-        if d.verification.as_ref().is_some_and(|v| v.token == token) {
-            d.verification.take()
-        } else {
-            None
-        }
-    };
-    if let Some(v) = session {
-        close_verification_window(&app, &v.label);
-        let _ = app.emit_to(
-            "main",
-            "verification-failed",
-            serde_json::json!({"token":v.token,"reason":"cancelled"}),
-        );
+fn matching_receipt(receipt: &[u8], hash: &str) -> Result<(), String> {
+    if receipt.len() > 16384 {
+        return Err("Oversize intake receipt".into());
+    }
+    let value: serde_json::Value =
+        serde_json::from_slice(receipt).map_err(|_| "Invalid intake receipt")?;
+    if value.get("id").and_then(|v| v.as_str()) != Some(hash)
+        || value.get("status").and_then(|v| v.as_str()) != Some("pending")
+    {
+        return Err("Intake receipt did not match reviewed payload".into());
     }
     Ok(())
 }
@@ -465,37 +311,18 @@ fn cancel_verification(
 async fn submit_review(
     token: String,
     consent: bool,
-    ticket: String,
     s: State<'_, AppState>,
 ) -> Result<String, String> {
-    if !consent {
-        return Err("Explicit submission consent is required.".into());
-    }
     let _busy = begin(&s)?;
-    let origin = intake::origin()?;
-    let (r, _) = reviewed(&s, &token)?;
-    if r.submission_json.is_empty() {
-        return Err(
-            "No valid bounded intake envelope. Check the review warning or export locally.".into(),
-        );
-    }
-    let approved = lock(&s)?
-        .verification
-        .as_mut()
-        .is_some_and(|v| v.redeem(&token, &r.payload_hash, &ticket));
-    if !approved {
-        return Err("Verification is missing, expired or stale. Verify again.".into());
-    }
-    let client = reqwest::Client::builder()
-        .https_only(true)
-        .redirect(reqwest::redirect::Policy::none())
-        .timeout(std::time::Duration::from_secs(20))
-        .build()
-        .map_err(|_| "Network client unavailable")?;
-    let mut response=client.post(format!("{origin}/submit")).bearer_auth(ticket).header("Content-Type","application/json").body(r.submission_json).send().await.map_err(|_|"No confirmed receipt. Do not reuse this ticket; obtain a new challenge before retrying.")?;
+    let r = submission_snapshot(&s, &token, consent)?;
+    let (client, request) = direct_request(&r.submission_json)?;
+    let mut response = client
+        .execute(request)
+        .await
+        .map_err(|_| "No confirmed receipt. Retry the same prepared report when connected.")?;
     if response.status() != reqwest::StatusCode::ACCEPTED {
         return Err(format!(
-            "Intake rejected submission (HTTP {}). Obtain a fresh ticket before retrying.",
+            "Intake rejected submission (HTTP {}). Retry the same prepared report later.",
             response.status().as_u16()
         ));
     }
@@ -513,15 +340,25 @@ async fn submit_review(
         }
         receipt.extend_from_slice(&chunk);
     }
-    let value: serde_json::Value =
-        serde_json::from_slice(&receipt).map_err(|_| "Invalid intake receipt")?;
-    if value.get("id").and_then(|v| v.as_str()) != Some(&r.payload_hash)
-        || value.get("status").and_then(|v| v.as_str()) != Some("pending")
-    {
-        return Err("Intake receipt did not match reviewed payload".into());
-    }
+    matching_receipt(&receipt, &r.payload_hash)?;
     lock(&s)?.review = None;
     Ok(r.payload_hash)
+}
+fn direct_request(bytes: &str) -> Result<(reqwest::Client, reqwest::Request), String> {
+    let origin = intake::origin()?;
+    let client = reqwest::Client::builder()
+        .https_only(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .map_err(|_| "Network client unavailable")?;
+    let request = client
+        .post(format!("{origin}/submit-direct"))
+        .header("Content-Type", "application/json")
+        .body(bytes.to_owned())
+        .build()
+        .map_err(|_| "Submission request unavailable")?;
+    Ok((client, request))
 }
 #[derive(Clone, serde::Serialize)]
 struct UpdateProgress {
@@ -658,16 +495,15 @@ async fn install_update(
 }
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::default())
         .invoke_handler(|invoke| {
-            // Remote verification content has no custom application IPC.
+            // Only the main local-origin webview may invoke application commands.
             let webview = invoke.message.webview_ref();
             if !webview
                 .url()
-                .is_ok_and(|url| verification::trusted_main(webview.label(), &url))
+                .is_ok_and(|url| ipc::trusted_main(webview.label(), &url))
             {
                 invoke
                     .resolver
@@ -683,8 +519,6 @@ pub fn run() {
                 cancel_scan,
                 prepare_review,
                 export_review,
-                begin_verification,
-                cancel_verification,
                 submit_review,
                 check_update,
                 install_update,
@@ -699,6 +533,83 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn direct_request_is_fixed_https_exact_bytes_without_authorization() {
+        let bytes = "{\"synthetic\":true}\n";
+        let (_, request) = direct_request(bytes).unwrap();
+        assert_eq!(request.method(), reqwest::Method::POST);
+        assert_eq!(
+            request.url().as_str(),
+            "https://dashcam-card-scanner-intake.vortexradar.workers.dev/submit-direct"
+        );
+        assert_eq!(request.headers()["content-type"], "application/json");
+        assert!(!request.headers().contains_key("authorization"));
+        assert_eq!(
+            request.body().unwrap().as_bytes().unwrap(),
+            bytes.as_bytes()
+        );
+    }
+
+    #[test]
+    fn direct_submit_requires_consent_current_token_and_exact_frozen_bytes() {
+        let s = AppState::default();
+        let bytes = "{\"synthetic\":true}\n";
+        let hash = intake::hash(bytes.as_bytes());
+        lock(&s).unwrap().source = Some(PathBuf::from("synthetic-source"));
+        lock(&s).unwrap().review = Some(Review {
+            token: "prepared-token".into(),
+            public_json: String::new(),
+            submission_json: bytes.into(),
+            private_json: String::new(),
+            payload_hash: hash.clone(),
+            warning: String::new(),
+            submission_available: true,
+        });
+        assert!(submission_snapshot(&s, "prepared-token", false).is_err());
+        assert!(submission_snapshot(&s, "stale-token", true).is_err());
+        let frozen = submission_snapshot(&s, "prepared-token", true).unwrap();
+        assert_eq!(frozen.submission_json.as_bytes(), bytes.as_bytes());
+        assert_eq!(frozen.payload_hash, hash);
+        // Failed requests may be retried with the same reviewed bytes; no ticket state.
+        assert!(submission_snapshot(&s, "prepared-token", true).is_ok());
+        lock(&s)
+            .unwrap()
+            .review
+            .as_mut()
+            .unwrap()
+            .submission_json
+            .push(' ');
+        assert!(submission_snapshot(&s, "prepared-token", true).is_err());
+        assert_eq!(frozen.submission_json, bytes);
+        lock(&s)
+            .unwrap()
+            .review
+            .as_mut()
+            .unwrap()
+            .submission_json
+            .clear();
+        assert!(submission_snapshot(&s, "prepared-token", true).is_err());
+        lock(&s).unwrap().review.as_mut().unwrap().submission_json = " ".repeat(16385);
+        assert!(submission_snapshot(&s, "prepared-token", true).is_err());
+        lock(&s).unwrap().review = None;
+        assert!(submission_snapshot(&s, "prepared-token", true).is_err());
+    }
+    #[test]
+    fn internal_receipt_requires_matching_hash_pending_status_and_bounded_json() {
+        let hash = intake::hash(b"synthetic");
+        let good = serde_json::json!({"id":hash,"status":"pending","duplicate":true}).to_string();
+        assert!(matching_receipt(good.as_bytes(), &hash).is_ok());
+        for bad in [
+            "{}".into(),
+            "not json".into(),
+            good.replace("pending", "accepted"),
+            good.replace(&hash, &"a".repeat(64)),
+            " ".repeat(16385),
+        ] {
+            assert!(matching_receipt(bad.as_bytes(), &hash).is_err());
+        }
+    }
+
     #[test]
     fn updater_requires_reviewed_version_and_explicit_install_consent() {
         let mut d = Data::default();

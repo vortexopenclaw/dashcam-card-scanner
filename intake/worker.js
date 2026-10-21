@@ -2,7 +2,7 @@
 import {MAX_BODY,HASH,exact,validate,sha256,readBytes,parse} from './schema.js';
 const TTL=300000;
 const reply=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'}});
-function configured(e){return e.ENABLED==='true'&&e.PENDING&&e.GATE&&e.IP_SALT?.length>=32&&e.TURNSTILE_SECRET&&/^[A-Za-z0-9_-]+$/.test(e.TURNSTILE_SITE_KEY||'')&&/^https:\/\/[a-z0-9.-]+$/.test(e.ORIGIN||'')&&Number.isInteger(+e.MAX_RECORDS)&&+e.MAX_RECORDS>0&&+e.MAX_RECORDS<=10000&&Number.isInteger(+e.MAX_STORED_BYTES)&&+e.MAX_STORED_BYTES>=MAX_BODY&&+e.MAX_STORED_BYTES<=100000000;}
+function configured(e,legacy=false){return e.ENABLED==='true'&&e.PENDING&&e.GATE&&e.IP_SALT?.length>=32&&(!legacy||(e.TURNSTILE_SECRET&&/^[A-Za-z0-9_-]+$/.test(e.TURNSTILE_SITE_KEY||'')))&&/^https:\/\/[a-z0-9.-]+$/.test(e.ORIGIN||'')&&Number.isInteger(+e.MAX_RECORDS)&&+e.MAX_RECORDS>0&&+e.MAX_RECORDS<=10000&&Number.isInteger(+e.MAX_STORED_BYTES)&&+e.MAX_STORED_BYTES>=MAX_BODY&&+e.MAX_STORED_BYTES<=100000000;}
 async function gate(env,op,data){const r=await env.GATE.get(env.GATE.idFromName('scanner-intake-v1')).fetch('https://internal/',{method:'POST',body:JSON.stringify({op,...data})});const v=await r.json();if(!r.ok)throw Object.assign(Error(v.error),{status:r.status});return v;}
 function page(env){
  const nonce=crypto.randomUUID().replaceAll('-','');
@@ -20,11 +20,11 @@ window.ready=()=>{if(!/^[a-f0-9]{64}$/.test(hash)){output.textContent='Invalid h
  return new Response(html,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff','content-security-policy':`default-src 'none'; script-src 'nonce-${nonce}' https://challenges.cloudflare.com; frame-src https://challenges.cloudflare.com; connect-src 'self' https://challenges.cloudflare.com; style-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`}});
 }
 export default {async fetch(req,env){try{
- const url=new URL(req.url); if(!['/challenge','/ticket','/submit'].includes(url.pathname))return reply({error:'not_found'},404);
- if(!configured(env))return reply({error:'disabled_or_unconfigured'},503);
+ const url=new URL(req.url); if(!['/challenge','/ticket','/submit','/submit-direct'].includes(url.pathname))return reply({error:'not_found'},404);
+ if(!configured(env,url.pathname!=='/submit-direct'))return reply({error:'disabled_or_unconfigured'},503);
  if(url.origin!==env.ORIGIN||url.search)return reply({error:'invalid_origin_or_query'},403);
  if(url.pathname==='/challenge'&&req.method==='GET')return page(env);
- if(req.method!=='POST'||!['/ticket','/submit'].includes(url.pathname))return reply({error:'method_not_allowed'},405);
+ if(req.method!=='POST'||!['/ticket','/submit','/submit-direct'].includes(url.pathname))return reply({error:'method_not_allowed'},405);
  if(req.headers.get('content-type')!=='application/json')return reply({error:'invalid_content_type'},400);
  if(url.pathname==='/ticket'&&req.headers.get('origin')!==env.ORIGIN)return reply({error:'invalid_origin'},403);
  const ip=req.headers.get('cf-connecting-ip'); if(!ip)return reply({error:'missing_edge_ip'},403);
@@ -38,12 +38,13 @@ export default {async fetch(req,env){try{
   if(v.success!==true||v.hostname!==new URL(env.ORIGIN).hostname||v.action!=='scanner_upload')return reply({error:'challenge_failed'},403);
   return reply(await gate(env,'issue',{hash:p.hash}));
  }
- const ticket=req.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];if(!ticket)return reply({error:'invalid_ticket'},401);
+ const direct=url.pathname==='/submit-direct';
+ const ticket=req.headers.get('authorization')?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];if(!direct&&!ticket)return reply({error:'invalid_ticket'},401);
  const report=validate(parse(bytes)), hash=await sha256(bytes);
- const result=await gate(env,'redeem',{ticketHash:await sha256(ticket),hash,report,rawJSON:new TextDecoder().decode(bytes)});
- // Immutable DO record is authoritative. Retrying with a fresh ticket repairs a failed KV mirror write.
+ const result=await gate(env,direct?'store-direct':'redeem',{...(direct?{}:{ticketHash:await sha256(ticket)}),hash,report,rawJSON:new TextDecoder().decode(bytes)});
+ // Immutable DO record is authoritative. Exact-byte retry repairs a failed KV mirror write.
  try { await env.PENDING.put('pending/v1/'+hash,JSON.stringify(result.record)); }
- catch { throw Object.assign(Error('storage_unavailable_fresh_ticket_required'),{status:503}); }
+ catch { throw Object.assign(Error(direct?'storage_unavailable_retry_same_bytes':'storage_unavailable_fresh_ticket_required'),{status:503}); }
  return reply({id:hash,status:'pending',duplicate:result.duplicate},202);
  }catch(e){return reply({error:e.status?e.message:(e.message==='payload_too_large'?'payload_too_large':'invalid_request')},e.status||(e.message==='payload_too_large'?413:400));}}};
 export class IntakeGate {
@@ -55,14 +56,14 @@ export class IntakeGate {
   let result;
   if(p.op==='attempt'){
    const key=p.fingerprint+':'+p.kind;
-   if(s.attempts>=500||Object.keys(s.rates).length>=256&&!Object.hasOwn(s.rates,key)||(s.rates[key]||0)>=10)throw Object.assign(Error('rate_limited'),{status:429});
+   if(s.attempts>=500||Object.keys(s.rates).length>=256&&!Object.hasOwn(s.rates,key)||(s.rates[key]||0)>=(p.kind==='/submit-direct'?60:10))throw Object.assign(Error('rate_limited'),{status:429});
    s.attempts++;s.rates[key]=(s.rates[key]||0)+1;result={ok:true};
   }else if(p.op==='issue'){
    if(Object.keys(s.tickets).length>=128)throw Object.assign(Error('ticket_capacity'),{status:429});
    const ticket=Array.from(crypto.getRandomValues(new Uint8Array(32)),b=>b.toString(16).padStart(2,'0')).join('');
    s.tickets[await sha256(ticket)]={hash:p.hash,expires:now+TTL};result={ticket,expiresAt:new Date(now+TTL).toISOString()};
-  }else if(p.op==='redeem'){
-   const t=s.tickets[p.ticketHash];if(!t||t.hash!==p.hash)throw Object.assign(Error('invalid_ticket'),{status:401});
+  }else if(p.op==='redeem'||p.op==='store-direct'){
+   if(p.op==='redeem'){const t=s.tickets[p.ticketHash];if(!t||t.hash!==p.hash)throw Object.assign(Error('invalid_ticket'),{status:401});}
    const key='record/'+p.hash;let record=await tx.get(key);const duplicate=!!record;
    if(!record){
     const candidate={id:p.hash,receivedAt:new Date(now).toISOString(),report:p.report,rawJSON:p.rawJSON};
@@ -70,7 +71,7 @@ export class IntakeGate {
     if(s.records>=+this.env.MAX_RECORDS||s.bytes+size>+this.env.MAX_STORED_BYTES)throw Object.assign(Error('storage_capacity'),{status:429});
     record=candidate;s.records++;s.bytes+=size;await tx.put(key,record);
    }
-   delete s.tickets[p.ticketHash];result={record,duplicate};
+   if(p.op==='redeem')delete s.tickets[p.ticketHash];result={record,duplicate};
   }else throw Error('invalid_operation');
   await tx.put('control',s);return result;
  });return reply(out);}catch(e){return reply({error:e.status?e.message:'internal_failure'},e.status||500);}}
