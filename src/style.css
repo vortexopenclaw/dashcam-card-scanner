@@ -7,6 +7,7 @@
 body{user-select:text;-webkit-user-select:text}
 button,summary,select,.brand-icon{user-select:none;-webkit-user-select:none}
 input,textarea,pre{user-select:text;-webkit-user-select:text}
+.sidebar button[aria-current=page]{font-weight:700;outline:2px solid var(--accent);outline-offset:2px}
 .submission-disclosure{font-size:.85rem;max-width:68ch;margin-bottom:8px}
 .submission-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.submission-actions p{margin:0}
 /* Settings is a full navigation destination, never an overlay. */
