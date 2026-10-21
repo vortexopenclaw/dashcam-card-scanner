@@ -104,7 +104,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const runningVersion=element('p','Running version: loading…',updateSection);const updateActions=element('div','',updateSection);updateActions.className='actions';const updateAction=element('button','Check for updates',updateActions);const updateProgress=element('progress','',updateSection);updateProgress.hidden=true;updateProgress.setAttribute('aria-label','Update download progress');
   const updateStatus=element('p','',updateSection);updateStatus.setAttribute('role','status');settingsPanel.append(updateSection,closeSettings);for(const child of Array.from(root.children)){if(child!==sidebar&&child!==settingsPanel&&child!==mainScreen)mainScreen.append(child);}mainScreen.append(intro);
   let review:Review|null=null;let report:Report|null=null;let busy=false;let version:string|null=null;
-  let revision=0;let pendingVerification:{token:string;snapshot:string}|null=null;
+  let revision=0;let pendingVerification:{token:string;snapshot:string;opened:boolean;ticket?:string}|null=null;
   let verificationReady=false;let submitting=false;
   type UpdateState='idle'|'checking'|'available'|'downloading'|'installing'|'installed'|'current'|'error';
   let updateState:UpdateState='idle';let restartConfirmed=false;let restartPending=false;let submittedReport=false;
@@ -146,13 +146,15 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   submit.onclick=()=>{if(pendingVerification||submitting||!verificationReady)return;void run(async()=>{
     const prepared=await prepareCurrent();if(!prepared||!review)return;
     if(review.submissionAvailable===false||!review.submissionJson){status.textContent=submissionStatus.textContent;return;}
-    pendingVerification=prepared;setBusy(true);status.textContent='Complete verification in the app to send your report.';
-    try{await bridge.invoke('begin_verification',{token:prepared.token});}
-    catch(e){if(pendingVerification===prepared){pendingVerification=null;status.textContent=`Verification could not start: ${String(e)}. Click Submit to retry.`;}}
+    const attempt={...prepared,opened:false,ticket:undefined as string|undefined};pendingVerification=attempt;setBusy(true);status.textContent='Complete verification in the app to send your report.';
+    try{await bridge.invoke('begin_verification',{token:prepared.token});if(pendingVerification===attempt){attempt.opened=true;const ticket=attempt.ticket;attempt.ticket=undefined;if(ticket)await completeVerification({token:attempt.token,ticket});}}
+    catch(e){if(pendingVerification===attempt){pendingVerification=null;void bridge.invoke('cancel_verification',{token:prepared.token}).catch(()=>{});status.textContent=`Verification could not start: ${String(e)}. Click Submit to retry.`;}}
   });};
   const completeVerification=async(p:{token:string;ticket:string})=>{
     const pending=pendingVerification;
     if(!pending||p.token!==pending.token||p.token!==review?.token||pending.snapshot!==JSON.stringify(outgoing())||typeof p.ticket!=='string'||!p.ticket.trim())return;
+    // Native begin_verification holds its busy guard until the opening command resolves.
+    if(!pending.opened){if(!pending.ticket)pending.ticket=p.ticket;return;}
     // Consume this attempt before IPC; duplicate events must never reuse its ticket.
     pendingVerification=null;submitting=true;setBusy(true);status.textContent='Sending metadata…';
     try{const id=await bridge.invoke<string>('submit_review',{token:pending.token,consent:true,ticket:p.ticket});
