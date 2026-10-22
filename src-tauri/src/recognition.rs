@@ -69,6 +69,8 @@ pub struct Camera {
     pub id: String,
     pub manufacturer: String,
     pub model: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub aliases: Vec<String>,
     pub channel_count: usize,
     pub channel_setup: String,
     #[serde(skip_serializing, default)]
@@ -180,14 +182,24 @@ fn recognize_metadata(
     root: &Path,
     report: &Report,
 ) -> (serde_json::Value, Option<&'static Camera>) {
+    recognize_metadata_with_catalog(root, report, catalog())
+}
+
+fn recognize_metadata_with_catalog<'a>(
+    root: &Path,
+    report: &Report,
+    cameras: &'a [Camera],
+) -> (serde_json::Value, Option<&'a Camera>) {
     let label = normalized(root.file_name().and_then(|s| s.to_str()).unwrap_or(""));
-    let candidates: Vec<_> = catalog()
+    let candidates: Vec<_> = cameras
         .iter()
         .filter(|c| {
-            let model = normalized(&c.model);
-            !model.is_empty()
-                && (label == model
-                    || label == normalized(&format!("{}{}", c.manufacturer, c.model)))
+            std::iter::once(&c.model).chain(&c.aliases).any(|model| {
+                let name = normalized(model);
+                !name.is_empty()
+                    && (label == name
+                        || label == normalized(&format!("{}{}", c.manufacturer, model)))
+            })
         })
         .filter(|c| {
             report
@@ -223,7 +235,7 @@ fn recognize_metadata(
             );
         }
     }
-    let families: std::collections::BTreeSet<_> = catalog()
+    let families: std::collections::BTreeSet<_> = cameras
         .iter()
         .filter(|c| {
             report
@@ -237,7 +249,7 @@ fn recognize_metadata(
     // Candidate suggestions are deliberately separate from the exact model and
     // return no native Camera authority. Even a sole pattern match is not identity.
     // Keep this IPC-only list bounded and free of source names, tags and paths.
-    let suggestions: Vec<_> = catalog()
+    let suggestions: Vec<_> = cameras
         .iter()
         .filter(|c| {
             report.folders.iter().any(|f| {
@@ -258,9 +270,160 @@ fn recognize_metadata(
 #[cfg(test)]
 mod tests {
     use super::*;
+    // Synthetic future native profile, never inserted into the embedded catalog.
+    fn h1_fixture() -> Vec<Camera> {
+        let mut cameras: Vec<_> = catalog()
+            .iter()
+            .filter(|c| c.id.starts_with("vueroid-s1-"))
+            .cloned()
+            .collect();
+        cameras.push(
+            serde_json::from_value(serde_json::json!({
+                "id":"vueroid-h1", "manufacturer":"Vueroid", "model":"H1 QHD Infinite",
+                "aliases":["H1", "H1 QHD"], "channelCount":1, "channelSetup":"front",
+                "folders":["INF", "EVENT", "PARK", "PEVENT", "USER", "BOOKMARK"],
+                "patterns":[{"pattern":r"^(\d{8})_(\d{6})_([A-Z]+)_([A-Z])\.mp4$"}]
+            }))
+            .unwrap(),
+        );
+        cameras
+    }
+    fn vueroid_report(name: &str) -> Report {
+        use crate::engine::{Folder, Sample};
+        Report {
+            scanned_files: 1,
+            folders: vec![Folder {
+                path: "INF".into(),
+                samples: vec![Sample {
+                    local_name: name.into(),
+                    ..Sample::default()
+                }],
+                ..Folder::default()
+            }],
+            ..Report::default()
+        }
+    }
+    #[test]
+    fn h1_synthetic_labels_require_native_filename_and_folder_evidence() {
+        let cameras = h1_fixture();
+        let report = vueroid_report("20300101_120000_INF_N.mp4");
+        for label in [
+            "H1",
+            "H1QHD",
+            "H1-QHD",
+            "H1 QHD",
+            "H1 QHD Infinite",
+            "Vueroid H1-QHD",
+        ] {
+            let (value, camera) =
+                recognize_metadata_with_catalog(Path::new(label), &report, &cameras);
+            assert_eq!(camera.unwrap().id, "vueroid-h1", "{label}");
+            assert_eq!(value["model"], "H1 QHD Infinite");
+            assert_eq!(value["channelCount"], 1);
+            assert!(!value.to_string().contains("20300101"));
+            assert!(recognize_metadata_with_catalog(
+                Path::new(label),
+                &Report::default(),
+                &cameras
+            )
+            .1
+            .is_none());
+        }
+        let mut wrong_folder = report.clone();
+        wrong_folder.folders[0].path = "personal".into();
+        assert!(
+            recognize_metadata_with_catalog(Path::new("H1"), &wrong_folder, &cameras)
+                .1
+                .is_none()
+        );
+        let (value, camera) =
+            recognize_metadata_with_catalog(Path::new("Untitled"), &report, &cameras);
+        assert!(camera.is_none());
+        assert!(value.get("model").is_none());
+        assert_eq!(value["candidates"].as_array().unwrap().len(), 1);
+        assert_eq!(value["candidates"][0]["id"], "vueroid-h1");
+    }
+    #[test]
+    fn h1_synthetic_and_s1_evidence_never_steal_each_others_identity() {
+        let cameras = h1_fixture();
+        assert_eq!(cameras.len(), 3);
+        let h1 = vueroid_report("20300101_120000_INF_N.mp4");
+        let s1 = vueroid_report("20300101_120000_INF_F_N.mp4");
+        for c in &cameras {
+            let report = if c.id == "vueroid-h1" { &h1 } else { &s1 };
+            assert_eq!(
+                recognize_metadata_with_catalog(Path::new(&c.model), report, &cameras)
+                    .1
+                    .unwrap()
+                    .id,
+                c.id
+            );
+            let other = if c.id == "vueroid-h1" { &s1 } else { &h1 };
+            assert!(
+                recognize_metadata_with_catalog(Path::new(&c.model), other, &cameras)
+                    .1
+                    .is_none()
+            );
+        }
+        // An alias collision must retain the existing fail-closed ambiguity rule.
+        let mut conflicting = cameras.last().unwrap().clone();
+        conflicting.id = "synthetic-collision".into();
+        let mut ambiguous = cameras.clone();
+        ambiguous.push(conflicting);
+        assert!(
+            recognize_metadata_with_catalog(Path::new("H1"), &h1, &ambiguous)
+                .1
+                .is_none()
+        );
+    }
+    #[test]
+    fn h1_exact_manual_label_is_valid_owner_data_without_native_authority() {
+        let labels: crate::payload::Labels = serde_json::from_value(serde_json::json!({
+            "manufacturer":"Vueroid", "model":"H1 QHD Infinite", "channelSetup":"front",
+            "channelCount":1, "firmware":"", "settings":"", "quality":"unknown",
+            "parkingMode":"unknown", "timeLapseFps":null
+        }))
+        .unwrap();
+        labels.validate().unwrap();
+        let report = vueroid_report("20300101_120000_INF_N.mp4");
+        assert!(report.recognized_camera_id.is_none());
+        let review = crate::payload::prepare(&report, &labels).unwrap();
+        let public: serde_json::Value = serde_json::from_str(&review.public_json).unwrap();
+        assert_eq!(public["camera"]["model"], "H1 QHD Infinite");
+        assert!(report.recognized_camera_id.is_none());
+    }
+    #[test]
+    fn embedded_h1_aliases_and_s1_profiles_remain_distinct() {
+        let cameras = catalog();
+        let h1: Vec<_> = cameras.iter().filter(|c| c.id == "vueroid-h1").collect();
+        assert_eq!(h1.len(), 1);
+        assert_eq!(h1[0].model, "H1 QHD Infinite");
+        assert_eq!(h1[0].channel_count, 1);
+        assert!(!h1[0].patterns.is_empty() && !h1[0].folders.is_empty());
+        let h1_report = vueroid_report("20300101_120000_INF_N.mp4");
+        let s1_report = vueroid_report("20300101_120000_INF_F_N.mp4");
+        for label in ["H1", "H1QHD", "H1-QHD", "H1 QHD Infinite"] {
+            let (_, matched) = recognize_metadata(Path::new(label), &h1_report);
+            assert_eq!(matched.unwrap().id, "vueroid-h1");
+            assert!(recognize_metadata(Path::new(label), &s1_report).1.is_none());
+        }
+        for id in ["vueroid-s1-qhd-infinite", "vueroid-s1-4k-infinite"] {
+            let sibling = cameras.iter().find(|c| c.id == id).unwrap();
+            assert!(recognize_metadata(Path::new(&sibling.model), &h1_report)
+                .1
+                .is_none());
+            assert_eq!(
+                recognize_metadata(Path::new(&sibling.model), &s1_report)
+                    .1
+                    .unwrap()
+                    .id,
+                id
+            );
+        }
+    }
     #[test]
     fn catalog_is_bounded_and_public() {
-        assert_eq!(catalog().len(), 100);
+        assert_eq!(catalog().len(), 102);
         let text = serde_json::to_string(catalog()).unwrap();
         assert!(!text.contains("/Volumes/") && !text.contains("sourceSha256"));
         for c in catalog() {

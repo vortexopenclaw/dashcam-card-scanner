@@ -15,6 +15,9 @@ import yaml
 root = Path(sys.argv[1])
 records = []
 skipped = []
+# Public owner-label variants, not recognition evidence. Punctuation/spacing is
+# normalized by the native matcher. Never alias H1 to either S1 profile.
+model_aliases = {'vueroid-h1': ['H1', 'H1 QHD']}
 for path in sorted((root / 'profiles').glob('*.yaml')):
     raw = path.read_bytes()
     try:
@@ -43,6 +46,11 @@ for path in sorted((root / 'profiles').glob('*.yaml')):
         patterns.append({k: int(p[k]) if k.endswith('_group') else p[k] for k in ['pattern', 'channel_group', 'mode_group', 'channels', 'modes'] if k in p})
     folders = [f['path'] for f in d.get('folders', []) if isinstance(f, dict) and isinstance(f.get('path'), str)]
     records.append(dict(id=d.get('id', path.stem), manufacturer=d.get('manufacturer', d.get('brand', path.stem.split('-')[0].title())), model=d.get('model', path.stem), channelCount=len(roles), channelSetup=' + '.join(roles), patterns=patterns, folders=folders, sourceSha256=hashlib.sha256(raw).hexdigest()))
+    aliases = d.get('aliases', model_aliases.get(records[-1]['id'], []))
+    if aliases:
+        if not isinstance(aliases, list) or not all(isinstance(a, str) and 0 < len(a) <= 100 for a in aliases):
+            raise ValueError(f'Invalid model aliases: {path.name}')
+        records[-1]['aliases'] = aliases
 output = {'source': 'https://github.com/vortexopenclaw/dashcam-offloader', 'commit': subprocess.check_output(['git','-C',str(root),'rev-parse','HEAD'],text=True).strip(), 'license':'AGPL-3.0-only', 'restrictedParsing':skipped, 'cameras':records}
 if len(sys.argv) > 2:
     canonical = Path(sys.argv[2])

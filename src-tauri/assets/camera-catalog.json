@@ -1230,6 +1230,17 @@
       "sourceSha256": "5de98ff578efa1b2012d5ec865a63d6292809d8b1368faf4e64efea364eb24fa"
     },
     {
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [],
+      "id": "vantrue-e1-pro-s",
+      "manufacturer": "Vantrue",
+      "model": "E1 Pro S",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "6b87f6325039d4951b5fb061f52ddde329902604df72585b0962adad58cab1d7"
+    },
+    {
       "channelCount": 3,
       "channelSetup": "panoramic_front + interior + rear",
       "folders": [
@@ -1865,6 +1876,34 @@
       "sourceSha256": "6e3438e23e4e753168ab402cdc038c8868daaaa294d380e036d3adf0b48cf52c"
     },
     {
+      "aliases": [
+        "H1",
+        "H1 QHD"
+      ],
+      "channelCount": 1,
+      "channelSetup": "front",
+      "folders": [
+        "INF",
+        "EVENT",
+        "PARK",
+        "PEVENT",
+        "USER",
+        "BOOKMARK"
+      ],
+      "id": "vueroid-h1",
+      "manufacturer": "Vueroid",
+      "model": "H1 QHD Infinite",
+      "patterns": [
+        {
+          "channels": {
+            "N": "front"
+          },
+          "pattern": "^(\\d{8})_(\\d{6})_([A-Z]+)_([A-Z])\\.mp4$"
+        }
+      ],
+      "sourceSha256": "b58604a9a7ffee8a65d8263ee63a7b637b91b0b0ce8f59b2dda17f746c1c7f57"
+    },
+    {
       "channelCount": 3,
       "channelSetup": "front + interior + rear",
       "folders": [
@@ -1931,9 +1970,9 @@
       "sourceSha256": "9c68ed935d103cfcb9d667fc3db7d5310a5057d57ad59c016129b2694308b29b"
     }
   ],
-  "commit": "d160f4a6343163d68b952c742f75c425baaa7f67",
+  "commit": "2ce0121c3294ea437d277e9c1db9e88a0cfc27cf",
   "identitySource": {
-    "commit": "bf9f6bb72f1a2e57e12f5b48162e4ba9ece00c07",
+    "commit": "0f12fbdc415a0141b1341a6b20debbf45fba84b9",
     "source": "https://github.com/vortexopenclaw/dashcam-camera-profiles"
   },
   "license": "AGPL-3.0-only",

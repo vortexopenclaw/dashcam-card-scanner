@@ -54,6 +54,31 @@ function setup(recognition?:Record<string,unknown>,native:unknown=[]){
  });
  return {ui:mount(root,{invoke,listen:async()=>()=>{}} as Bridge),invoke,report,root};
 }
+// Synthetic future native IPC identity only. The production catalog stays untouched.
+const h1Native={id:'vueroid-h1',manufacturer:'Vueroid',model:'H1 QHD Infinite',channelCount:1,channelSetup:'front',aliases:['H1','H1 QHD']};
+test('H1 native selector has one public default, keeps both S1 siblings, and does not infer owner channels',async()=>{
+ const siblings=['S1 4K Infinite','S1 QHD Infinite'].map((model,i)=>({id:`s1-${i}`,manufacturer:'Vueroid',model}));
+ const merged=mergeModelOptions([h1Native,...siblings]);
+ expect(merged.filter(c=>c.id==='vueroid-h1')).toHaveLength(1);
+ expect(merged.find(c=>c.id==='vueroid-h1')?.model).toBe('H1 QHD Infinite');
+ for(const sibling of siblings)expect(merged.find(c=>c.id===sibling.id)?.model).toBe(sibling.model);
+ const {ui,invoke}=setup(undefined,[h1Native,...siblings]);await settle();ui.select.click();await settle();
+ change(ui.manufacturerPick,'Vueroid');
+ expect([...ui.modelPick.options].filter(o=>o.textContent?.startsWith('H1'))).toHaveLength(1);
+ pickModel(ui,'H1 QHD Infinite');expect(ui.fields.model.value).toBe('H1 QHD Infinite');
+ expect(ui.choices.channelCount.value).toBe('Select count');expect(ui.fields.channelSetup.value).toBe('');
+ change(ui.choices.channelCount,'2');input(ui.fields.channelSetup,'owner channels');input(ui.fields.firmware,'owner firmware');
+ ui.scan.click();await settle();ui.settingsButton.click();await settle();ui.scannerButton.click();await settle();ui.prepare.click();await settle();
+ expect(prepared(invoke).labels).toMatchObject({model:'H1 QHD Infinite',channelCount:2,channelSetup:'owner channels',firmware:'owner firmware'});
+});
+test.each(['H1','H1QHD','H1-QHD','H1 QHD','H1 QHD Infinite'])('H1 owner label %s remains exact through review and rescan',async model=>{
+ const {ui,invoke}=setup({manufacturer:'Vueroid',model:'H1 QHD Infinite',channelCount:1,channelSetup:'front'},[h1Native]);
+ await settle();ui.select.click();await settle();expect(ui.modelPick.value).toBe('vueroid-h1');
+ change(ui.modelPick,'other');input(ui.fields.model,model);change(ui.choices.channelCount,'2');input(ui.fields.channelSetup,'owner channels');
+ ui.scan.click();await settle();ui.prepare.click();await settle();
+ expect(prepared(invoke).labels).toMatchObject({manufacturer:'Vueroid',model,channelCount:2,channelSetup:'owner channels'});
+ expect(ui.fields.model.value).toBe(model);
+});
 const prepared=(invoke:ReturnType<typeof vi.fn>)=>invoke.mock.calls.filter(c=>c[0]==='prepare_review').at(-1)![1] as any;
 beforeEach(()=>{document.body.replaceChildren();localStorage.clear();vi.spyOn(window,'scrollTo').mockImplementation(()=>{});});
 test('UI roster has official source evidence, unique identities and no recognition data or maximum channel counts',()=>{
