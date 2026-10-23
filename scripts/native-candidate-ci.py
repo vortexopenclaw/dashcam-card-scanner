@@ -1,5 +1,5 @@
 """CI-only exact draft native probes; no source app changes or trust overrides."""
-import base64, hashlib, json, os, pathlib, platform, shutil, subprocess, sys, time, urllib.request
+import base64, hashlib, json, os, pathlib, platform, shutil, subprocess, sys, time, urllib.request, urllib.error
 E = pathlib.Path('native-evidence').resolve(); E.mkdir(exist_ok=True)
 D = pathlib.Path(os.environ['RUNNER_TEMP']) / 'exact-scanner'; D.mkdir(exist_ok=True)
 R = {'source':'afc679f96bc5fedca522e7db5e5155a12e5d0537','runner':platform.platform(),'arch':platform.machine(),'assets':[], 'commands':[], 'update':'STRUCTURALLY BLOCKED: fixed production latest 0.1.7; no supported staging override', 'acceptance':'INCOMPLETE'}
@@ -11,7 +11,14 @@ def run(args, check=True):
 
 def api(path, binary=False):
     req=urllib.request.Request('https://api.github.com/repos/vortexopenclaw/dashcam-card-scanner/'+path, headers={'Authorization':'Bearer '+os.environ['GITHUB_TOKEN'],'Accept':'application/octet-stream' if binary else 'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'})
-    with urllib.request.urlopen(req, timeout=90) as f: b=f.read()
+    try:
+        with urllib.request.urlopen(req, timeout=90) as f: b=f.read()
+    except urllib.error.HTTPError as ex:
+        # Response metadata only; never request Authorization or redirect URLs.
+        detail={'path':path,'status':ex.code,'body':ex.read().decode('utf-8','replace'),'accepted_permissions':ex.headers.get('X-Accepted-GitHub-Permissions'),'request_id':ex.headers.get('X-GitHub-Request-Id')}
+        R['api_denial']=detail
+        print(json.dumps(detail),flush=True)
+        raise
     return b if binary else json.loads(b)
 
 def fetch(a):
