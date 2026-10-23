@@ -1,0 +1,87 @@
+{
+  "id": 419929169,
+  "draft": true,
+  "tag_name": "v0.1.8",
+  "target_commitish": "afc679f96bc5fedca522e7db5e5155a12e5d0537",
+  "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDNDNUI0RURFRTUxMkNFN0UKUldSK3poTGwzazViUEllU0wrUzdVY2VCUWduSWh4WGlBeW41STR1KzhvRCsyN0o5MlNDNm4vWEkK",
+  "assets": [
+    {
+      "id": 670315886,
+      "name": "Dashcam-Card-Scanner-0.1.8-Linux-Debian-Ubuntu-x64.deb",
+      "digest": "sha256:da9cc7dd1caee595361c51166d48839bc9a424456d81dc43ffbb224923e0d39e",
+      "size": 6314278
+    },
+    {
+      "id": 670315942,
+      "name": "Dashcam-Card-Scanner-0.1.8-Linux-Debian-Ubuntu-x64.deb.sig",
+      "digest": "sha256:d068529e72a1518028706ecc70f21a9080346e29e7461af47b5cc0d68c1f5721",
+      "size": 448
+    },
+    {
+      "id": 670315966,
+      "name": "Dashcam-Card-Scanner-0.1.8-Linux-x64.AppImage",
+      "digest": "sha256:6c950da516c6474c836028b3b0e824b3e19d1990e8149ff227db11f7cf2cc649",
+      "size": 84326904
+    },
+    {
+      "id": 670316092,
+      "name": "Dashcam-Card-Scanner-0.1.8-Linux-x64.AppImage.sig",
+      "digest": "sha256:8b7761de28cf4843100bf0b084bf4bd7a2a3e03b9d7e773af8fdea7a31ab9595",
+      "size": 456
+    },
+    {
+      "id": 670252581,
+      "name": "Dashcam-Card-Scanner-0.1.8-Mac-Apple-Silicon-Update.app.tar.gz",
+      "digest": "sha256:d61fc2ac1cc1307bd95367beca8cfead8febedfd96e7dadd6418d6f9a46d8d9e",
+      "size": 6016356
+    },
+    {
+      "id": 670252629,
+      "name": "Dashcam-Card-Scanner-0.1.8-Mac-Apple-Silicon-Update.app.tar.gz.sig",
+      "digest": "sha256:28911ae4f7882b81bf6deaa09c177fdda3b4eedeba5133f44637dc64d2376f32",
+      "size": 440
+    },
+    {
+      "id": 670252520,
+      "name": "Dashcam-Card-Scanner-0.1.8-Mac-Apple-Silicon.dmg",
+      "digest": "sha256:e201721920f8957bbf7b95742ef0412dd9cdd975fe3c83ff0661e68b4e345b57",
+      "size": 5817285
+    },
+    {
+      "id": 670275960,
+      "name": "Dashcam-Card-Scanner-0.1.8-Mac-Intel-Update.app.tar.gz",
+      "digest": "sha256:e377c99e5b77421396020b5b607b619caa9103fc1d2605d56307694a58f3b010",
+      "size": 6304454
+    },
+    {
+      "id": 670276060,
+      "name": "Dashcam-Card-Scanner-0.1.8-Mac-Intel-Update.app.tar.gz.sig",
+      "digest": "sha256:f219f1c29dfe9893bcf81af0d666c817473f5127dd7f21c8d5d61239f960664b",
+      "size": 440
+    },
+    {
+      "id": 670275732,
+      "name": "Dashcam-Card-Scanner-0.1.8-Mac-Intel.dmg",
+      "digest": "sha256:6f38bf0d11c6e16dbc500128d7b54bfe3e050973f55953c0d1c1380a28514e31",
+      "size": 6162607
+    },
+    {
+      "id": 670293239,
+      "name": "Dashcam-Card-Scanner-0.1.8-Windows-x64.exe",
+      "digest": "sha256:49b07a3f7b5ce227e249e09d74cd881120248d5fa045781332a44c934ea022f5",
+      "size": 3827300
+    },
+    {
+      "id": 670293282,
+      "name": "Dashcam-Card-Scanner-0.1.8-Windows-x64.exe.sig",
+      "digest": "sha256:c920b0116fa6877c3e8ef9b5d8f88698b98c9cdfc093b3165549934c17df6f36",
+      "size": 452
+    },
+    {
+      "id": 670317129,
+      "name": "latest.json",
+      "digest": "sha256:ff932652a583535f260fb926c838d088eee05e01693e0a6daa7cd1add2a36936",
+      "size": 5955
+    }
+  ]
+}
