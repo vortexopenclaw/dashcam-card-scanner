@@ -1,67 +1,32 @@
-name: Verify desktop builds
+name: Disposable exact candidate native acceptance
 on:
-  push:
-  pull_request:
   workflow_dispatch:
-    inputs:
-      all_platforms:
-        description: 'Verify every platform after Mac UI acceptance'
-        type: boolean
-        default: false
-      other_platforms_only:
-        description: 'Background Intel Mac, Windows and Linux checks; reuse the separate Apple Silicon run'
-        type: boolean
-        default: false
 permissions:
   contents: read
 jobs:
-  verify:
+  native:
     strategy:
       fail-fast: false
-      # Iterate on the shared UI on Apple Silicon; opt into the full matrix for acceptance.
       matrix:
-        include: ${{ fromJSON(inputs.other_platforms_only && '[{"os":"macos-15-intel","target":"x86_64-apple-darwin","bundles":"app,dmg"},{"os":"windows-2022","target":"x86_64-pc-windows-msvc","bundles":"nsis"},{"os":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}]' || inputs.all_platforms && '[{"os":"macos-14","target":"aarch64-apple-darwin","bundles":"app,dmg"},{"os":"macos-15-intel","target":"x86_64-apple-darwin","bundles":"app,dmg"},{"os":"windows-2022","target":"x86_64-pc-windows-msvc","bundles":"nsis"},{"os":"ubuntu-22.04","target":"x86_64-unknown-linux-gnu","bundles":"deb,appimage"}]' || '[{"os":"macos-14","target":"aarch64-apple-darwin","bundles":"app,dmg"}]') }}
+        os: [macos-14, macos-15-intel, windows-2022, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with: { node-version: '24', cache: npm }
-      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
-        with: { targets: '${{ matrix.target }}' }
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          workspaces: src-tauri -> target
-          shared-key: scanner-${{ matrix.target }}
-          save-if: ${{ github.ref == 'refs/heads/main' }}
-      - name: Linux platform dependencies
+          persist-credentials: false
+      - name: Normal Linux desktop runtime dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
-      - run: npm ci
-      - run: npm audit --audit-level=high
-      - run: npm run build
-      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
-      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml
-      - run: npm test
-      - run: npm run test:intake
-      - name: Packaging verifier regression tests
-        run: python3 -m unittest discover -s scripts -p 'test_macos_packaging.py' -v
-      - name: macOS ad-hoc review bundles with throwaway updater signature (not release assets)
-        if: runner.os == 'macOS'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1 libfuse2 xvfb xdotool
+      - name: Verify exact signed draft and exercise native install
         shell: bash
-        run: |
-          KEY="$RUNNER_TEMP/scanner-review-updater.key"
-          trap 'rm -f "$KEY" "$KEY.pub"' EXIT
-          npm run tauri -- signer generate --ci --password '' --write-keys "$KEY" > /dev/null
-          TAURI_SIGNING_PRIVATE_KEY="$KEY" TAURI_SIGNING_PRIVATE_KEY_PASSWORD='' npm run tauri -- build --ci --target '${{ matrix.target }}' --bundles '${{ matrix.bundles }}'
-          python3 scripts/verify-macos-packaging.py --bundle-dir 'src-tauri/target/${{ matrix.target }}/release/bundle'
-          python3 scripts/verify-local-ocr-package.py --bundle-dir 'src-tauri/target/${{ matrix.target }}/release/bundle'
-      - name: Unsigned non-macOS review bundles (never updater release artifacts)
-        if: runner.os != 'macOS'
-        shell: bash
-        run: npm run tauri -- build --ci --target '${{ matrix.target }}' --bundles '${{ matrix.bundles }}' --no-sign --config '{"bundle":{"createUpdaterArtifacts":false}}'
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/native-candidate-ci.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
         with:
-          name: unsigned-review-${{ matrix.target }}
-          path: src-tauri/target/${{ matrix.target }}/release/bundle/
+          name: native-${{ matrix.os }}
+          path: native-evidence/
           if-no-files-found: error
-          retention-days: 7
+          retention-days: 14
