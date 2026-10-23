@@ -1,6 +1,11 @@
 name: Approved draft release
 on:
   workflow_dispatch:
+    inputs:
+      native_candidate:
+        description: 'Download-only broker and native probes for pinned draft 419929169; never rebuild or publish'
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -8,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   draft:
-    if: github.ref == 'refs/heads/main'
+    if: ${{ !inputs.native_candidate && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-22.04
     environment: scanner-release
     permissions: { contents: write, actions: read }
@@ -116,3 +121,69 @@ jobs:
         run: |
           node scripts/name-release-assets.mjs
           node scripts/check-draft.mjs
+  broker:
+    if: inputs.native_candidate && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    environment: scanner-release
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Download and verify only; no app execution or release mutation
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 scripts/native-candidate-ci.py --broker
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: verified-exact-018
+          path: candidate-bundle/
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: broker-evidence
+          path: native-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove broker staging
+        if: always()
+        run: rm -rf candidate-bundle
+  native:
+    needs: broker
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15-intel, windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: verified-exact-018
+          path: candidate-bundle/
+      - name: Normal Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1 libfuse2 xvfb xdotool x11-utils imagemagick
+      - name: Reverify pins and signatures before normal native installation
+        shell: bash
+        run: python3 scripts/native-candidate-ci.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: native-${{ matrix.os }}
+          path: native-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove native bundle staging
+        if: always()
+        shell: bash
+        run: rm -rf candidate-bundle

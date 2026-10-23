@@ -1,5 +1,5 @@
 """CI-only exact draft native probes; no source app changes or trust overrides."""
-import base64, hashlib, json, os, pathlib, platform, shutil, subprocess, sys, time, urllib.request, urllib.error
+import uuid, base64, hashlib, json, os, pathlib, platform, shutil, subprocess, sys, time, urllib.request, urllib.error
 E = pathlib.Path('native-evidence').resolve(); E.mkdir(exist_ok=True)
 BROKER = '--broker' in sys.argv
 D = pathlib.Path('candidate-bundle').resolve() if BROKER else pathlib.Path(os.environ['RUNNER_TEMP']) / 'exact-scanner'
@@ -35,8 +35,8 @@ def api(path, binary=False):
 def fetch(a):
     b=api('releases/assets/'+str(a['id']), True) if BROKER else (pathlib.Path('candidate-bundle')/a['name']).read_bytes()
     h=hashlib.sha256(b).hexdigest()
-    assert a['digest']=='sha256:'+h
-    p=D/a['name']; p.write_bytes(b); R['assets'].append({'id':a['id'],'name':a['name'],'sha256':h}); return p
+    assert a['digest']=='sha256:'+h and len(b)==a['size']
+    p=D/a['name']; p.write_bytes(b); assert hashlib.sha256(p.read_bytes()).hexdigest()==h; R['assets'].append({'id':a['id'],'name':a['name'],'sha256':h}); return p
 
 def verify(payload, sig, public):
     s=base64.b64decode(sig.read_bytes()).decode().splitlines(); k=base64.b64decode(public).decode().splitlines(); kb=base64.b64decode(k[1]); sb=base64.b64decode(s[1]); cb=base64.b64decode(s[3])
@@ -56,7 +56,8 @@ try:
     assert len(assets)==13 and PIN['draft'] and PIN['target_commitish']==R['source']
     public=PIN['pubkey']
     assert public==json.loads(pathlib.Path('src-tauri/tauri.conf.json').read_text())['plugins']['updater']['pubkey']
-    for a in assets.values(): fetch(a)
+    staged={name:a for name,a in assets.items() if not name.endswith(('.deb','.deb.sig'))}
+    for a in (assets if BROKER else staged).values(): fetch(a)
     manifest=json.loads((D/'latest.json').read_text())
     assert manifest['version']=='0.1.8'
     assert set(manifest['platforms'])=={'darwin-aarch64','darwin-x86_64','windows-x86_64','linux-x86_64'}
@@ -69,6 +70,8 @@ try:
         os.environ.pop('GITHUB_TOKEN',None)
         (D/'verify.json').unlink(missing_ok=True)
         assert {p.name for p in D.iterdir()}==set(assets), 'Only pinned public release bytes permitted in artifact'
+        for name in set(assets)-set(staged): (D/name).unlink()
+        (D/'candidate-receipt.json').write_text(json.dumps({'source':R['source'],'release_id':PIN['id'],'assets':R['assets']},indent=2))
         R['acceptance']='Download-only broker: 13 hashes + 4 pinned signatures/comments/tamper controls PASS; no candidate execution'
     else:
         system=platform.system(); mac=system=='Darwin'
@@ -76,6 +79,7 @@ try:
         suffix=('Mac-Apple-Silicon' if platform.machine()=='arm64' else 'Mac-Intel')+'-Update.app.tar.gz' if mac else ('Windows-x64.exe' if system=='Windows' else 'Linux-x64.AppImage')
         payload=fetch(assets[stem+suffix]); sig=fetch(assets[stem+suffix+'.sig'])
         verify(payload,sig,public)
+        R['provenance']='GitHub API bytes via same-run Actions artifact, not browser download or in-app update'
         dmg=fetch(assets[stem+suffix.replace('-Update.app.tar.gz','.dmg')]) if mac else None
         # Never propagate the repository token into the candidate app.
         os.environ.pop('GITHUB_TOKEN',None)
@@ -84,6 +88,9 @@ try:
         for key in list(os.environ):
             if key not in keep: del os.environ[key]
         if mac:
+            quarantine=f'0081;{int(time.time()):x};NativeCandidateCI;{uuid.uuid4()}'
+            R['quarantine_provenance']='Representative downloaded-DMG quarantine explicitly ADDED, never cleared; not a real Safari download'
+            run(['xattr','-w','com.apple.quarantine',quarantine,str(dmg)])
             mount=D/'mount'; mount.mkdir()
             try:
                 run(['hdiutil','attach','-readonly','-nobrowse','-noautoopen','-mountpoint',str(mount),str(dmg)])
@@ -96,7 +103,10 @@ try:
                 assert tree(installed)==tree(signedapp), 'DMG app differs from authenticated updater app'
                 R['dmg_signed_payload_parity']='PASS exact file SHA256 tree'
                 run(['codesign','--verify','--deep','--strict',str(installed)])
-                run(['spctl','--assess','--type','execute','--verbose=4',str(installed)])
+                # Assessment is diagnostic; actual normal LaunchServices open is the native gate.
+                run(['spctl','--assess','--type','execute','--verbose=4',str(installed)],False)
+                run(['xattr','-w','com.apple.quarantine',quarantine,str(installed)])
+                run(['xattr','-l',str(installed)])
                 run(['/usr/libexec/PlistBuddy','-c','Print :CFBundleShortVersionString',str(installed/'Contents/Info.plist')])
                 for attempt in (1,2):
                     run(['open',str(installed)])

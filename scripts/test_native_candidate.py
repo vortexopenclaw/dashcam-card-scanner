@@ -10,7 +10,7 @@ class BoundaryTests(unittest.TestCase):
     def setUp(self):
         source=pathlib.Path(__file__).with_name('native-candidate-ci.py').read_text()
         tree=ast.parse(source)
-        declarations=[n for n in tree.body if isinstance(n,(ast.Import,ast.ImportFrom,ast.FunctionDef,ast.ClassDef))]
+        declarations: list[ast.stmt]=[n for n in tree.body if isinstance(n,(ast.Import,ast.ImportFrom,ast.FunctionDef,ast.ClassDef))]
         self.ns={}
         exec(compile(ast.Module(body=declarations,type_ignores=[]),'<probe>','exec'),self.ns)
 
@@ -29,7 +29,7 @@ class BoundaryTests(unittest.TestCase):
             try:
                 os.chdir(root); bundle=root/'candidate-bundle'; bundle.mkdir()
                 (bundle/'synthetic.bin').write_bytes(b'synthetic test fixture, not release data')
-                asset={'id':1,'name':'synthetic.bin','digest':'sha256:'+hashlib.sha256((bundle/'synthetic.bin').read_bytes()).hexdigest()}
+                asset={'id':1,'name':'synthetic.bin','size':len((bundle/'synthetic.bin').read_bytes()),'digest':'sha256:'+hashlib.sha256((bundle/'synthetic.bin').read_bytes()).hexdigest()}
                 self.ns.update(BROKER=False,D=dest,R={'assets':[]})
                 self.ns['api']=lambda *args: self.fail('Offline native path called network API')
                 self.assertEqual(self.ns['fetch'](asset).read_bytes(),(bundle/'synthetic.bin').read_bytes())
@@ -43,6 +43,6 @@ class BoundaryTests(unittest.TestCase):
         self.assertNotIn('method=',source)
         self.assertIn("if BROKER:",source)
         self.assertIn("assert {p.name for p in D.iterdir()}==set(assets)",source)
-        self.assertIn("run(['spctl','--assess','--type','execute','--verbose=4',str(installed)])",source)
+        self.assertIn("run(['spctl','--assess','--type','execute','--verbose=4',str(installed)],False)",source)
 
 if __name__=='__main__': unittest.main()

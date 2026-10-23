@@ -64,3 +64,37 @@ During UI iteration, push/PR verification defaults to Apple Silicon Mac. Manuall
 `release.yml` is manually dispatched on protected `main` and uses the protected **scanner-release** environment. Repository administrators must configure required reviewers and main-only deployment branch rules; YAML alone cannot create that protection. The workflow refuses the placeholder updater public key, requires private signing key CI secrets, creates a **draft** release, and builds signed updater artifacts plus `latest.json`. A maintainer must inspect all artifacts before manually publishing. There is no PR-triggered privileged workflow and no `pull_request_target`.
 
 Official updater endpoint: `https://github.com/vortexopenclaw/dashcam-card-scanner/releases/latest/download/latest.json`. The official PUBLIC verification key is provisioned in `src-tauri/tauri.conf.json`; private signing material is not in this repository or app. Release signing secrets are provisioned in the protected, main-only `scanner-release` CI environment. Verification failure never falls back to unsigned installation. No Apple distribution/notarization or Windows Authenticode credentials are present; artifacts are not claimed notarized or SmartScreen-trusted. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Exact-artifact native acceptance (operator notes)
+
+For the specifically approved 0.1.8 candidate, dispatch **Approved draft release**
+on protected `main` with `native_candidate: true`. This mode skips draft creation,
+retargeting, rebuilding and signing. The existing `scanner-release` owner review
+protects a download/verification-only broker; only that job has `contents: write`.
+It references no signing secret, executes no candidate and persists no checkout
+credential. Same-run hosted native jobs have `contents: read`, no shared writable
+cache, and a minimal candidate process environment. The pinned source remains
+`afc679f96bc5fedca522e7db5e5155a12e5d0537` even if CI-only main advances.
+
+The broker checks the independently retained 13-file inventory, sizes, hashes,
+original public key, four updater signatures/trusted comments and tamper controls.
+Native jobs independently rehash the necessary 11 files and reverify signatures.
+The unused Debian package/signature are not promoted. A public receipt contains
+hashes, not credentials or private inputs. **Actions artifacts in this public
+repository are readable by authenticated repository readers; draft privacy does
+not carry over.** This is the explicitly approved candidate staging surface, not
+a private distribution channel or public release attachment. Candidate artifacts
+expire after one day; text/native evidence expires after 14 days.
+
+Sequence: prerequisite preflight → build once → verify exact signed artifacts →
+isolated normal native install/startup/restart → owner-conditional public latest
+promotion → immediate real old-version in-app update/relaunch. No publication is
+automatic. Public GitHub latest reaches the public audience, not a targeted canary.
+
+Ad-hoc macOS signing is not Developer ID/notarization. `spctl` assessment is retained
+separately from actual LaunchServices behavior. The hosted first-install probe adds
+representative downloaded-DMG quarantine, never removes it, and stops on actual
+normal launch denial; this is not proof of a real browser download or in-app updater
+provenance. Windows uses the configured WebView2 download bootstrapper, not an
+offline-install claim. Missing platform acceptance blocks promotion; hashes or CI
+build success are not substitutes. Never clear trust controls to make a gate pass.
