@@ -201,6 +201,26 @@ pub(crate) fn is_media(name: &str) -> bool {
         )
     })
 }
+fn is_video(name: &str) -> bool {
+    name.rsplit_once('.').is_some_and(|(_, ext)| {
+        matches!(
+            ext.to_ascii_lowercase().as_str(),
+            "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv"
+        )
+    })
+}
+fn is_photo(name: &str) -> bool {
+    name.rsplit_once('.')
+        .is_some_and(|(_, ext)| matches!(ext.to_ascii_lowercase().as_str(), "jpg" | "jpeg" | "png"))
+}
+fn video_count(folder: &crate::engine::Folder) -> u64 {
+    folder
+        .extensions
+        .iter()
+        .filter(|(ext, _)| is_video(&format!("x.{ext}")))
+        .map(|(_, n)| *n)
+        .sum()
+}
 pub(crate) fn media_count(folder: &crate::engine::Folder) -> u64 {
     folder
         .extensions
@@ -276,7 +296,7 @@ pub fn observed_channels(report: &Report, validated_native_id: Option<&str>) -> 
     let mut evidence = Evidence::default();
     let whole_native_names = report.temporal.complete_for(report);
     if whole_native_names {
-        for name in report.temporal.names() {
+        for name in report.temporal.names().filter(|name| is_video(name)) {
             evidence.name(name, id);
         }
     }
@@ -286,20 +306,21 @@ pub fn observed_channels(report: &Report, validated_native_id: Option<&str>) -> 
         // by the inventory template generator. A capped sample cannot exclude a
         // later incompatible camera/role in those files. Do not invent witnesses.
         if !whole_native_names
-            && media_count(folder)
+            && video_count(folder)
                 > folder
                     .samples
                     .iter()
-                    .filter(|s| is_media(&s.local_name))
+                    .filter(|s| is_video(&s.local_name))
                     .count() as u64
             && folder
                 .filename_templates
                 .iter()
+                .filter(|t| !is_photo(t))
                 .any(|t| template_names(t).is_empty())
         {
             return empty("unknown", "Unsampled media has unresolved filename structure; confirm the editable setup manually.");
         }
-        for sample in &folder.samples {
+        for sample in folder.samples.iter().filter(|s| is_video(&s.local_name)) {
             evidence.name(&sample.local_name, id);
             // Native intake consensus remains authoritative for actual samples.
             // Anonymous templates use precompiled catalog rules: invoking the
@@ -312,13 +333,18 @@ pub fn observed_channels(report: &Report, validated_native_id: Option<&str>) -> 
         }
         // Fail closed rather than truncate later channel evidence. Check during
         // collection so the exceptional cap also bounds helper allocation.
-        for template in folder.filename_templates.iter().chain(
-            folder
-                .metadata_cohorts
-                .iter()
-                .filter(|c| c.file_count > 0)
-                .map(|c| &c.filename_template),
-        ) {
+        for template in folder
+            .filename_templates
+            .iter()
+            .chain(
+                folder
+                    .metadata_cohorts
+                    .iter()
+                    .filter(|c| c.file_count > 0)
+                    .map(|c| &c.filename_template),
+            )
+            .filter(|t| !is_photo(t))
+        {
             if template.len() > 256 || (!templates.contains(template) && templates.len() == 4096) {
                 return empty(
                     "unknown",

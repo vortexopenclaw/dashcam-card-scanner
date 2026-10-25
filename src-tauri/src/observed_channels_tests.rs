@@ -62,6 +62,36 @@ fn normal_parking_roles_are_deduplicated_without_model_ocr() {
     assert_eq!(r.confidence, "observed");
 }
 #[test]
+fn a329t_front_only_scan_and_export_keep_observation_separate_from_capability() {
+    let report = scan(&[
+        ("DCIM/Movie/2030_0101_120000_000001F.MP4", b"synthetic"),
+        ("DCIM/Movie/RO/2030_0101_120100_000002PF.MP4", b"synthetic"),
+        ("DCIM/Photo/2030_0101_120100_000002T.JPG", b"synthetic"),
+    ]);
+    let observed = observed_channels(&report, Some("viofo-a329t"));
+    assert_eq!(observed.count, Some(1));
+    assert_eq!(observed.setup.as_deref(), Some("front"));
+    let camera = recognition::catalog()
+        .iter()
+        .find(|c| c.id == "viofo-a329t")
+        .unwrap();
+    assert_eq!(camera.channel_count, 3);
+    let labels = serde_json::from_value(serde_json::json!({
+        "manufacturer":"VIOFO", "model":"A329T", "channelSetup":observed.setup,
+        "channelCount":observed.count, "firmware":"V2.2_260815", "settings":"",
+        "quality":"unknown", "parkingMode":"unknown"
+    }))
+    .unwrap();
+    let review = crate::payload::prepare(&report, &labels).unwrap();
+    let public: serde_json::Value = serde_json::from_str(&review.public_json).unwrap();
+    let private: serde_json::Value = serde_json::from_str(&review.private_json).unwrap();
+    assert_eq!(public["camera"]["model"], "A329T");
+    assert_eq!(public["camera"]["firmware"], "V2.2_260815");
+    assert_eq!(public["camera"]["channel_setup"], "front");
+    assert_eq!(private["training"]["channelSetup"], "front");
+    assert!(!review.public_json.contains("A329S"));
+}
+#[test]
 fn known_maximum_is_not_observed_count() {
     assert_eq!(
         result(
@@ -86,7 +116,7 @@ fn known_maximum_is_not_observed_count() {
     );
 }
 #[test]
-fn known_four_roles_and_photos_outside_private_video_samples() {
+fn photo_roles_do_not_add_recording_channels_outside_private_video_samples() {
     let mut report = scan(&[
         ("DCIM/Movie/2030_0101_120000_000001F.MP4", b"video"),
         ("DCIM/Photo/2030_0101_120000_000001R.JPG", b"photo"),
@@ -95,7 +125,7 @@ fn known_four_roles_and_photos_outside_private_video_samples() {
     ]);
     assert_eq!(
         observed_channels(&report, Some("viofo-t340")).count,
-        Some(4)
+        Some(1)
     );
     // All available anonymous finite evidence still works after private samples
     // are exhausted, independent of sample order and metadata availability.
@@ -103,7 +133,7 @@ fn known_four_roles_and_photos_outside_private_video_samples() {
         folder.samples.clear();
     }
     let r = observed_channels(&report, Some("viofo-t340"));
-    assert_eq!(r.roles, ["front", "rear", "interior", "telephoto"]);
+    assert_eq!(r.roles, ["front"]);
     let text = serde_json::to_string(&r).unwrap();
     assert!(!text.contains("DCIM") && !text.contains("2030") && !text.contains("localName"));
     assert_eq!(
@@ -242,7 +272,7 @@ fn whole_card_evidence_survives_the_64_sample_budget() {
     assert!(report.sampled_files <= 64);
     assert_eq!(
         observed_channels(&report, Some("viofo-t340")).roles,
-        ["front", "rear", "telephoto"]
+        ["front", "rear"]
     );
 }
 #[test]
