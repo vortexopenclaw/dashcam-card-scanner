@@ -67,6 +67,21 @@ Official updater endpoint: `https://github.com/vortexopenclaw/dashcam-card-scann
 
 ### Exact-artifact native acceptance (operator notes)
 
+For the current version, after the complete `release.yml` build and inspection
+pass, dispatch **Exact draft native acceptance** (`native-release.yml`) on `main`
+with the exact draft `release_id` and 40-character build `source_sha`. It refuses
+published releases, wrong versions/sources, partial inventories and missing hashes.
+Its download-only broker snapshots the 13-asset inventory and authenticates all
+four updater signatures before sharing the exact bytes with isolated native jobs.
+Native probes preserve the existing OS trust controls and install/start/restart
+checks. This does not publish, and native acceptance does not replace real
+previous-version in-app update/relaunch acceptance. Retain the draft if either
+fails. No signing secret is supplied to this workflow; candidate execution has
+read-only repository permissions and a minimal environment.
+
+The separate historical lane below remains pinned to 0.1.8; do not use it as
+acceptance evidence for a newer release.
+
 For the specifically approved 0.1.8 candidate, dispatch **Approved draft release**
 on protected `main` with `native_candidate: true`. This mode skips draft creation,
 retargeting, rebuilding and signing. The main-only `scanner-release` environment
