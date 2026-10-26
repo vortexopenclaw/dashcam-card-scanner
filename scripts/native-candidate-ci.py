@@ -48,6 +48,13 @@ def verify(payload, sig, public):
     js="const c=require('crypto'),f=require('fs'),v=JSON.parse(f.readFileSync(process.argv[1]));const b=s=>Buffer.from(s,'base64'),k=c.createPublicKey({key:b(v.key),format:'der',type:'spki'});if(!c.verify(null,b(v.digest),k,b(v.sig))||!c.verify(null,b(v.commentData),k,b(v.commentSig)))process.exit(2);const t=b(v.digest);t[0]^=1;if(c.verify(null,t,k,b(v.sig)))process.exit(3);console.log('Pinned production ED signature + trusted comment PASS; tamper negative PASS');"
     run(['node','-e',js,str(f)]); R['signature']='PASS including trusted comment and tamper negative'
 
+def minimal_candidate_environment(environment):
+    keep={'PATH','HOME','USER','LOGNAME','TMPDIR','TMP','TEMP','SYSTEMROOT','SYSTEMDRIVE','WINDIR','COMSPEC','PATHEXT','USERPROFILE','APPDATA','LOCALAPPDATA','PROGRAMDATA','PROGRAMFILES','PROGRAMFILES(X86)','DISPLAY','XAUTHORITY','LANG','LC_ALL','SHELL','USERDOMAIN','USERNAME'}
+    # os.environ normalizes Windows names to uppercase. Preserve OS essentials,
+    # not Actions/runtime/repository credentials, regardless of original casing.
+    return {key:value for key,value in environment.items() if key.upper() in keep}
+
+
 def validate_manifest(manifest, version):
     assert manifest['version']==version, 'Manifest version mismatch'
     platforms=manifest['platforms']
@@ -104,9 +111,9 @@ try:
         # Never propagate the repository token into the candidate app.
         os.environ.pop('GITHUB_TOKEN',None)
         # Candidate subprocesses inherit only platform essentials, never Actions/runtime credentials.
-        keep={'PATH','HOME','USER','LOGNAME','TMPDIR','TMP','TEMP','SystemRoot','WINDIR','COMSPEC','PATHEXT','USERPROFILE','APPDATA','LOCALAPPDATA','PROGRAMDATA','PROGRAMFILES','PROGRAMFILES(X86)','DISPLAY','XAUTHORITY','LANG','LC_ALL','SHELL','USERDOMAIN','USERNAME'}
-        for key in list(os.environ):
-            if key not in keep: del os.environ[key]
+        candidate_environment=minimal_candidate_environment(os.environ)
+        os.environ.clear()
+        os.environ.update(candidate_environment)
         if mac:
             quarantine=f'0081;{int(time.time()):x};NativeCandidateCI;{uuid.uuid4()}'
             R['quarantine_provenance']='Representative downloaded-DMG quarantine explicitly ADDED, never cleared; not a real Safari download'
@@ -156,6 +163,12 @@ except Exception as ex:
     R['blocker']=f'{type(ex).__name__}: {ex}'; print('INCOMPLETE:',R['blocker'],flush=True)
     import traceback
     R['failure_trace']=traceback.format_exc()
+    # Preserve read-only failure evidence; never dismiss OS trust prompts or
+    # remove quarantine to turn a denied/timed-out native launch into a pass.
+    if not BROKER and platform.system()=='Darwin':
+        for args in [['screencapture','-x',str(E/'failure-screen.png')], ['swift','scripts/native-candidate-windows.swift',str(E/'failure-windows.json')]]:
+            try: run(args,False)
+            except Exception as diagnostic_error: R.setdefault('diagnostic_errors',[]).append(type(diagnostic_error).__name__)
 finally:
     (E/'report.json').write_text(json.dumps(R,indent=2))
     if not BROKER or 'blocker' in R: shutil.rmtree(D)
