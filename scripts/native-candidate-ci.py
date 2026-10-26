@@ -48,6 +48,21 @@ def verify(payload, sig, public):
     js="const c=require('crypto'),f=require('fs'),v=JSON.parse(f.readFileSync(process.argv[1]));const b=s=>Buffer.from(s,'base64'),k=c.createPublicKey({key:b(v.key),format:'der',type:'spki'});if(!c.verify(null,b(v.digest),k,b(v.sig))||!c.verify(null,b(v.commentData),k,b(v.commentSig)))process.exit(2);const t=b(v.digest);t[0]^=1;if(c.verify(null,t,k,b(v.sig)))process.exit(3);console.log('Pinned production ED signature + trusted comment PASS; tamper negative PASS');"
     run(['node','-e',js,str(f)]); R['signature']='PASS including trusted comment and tamper negative'
 
+def validate_manifest(manifest, version):
+    assert manifest['version']==version, 'Manifest version mismatch'
+    platforms=manifest['platforms']
+    canonical={'darwin-aarch64':'Mac-Apple-Silicon-Update.app.tar.gz', 'darwin-x86_64':'Mac-Intel-Update.app.tar.gz', 'windows-x86_64':'Windows-x64.exe', 'linux-x86_64':'Linux-x64.AppImage'}
+    aliases={'darwin-aarch64-app':'darwin-aarch64', 'darwin-x86_64-app':'darwin-x86_64', 'windows-x86_64-nsis':'windows-x86_64', 'linux-x86_64-appimage':'linux-x86_64'}
+    assert set(canonical)<=set(platforms), 'Missing required updater platform'
+    assert set(platforms)<=set(canonical)|set(aliases)|{'linux-x86_64-deb'}, 'Unknown updater platform'
+    for alias, base in aliases.items():
+        if alias in platforms: assert platforms[alias]==platforms[base], 'Updater alias differs from canonical platform'
+    expected={**canonical, 'linux-x86_64-deb':'Linux-Debian-Ubuntu-x64.deb'}
+    for key, suffix in expected.items():
+        if key in platforms:
+            assert platforms[key]['url']==f'https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v{version}/Dashcam-Card-Scanner-{version}-{suffix}', 'Unexpected platform package URL'
+    return [platforms[key] for key in canonical]
+
 try:
     if BROKER:
         release=api('releases/'+str(PIN['id']))
@@ -61,9 +76,12 @@ try:
     staged={name:a for name,a in assets.items() if not name.endswith(('.deb','.deb.sig'))}
     for a in (assets if BROKER else staged).values(): fetch(a)
     manifest=json.loads((D/'latest.json').read_text())
-    assert manifest['version']==VERSION
-    assert set(manifest['platforms'])=={'darwin-aarch64','darwin-x86_64','windows-x86_64','linux-x86_64'}
-    for entry in manifest['platforms'].values():
+    entries=validate_manifest(manifest,VERSION)
+    # Tauri emits package-specific aliases plus Debian metadata. Authenticate the
+    # Debian signature in the broker, but never promote it as an AppImage update.
+    if BROKER and 'linux-x86_64-deb' in manifest['platforms']:
+        entries.append(manifest['platforms']['linux-x86_64-deb'])
+    for entry in entries:
         name=entry['url'].split('/')[-1]
         assert entry['url']==f'https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v{VERSION}/'+name
         assert entry['signature'].strip()==(D/(name+'.sig')).read_text().strip()
@@ -74,7 +92,7 @@ try:
         assert {p.name for p in D.iterdir()}==set(assets), 'Only pinned public release bytes permitted in artifact'
         for name in set(assets)-set(staged): (D/name).unlink()
         (D/'candidate-receipt.json').write_text(json.dumps({'source':R['source'],'release_id':PIN['id'],'assets':R['assets']},indent=2))
-        R['acceptance']='Download-only broker: 13 hashes + 4 pinned signatures/comments/tamper controls PASS; no candidate execution'
+        R['acceptance']=f'Download-only broker: 13 hashes + {len(entries)} pinned signatures/comments/tamper controls PASS; no candidate execution'
     else:
         system=platform.system(); mac=system=='Darwin'
         stem=f'Dashcam-Card-Scanner-{VERSION}-'
@@ -135,7 +153,9 @@ try:
             run(['xvfb-run','-a','bash',str(script),str(payload),str(E)])
             R['acceptance']='Native window on fresh start and restart PASS; version from signed payload/source'
 except Exception as ex:
-    R['blocker']=str(ex); print('INCOMPLETE:',ex,flush=True)
+    R['blocker']=f'{type(ex).__name__}: {ex}'; print('INCOMPLETE:',R['blocker'],flush=True)
+    import traceback
+    R['failure_trace']=traceback.format_exc()
 finally:
     (E/'report.json').write_text(json.dumps(R,indent=2))
     if not BROKER or 'blocker' in R: shutil.rmtree(D)
