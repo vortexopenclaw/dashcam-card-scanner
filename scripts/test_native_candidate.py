@@ -38,6 +38,12 @@ class BoundaryTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_minimal_environment_preserves_case_insensitive_windows_essentials_only(self):
+        for name in ('SystemRoot','SYSTEMROOT','systemroot'):
+            environment={name:'synthetic-windows-root','SystemDrive':'synthetic-drive','PATH':'synthetic-path','GITHUB_TOKEN':'synthetic-not-a-secret','ACTIONS_RUNTIME_TOKEN':'synthetic-not-a-secret','TAURI_SIGNING_PRIVATE_KEY':'synthetic-not-a-secret','SCANNER_NATIVE_PIN':'synthetic-pin'}
+            filtered=self.ns['minimal_candidate_environment'](environment)
+            self.assertEqual(filtered,{name:'synthetic-windows-root','SystemDrive':'synthetic-drive','PATH':'synthetic-path'})
+
     def test_manifest_package_aliases_are_exact_and_fail_closed(self):
         import copy
         version='0.1.9'
