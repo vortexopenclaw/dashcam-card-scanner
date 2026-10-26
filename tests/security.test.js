@@ -10,7 +10,7 @@ test('renderer has no fetch, HTML interpolation, filesystem, shell or updater au
  const c=JSON.parse(read('src-tauri/tauri.conf.json'));expect(c.app.security.csp).toContain('connect-src ipc: http://ipc.localhost');expect(c.app.security.csp).not.toContain('https:');expect(c.app.security.csp).not.toContain('unsafe-inline');
 });
 test('release is manual, main-only, environment-gated; no PR privileged entry point',()=>{
- const y=read('.github/workflows/release.yml');expect(y).toContain('workflow_dispatch:');expect(y).toContain("github.ref == 'refs/heads/main'");expect(y).toContain('environment: scanner-release');expect(y).toContain('required_reviewers');expect(y).not.toContain('pull_request_target');expect(y).not.toMatch(/\bon:\s*\[.*pull_request/);expect(y).toContain('releaseDraft: true');
+ const y=read('.github/workflows/release.yml');expect(y).toContain('workflow_dispatch:');expect(y).toContain("github.ref == 'refs/heads/main'");expect(y).toContain('environment: scanner-release');expect(y).toContain('node scripts/check-release-environment.mjs');expect(y).not.toContain('Required environment reviewers must be configured');expect(y).not.toContain('pull_request_target');expect(y).not.toMatch(/\bon:\s*\[.*pull_request/);expect(y).toContain('releaseDraft: true');
  const v=read('.github/workflows/verify.yml');expect(v).not.toContain('secrets.');
 });
 test('review build cannot pass release key preflight',()=>{
