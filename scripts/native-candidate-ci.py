@@ -4,8 +4,10 @@ E = pathlib.Path('native-evidence').resolve(); E.mkdir(exist_ok=True)
 BROKER = '--broker' in sys.argv
 D = pathlib.Path('candidate-bundle').resolve() if BROKER else pathlib.Path(os.environ['RUNNER_TEMP']) / 'exact-scanner'
 D.mkdir(exist_ok=True)
-PIN = json.loads(pathlib.Path('scripts/native-candidate-pin.json').read_text())
-R = {'source':'afc679f96bc5fedca522e7db5e5155a12e5d0537','runner':platform.platform(),'arch':platform.machine(),'assets':[], 'commands':[], 'update':'STRUCTURALLY BLOCKED: fixed production latest 0.1.7; no supported staging override', 'acceptance':'INCOMPLETE'}
+PIN = json.loads(pathlib.Path(os.environ.get('SCANNER_NATIVE_PIN', 'scripts/native-candidate-pin.json')).read_text())
+VERSION = PIN.get('version', '0.1.8')
+SOURCE = PIN['target_commitish']
+R = {'source':SOURCE,'runner':platform.platform(),'arch':platform.machine(),'assets':[], 'commands':[], 'update':'STRUCTURALLY BLOCKED: fixed production latest 0.1.7; no supported staging override', 'acceptance':'INCOMPLETE'}
 def run(args, check=True):
     p = subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120)
     R['commands'].append({'args':args,'exit':p.returncode,'output':p.stdout}); print(p.stdout, flush=True)
@@ -48,7 +50,7 @@ def verify(payload, sig, public):
 
 try:
     if BROKER:
-        release=api('releases/419929169')
+        release=api('releases/'+str(PIN['id']))
         assert all(release[k] == PIN[k] for k in ('id','draft','tag_name','target_commitish'))
         observed=[{k:a[k] for k in ('id','name','digest','size')} for a in release['assets']]
         assert sorted(observed,key=lambda a:a['id']) == sorted(PIN['assets'],key=lambda a:a['id'])
@@ -59,11 +61,11 @@ try:
     staged={name:a for name,a in assets.items() if not name.endswith(('.deb','.deb.sig'))}
     for a in (assets if BROKER else staged).values(): fetch(a)
     manifest=json.loads((D/'latest.json').read_text())
-    assert manifest['version']=='0.1.8'
+    assert manifest['version']==VERSION
     assert set(manifest['platforms'])=={'darwin-aarch64','darwin-x86_64','windows-x86_64','linux-x86_64'}
     for entry in manifest['platforms'].values():
         name=entry['url'].split('/')[-1]
-        assert entry['url']=='https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v0.1.8/'+name
+        assert entry['url']==f'https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v{VERSION}/'+name
         assert entry['signature'].strip()==(D/(name+'.sig')).read_text().strip()
         verify(D/name,D/(name+'.sig'),public)
     if BROKER:
@@ -75,7 +77,7 @@ try:
         R['acceptance']='Download-only broker: 13 hashes + 4 pinned signatures/comments/tamper controls PASS; no candidate execution'
     else:
         system=platform.system(); mac=system=='Darwin'
-        stem='Dashcam-Card-Scanner-0.1.8-'
+        stem=f'Dashcam-Card-Scanner-{VERSION}-'
         suffix=('Mac-Apple-Silicon' if platform.machine()=='arm64' else 'Mac-Intel')+'-Update.app.tar.gz' if mac else ('Windows-x64.exe' if system=='Windows' else 'Linux-x64.AppImage')
         payload=fetch(assets[stem+suffix]); sig=fetch(assets[stem+suffix+'.sig'])
         verify(payload,sig,public)
@@ -107,7 +109,7 @@ try:
                 run(['spctl','--assess','--type','execute','--verbose=4',str(installed)],False)
                 run(['xattr','-w','com.apple.quarantine',quarantine,str(installed)])
                 run(['xattr','-l',str(installed)])
-                run(['/usr/libexec/PlistBuddy','-c','Print :CFBundleShortVersionString',str(installed/'Contents/Info.plist')])
+                assert run(['/usr/libexec/PlistBuddy','-c','Print :CFBundleShortVersionString',str(installed/'Contents/Info.plist')]).stdout.strip()==VERSION, 'Installed version mismatch'
                 for attempt in (1,2):
                     run(['open',str(installed)])
                     time.sleep(10)
@@ -124,7 +126,7 @@ try:
                 run(['hdiutil','detach',str(mount)],False)
         elif system=='Windows':
             script=pathlib.Path('scripts/native-candidate-windows.ps1').resolve()
-            run(['powershell','-NoProfile','-File',str(script),str(payload),str(D),str(E)])
+            run(['powershell','-NoProfile','-File',str(script),str(payload),str(D),str(E),VERSION])
             R['acceptance']='See Windows evidence; UI verification required'
         else:
             payload.chmod(0o755)

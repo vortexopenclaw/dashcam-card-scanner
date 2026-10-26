@@ -1,4 +1,4 @@
-param([string]$Installer,[string]$Stage,[string]$Evidence)
+param([string]$Installer,[string]$Stage,[string]$Evidence,[string]$ExpectedVersion='0.1.8')
 $ErrorActionPreference='Stop'
 $dest=Join-Path $Stage 'installed'
 Get-AuthenticodeSignature $Installer | Format-List Status,StatusMessage,SignerCertificate | Out-File "$Evidence/authenticode.txt"
@@ -10,7 +10,7 @@ if ($p.ExitCode -ne 0) { throw "Installer denied/failed: $($p.ExitCode)" }
 $exe=Get-ChildItem $dest -Recurse -Filter '*.exe' | Where-Object { $_.Name -notmatch 'uninstall|unins|webview' } | Select-Object -First 1
 if (!$exe) { throw 'Installed candidate exe not found' }
 $exe.VersionInfo | Format-List FileVersion,ProductVersion,ProductName | Out-File "$Evidence/version.txt"
-if ($exe.VersionInfo.ProductVersion -notmatch '^0\.1\.8') { throw 'Installed version mismatch' }
+if ($exe.VersionInfo.ProductVersion -ne $ExpectedVersion) { throw 'Installed version mismatch' }
 Get-FileHash $exe.FullName -Algorithm SHA256 | Format-List | Out-File "$Evidence/installed-sha256.txt"
 Add-Type -AssemblyName UIAutomationClient
 Add-Type -AssemblyName System.Windows.Forms

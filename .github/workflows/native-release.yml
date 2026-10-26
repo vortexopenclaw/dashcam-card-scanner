@@ -1,0 +1,95 @@
+name: Exact draft native acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      release_id:
+        description: 'Inspected complete draft release ID (download only)'
+        type: string
+        required: true
+      source_sha:
+        description: 'Exact 40-character draft build source SHA'
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  broker:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    environment: scanner-release
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { persist-credentials: false }
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with: { node-version: '24' }
+      - name: Verify main-only environment and complete inspected draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ inputs.release_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          node scripts/check-release-environment.mjs
+          node scripts/release-preflight.mjs
+          node scripts/check-draft.mjs
+          python3 scripts/pin-native-release.py
+      - name: Download and authenticate exact candidate; never execute or publish
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SCANNER_NATIVE_PIN: current-native-pin.json
+        run: |
+          python3 scripts/native-candidate-ci.py --broker
+          cp current-native-pin.json candidate-bundle/current-native-pin.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: verified-current-draft
+          path: candidate-bundle/
+          if-no-files-found: error
+          retention-days: 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: current-broker-evidence
+          path: native-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove broker staging
+        if: always()
+        run: rm -rf candidate-bundle current-native-pin.json
+  native:
+    needs: broker
+    permissions: { contents: read }
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, macos-15-intel, windows-2022, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: { persist-credentials: false }
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: verified-current-draft
+          path: candidate-bundle/
+      - name: Normal Linux desktop dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0 libayatana-appindicator3-1 libfuse2 xvfb xdotool x11-utils imagemagick
+      - name: Reverify pinned signatures and exercise normal native install/start/restart
+        shell: bash
+        env:
+          SCANNER_NATIVE_PIN: candidate-bundle/current-native-pin.json
+        run: python3 scripts/native-candidate-ci.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: current-native-${{ matrix.os }}
+          path: native-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove native staging
+        if: always()
+        shell: bash
+        run: rm -rf candidate-bundle
