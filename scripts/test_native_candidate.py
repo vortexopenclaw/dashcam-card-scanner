@@ -38,6 +38,27 @@ class BoundaryTests(unittest.TestCase):
             finally:
                 os.chdir(cwd)
 
+    def test_manifest_package_aliases_are_exact_and_fail_closed(self):
+        import copy
+        version='0.1.9'
+        names={'darwin-aarch64':'Mac-Apple-Silicon-Update.app.tar.gz','darwin-x86_64':'Mac-Intel-Update.app.tar.gz','windows-x86_64':'Windows-x64.exe','linux-x86_64':'Linux-x64.AppImage'}
+        manifest={'version':version,'platforms':{k:{'url':f'https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v{version}/Dashcam-Card-Scanner-{version}-{suffix}','signature':'synthetic'} for k,suffix in names.items()}}
+        validate=self.ns['validate_manifest']
+        self.assertEqual(len(validate(manifest,version)),4)
+        for alias,base in {'darwin-aarch64-app':'darwin-aarch64','darwin-x86_64-app':'darwin-x86_64','windows-x86_64-nsis':'windows-x86_64','linux-x86_64-appimage':'linux-x86_64'}.items():
+            manifest['platforms'][alias]=copy.deepcopy(manifest['platforms'][base])
+        manifest['platforms']['linux-x86_64-deb']={'url':f'https://github.com/vortexopenclaw/dashcam-card-scanner/releases/download/v{version}/Dashcam-Card-Scanner-{version}-Linux-Debian-Ubuntu-x64.deb','signature':'synthetic'}
+        self.assertEqual(len(manifest['platforms']),9)
+        self.assertEqual(len(validate(manifest,version)),4)
+        invalid=[]
+        bad=copy.deepcopy(manifest);del bad['platforms']['linux-x86_64'];invalid.append(bad)
+        bad=copy.deepcopy(manifest);bad['platforms']['unknown']={};invalid.append(bad)
+        bad=copy.deepcopy(manifest);bad['platforms']['windows-x86_64-nsis']['signature']='mismatched';invalid.append(bad)
+        bad=copy.deepcopy(manifest);bad['platforms']['linux-x86_64']['url']=bad['platforms']['linux-x86_64-deb']['url'];bad['platforms']['linux-x86_64-appimage']=bad['platforms']['linux-x86_64'];invalid.append(bad)
+        bad=copy.deepcopy(manifest);bad['version']='0.1.8';invalid.append(bad)
+        for bad in invalid:
+            with self.assertRaises(AssertionError): validate(bad,version)
+
     def test_broker_only_get_api(self):
         source=pathlib.Path(__file__).with_name('native-candidate-ci.py').read_text()
         self.assertNotIn('method=',source)

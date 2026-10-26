@@ -72,7 +72,11 @@ pass, dispatch **Exact draft native acceptance** (`native-release.yml`) on `main
 with the exact draft `release_id` and 40-character build `source_sha`. It refuses
 published releases, wrong versions/sources, partial inventories and missing hashes.
 Its download-only broker snapshots the 13-asset inventory and authenticates all
-four updater signatures before sharing the exact bytes with isolated native jobs.
+four canonical updater signatures before sharing the exact bytes with isolated
+native jobs. Tauri package-specific aliases must exactly match their canonical
+platform entry; unknown keys or mismatched aliases fail closed. Debian metadata,
+when present, is authenticated by the broker but never used as the Linux AppImage
+update or staged for native execution.
 Native probes preserve the existing OS trust controls and install/start/restart
 checks. This does not publish, and native acceptance does not replace real
 previous-version in-app update/relaunch acceptance. Retain the draft if either
