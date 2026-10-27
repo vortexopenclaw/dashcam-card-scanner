@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: AGPL-3.0-only -->
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Synthetic scanner rendering fixture</title>
+<style>.fixture-notice{position:relative;z-index:2;margin:0;padding:6px 16px;background:#ffe3a6;color:#3d2c00;font:12px system-ui;text-align:center}.fixture-notice+main .sidebar{top:28px}</style>
+<p class="fixture-notice">SYNTHETIC BRIDGE FIXTURE · No real card, network submission or native operations</p><main id="app"></main>
+<script type="module">
+import {mount} from '/src/ui.ts';
+import '/src/style.css';
+const report={scannedFiles:12,entriesSeen:14,skipped:0,sampledFiles:2,probeAttempts:2,probeFailures:0,limited:false,cancelled:false,folders:[{path:'Movie',fileCount:12,videos:[]}],cameraRecognition:{manufacturer:'Viofo',model:'A229 Pro',channelCount:2,channelSetup:'front + rear',reason:'Synthetic fixture: model-specific card evidence.'},reviewSamples:[{index:0,folderIndex:0,folder:'Movie',filenameTemplate:'FRONT.MP4',roleHint:'front',modeHint:'normal',video:{codec:'h264',width:2560,height:1440,nominalFrameRate:30,videoBitrate:20000000,durationSeconds:60}}]};
+const calls=[];let pendingScan=null;let delayScan=false;let outcome='success';let recognized=true;
+const bridge={listen:async()=>()=>{},invoke:async(cmd,args)=>{
+ calls.push({cmd,args});
+ switch(cmd){
+  case 'discover_cards':return [];
+  case 'app_version':return 'Synthetic fixture';
+  case 'check_update':return null;
+  case 'camera_catalog':return [{id:'synthetic-viofo-a229-pro',...report.cameraRecognition}];
+  case 'choose_source':return '/Synthetic card (not a mounted volume)';
+  case 'scan_source':if(delayScan)await new Promise(resolve=>pendingScan=resolve);return {...report,cameraRecognition:recognized?report.cameraRecognition:undefined};
+  case 'cancel_scan':pendingScan?.();return null;
+  case 'prepare_review':return {token:'synthetic-only',publicJson:'{}',privateJson:'{}',submissionJson:'{}',payloadHash:'a'.repeat(64),warning:'Synthetic fixture only.'};
+  case 'submit_review':if(outcome==='error')throw Error('offline');return 'a'.repeat(64);
+  case 'export_review':return false;
+  default:throw Error('Unexpected synthetic command: '+cmd);
+ }
+}};
+window.fixture={ui:mount(document.querySelector('#app'),bridge),calls,setDelay:value=>delayScan=value,finishScan:()=>pendingScan?.(),setOutcome:value=>outcome=value,setRecognized:value=>recognized=value};
+</script></html>
