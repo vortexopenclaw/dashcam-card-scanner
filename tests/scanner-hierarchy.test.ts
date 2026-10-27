@@ -39,6 +39,22 @@ test('all ordinary controls are grouped without losing input identity; help is o
 test.each(['cancelled','empty'])('%s scans keep choosing a card primary and cannot submit',async(kind)=>{
  const {ui,setReport}=setup();setReport({scannedFiles:kind==='empty'?0:2,cancelled:kind==='cancelled',folders:[],probeAttempts:0,probeFailures:0,skipped:0,sampledFiles:0});ui.select.click();await settle();expect(ui.select.classList.contains('primary')).toBe(true);expect(ui.submit.disabled).toBe(true);
 });
+test.each([
+ {limited:true},
+ {limited:false,inventoryComplete:false},
+])('incomplete inventory %j blocks submission but keeps preview and local exports',async(coverage)=>{
+ const {root,ui,invoke,setReport}=setup();setReport({scannedFiles:2,folders:[{path:'Movie',fileCount:2,videos:[]}],probeAttempts:1,probeFailures:0,skipped:0,sampledFiles:1,cancelled:false,...coverage});
+ ui.select.click();await settle();expect(ui.submit.disabled).toBe(true);expect(ui.prepare.disabled).toBe(false);
+ expect(root.querySelector('.task-hint')?.textContent).toContain('Rescan to try again');expect(root.querySelector('.task-hint')?.textContent).toContain('export your report locally');
+ ui.submit.click();expect(invoke.mock.calls.filter(c=>c[0]==='submit_review')).toHaveLength(0);
+ ui.prepare.click();await settle();expect(ui.reviewPanel.hidden).toBe(false);
+ const exports=[...root.querySelectorAll('button')].filter(b=>b.textContent?.startsWith('Save '));expect(exports).toHaveLength(2);expect(exports.every(b=>!b.disabled)).toBe(true);
+ exports[0].click();await settle();expect(invoke).toHaveBeenCalledWith('export_review',{token:'synthetic',kind:'public'});
+});
+test.each([true,false])('complete inventory with metadata complete=%s and limited representative sampling can submit',async(complete)=>{
+ const {root,ui,setReport}=setup();setReport({scannedFiles:2,folders:[{path:'Movie',fileCount:2,videos:[]}],probeAttempts:1,probeFailures:complete?0:1,skipped:0,sampledFiles:1,cancelled:false,limited:false,inventoryComplete:true,metadataCoverage:{recognizedFiles:2,inspectedFiles:2,measuredFiles:complete?2:1,unsupportedFiles:0,complete,representativeSamplesLimited:true}});
+ ui.select.click();await settle();expect(ui.submit.disabled).toBe(false);expect(root.querySelector('.task-hint')?.textContent).toContain('then submit');
+});
 test('layout disclosures and Settings preserve Other drafts and explicit mixed setup mode',async()=>{
  const {root,ui,invoke}=setup();ui.select.click();await settle();change(ui.choices.quality,'other');const custom=ui.choices.quality.parentElement!.querySelector('input')!;custom.value='Owner quality';custom.dispatchEvent(new Event('input',{bubbles:true}));
  const help=root.querySelector<HTMLDetailsElement>('.context-help')!;help.open=true;ui.settingsButton.click();await settle();ui.theme.value='dark';ui.theme.dispatchEvent(new Event('change'));ui.scannerButton.click();

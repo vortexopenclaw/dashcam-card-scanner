@@ -5,6 +5,7 @@ Start `npm run dev -- --port 4177 --strictPort`, then run this with Playwright,
 Pillow and Chrome installed: python3 tests/browser/verify-scanner.py OUTPUT_DIRECTORY.
 """
 import json
+import hashlib
 import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -12,6 +13,7 @@ from playwright.sync_api import sync_playwright
 out = Path(sys.argv[1]).resolve()
 out.mkdir(parents=True, exist_ok=True)
 results = []
+regressions = []
 def capture(page, name):
     # Capture in a tall viewport: Chrome's beyond-viewport tiling can repeat
     # composited content after a resize. Width stays fixed; below-fold content
@@ -95,6 +97,12 @@ with sync_playwright() as p:
             assert page.evaluate('fixture.ui.select.disabled && fixture.ui.submit.disabled && !fixture.ui.cancel.disabled')
             if platform == 'macos':
                 capture(page, f'{platform}-{theme}-busy.png')
+            page.evaluate('fixture.ui.cancel.click()')
+            page.wait_for_function('fixture.ui.cancel.hidden && !fixture.ui.select.disabled')
+            assert page.evaluate('fixture.ui.submit.disabled && fixture.ui.prepare.disabled && fixture.ui.scanLoading.hidden')
+            assert 'Scan cancelled' in page.evaluate('fixture.ui.status.textContent')
+            page.evaluate('fixture.ui.scan.click()')
+            page.wait_for_function('!fixture.ui.cancel.hidden')
             page.evaluate('fixture.finishScan();fixture.setDelay(false)')
             page.wait_for_function('!fixture.ui.submit.disabled')
             assert page.evaluate('fixture.ui.cancel.hidden && fixture.ui.fields.firmware.value==="Synthetic owner draft"')
@@ -112,6 +120,39 @@ with sync_playwright() as p:
             before = page.evaluate('fixture.calls.filter(c=>c.cmd==="submit_review").length')
             page.evaluate('fixture.ui.submit.click();fixture.ui.settingsButton.click();fixture.ui.scannerButton.click();fixture.ui.submit.click()')
             assert page.evaluate('fixture.calls.filter(c=>c.cmd==="submit_review").length') == before
+            # Exact synthetic bytes determine SHA-256, token and receipt; edits send again.
+            original_payload = page.evaluate('fixture.ui.privateView.textContent')
+            original_hash = hashlib.sha256(original_payload.encode()).hexdigest()
+            assert page.evaluate('fixture.calls.filter(c=>c.cmd==="submit_review").at(-1).args.token') == 'synthetic-' + original_hash
+            page.evaluate('fixture.ui.prepare.click()')
+            page.wait_for_function('!fixture.ui.prepare.disabled')
+            assert page.evaluate('fixture.ui.privateView.textContent') == original_payload
+            assert original_hash in page.evaluate('fixture.ui.technical.textContent')
+            page.evaluate('fixture.ui.fields.firmware.value="Changed synthetic draft";fixture.ui.fields.firmware.dispatchEvent(new Event("input",{bubbles:true}));fixture.ui.submit.click()')
+            page.wait_for_function('fixture.ui.submit.textContent==="Submitted ✓"')
+            assert page.evaluate('fixture.calls.filter(c=>c.cmd==="submit_review").length') == before + 1
+            changed_payload = page.evaluate('fixture.ui.privateView.textContent')
+            changed_hash = hashlib.sha256(changed_payload.encode()).hexdigest()
+            assert changed_hash != original_hash
+            assert page.evaluate('fixture.calls.filter(c=>c.cmd==="submit_review").at(-1).args.token') == 'synthetic-' + changed_hash
+            page.evaluate('fixture.ui.fields.firmware.value="Synthetic owner draft";fixture.ui.fields.firmware.dispatchEvent(new Event("input",{bubbles:true}));fixture.ui.submit.click();fixture.ui.prepare.click()')
+            page.wait_for_function('!fixture.ui.prepare.disabled')
+            assert page.evaluate('fixture.ui.submit.disabled && fixture.ui.privateView.textContent') == original_payload
+            assert original_hash in page.evaluate('fixture.ui.technical.textContent')
+            assert page.evaluate('fixture.calls.filter(c=>c.cmd==="submit_review").length') == before + 1
+            # Structural incompleteness blocks only submission, not local inspection/export.
+            page.evaluate('fixture.setCoverage({limited:true,inventoryComplete:false});fixture.ui.scan.click()')
+            page.wait_for_function('!fixture.ui.prepare.disabled')
+            assert page.evaluate('fixture.ui.submit.disabled')
+            assert 'export your report locally' in page.locator('.task-hint').inner_text()
+            page.evaluate('fixture.ui.prepare.click()')
+            page.wait_for_function('!fixture.ui.prepare.disabled')
+            assert page.evaluate('!fixture.ui.reviewPanel.hidden && [...fixture.ui.more.querySelectorAll("button")].filter(b=>b.textContent.startsWith("Save ")).every(b=>!b.disabled)')
+            if platform == 'macos':
+                capture(page, f'{platform}-{theme}-incomplete.png')
+            page.evaluate('fixture.setCoverage({limited:false,inventoryComplete:true,metadataCoverage:{recognizedFiles:12,inspectedFiles:12,measuredFiles:11,unsupportedFiles:0,complete:false,representativeSamplesLimited:true}});fixture.ui.scan.click()')
+            page.wait_for_function('!fixture.ui.submit.disabled')
+            assert 'then submit' in page.locator('.task-hint').inner_text()
             # Mixed setup preserves its mode; source replacement restores unknown ordinary fields.
             page.evaluate('fixture.ui.addGroup.click()')
             assert page.locator('.camera-settings').is_hidden()
@@ -119,9 +160,12 @@ with sync_playwright() as p:
             page.wait_for_function('!fixture.ui.submit.disabled')
             assert page.evaluate('fixture.ui.fields.model.value==="" && fixture.ui.choices.channelCount.value==="Select count" && fixture.ui.groupForms.children.length===0')
             assert not errors, errors
+            regressions.append({'platform': platform, 'theme': theme, 'cancelledScan': 'passed', 'incompleteInventoryLocalPreviewAndExport': 'passed', 'metadataSamplingStillSubmittable': 'passed', 'exactPayloadSha256AndReceipt': 'passed', 'changedReportSent': 'passed', 'unchangedAndRestoredReportDeduplicated': 'passed', 'originalHash': original_hash, 'changedHash': changed_hash})
             page.close()
     browser.close()
 (out / 'browser-verification.json').write_text(json.dumps(results, indent=2))
+(out / 'review-regressions.json').write_text(json.dumps(regressions, indent=2))
 print(f'PASS: {len(results)} responsive/theme/platform combinations; actual mount, local synthetic bridge only.')
 print('PASS: hierarchy, equal navigation, focus, no horizontal overflow, help/draft retention, busy controls, mixed mode, unknown replacement, explicit consent, receipt and dedupe.')
+print(f'PASS: {len(regressions)} platform/theme regression runs: cancellation, incomplete inventory/local exports, metadata sampling, exact SHA-256/token/receipt, edited submission and unchanged/restored dedupe.')
 print(f'Screenshots and computed layout results: {out}')

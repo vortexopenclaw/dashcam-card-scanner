@@ -7,7 +7,7 @@
 import {mount} from '/src/ui.ts';
 import '/src/style.css';
 const report={scannedFiles:12,entriesSeen:14,skipped:0,sampledFiles:2,probeAttempts:2,probeFailures:0,limited:false,cancelled:false,folders:[{path:'Movie',fileCount:12,videos:[]}],cameraRecognition:{manufacturer:'Viofo',model:'A229 Pro',channelCount:2,channelSetup:'front + rear',reason:'Synthetic fixture: model-specific card evidence.'},reviewSamples:[{index:0,folderIndex:0,folder:'Movie',filenameTemplate:'FRONT.MP4',roleHint:'front',modeHint:'normal',video:{codec:'h264',width:2560,height:1440,nominalFrameRate:30,videoBitrate:20000000,durationSeconds:60}}]};
-const calls=[];let pendingScan=null;let delayScan=false;let outcome='success';let recognized=true;
+const calls=[];const preparedHashes=new Map();let pendingScan=null;let delayScan=false;let outcome='success';let recognized=true;
 const bridge={listen:async()=>()=>{},invoke:async(cmd,args)=>{
  calls.push({cmd,args});
  switch(cmd){
@@ -16,13 +16,19 @@ const bridge={listen:async()=>()=>{},invoke:async(cmd,args)=>{
   case 'check_update':return null;
   case 'camera_catalog':return [{id:'synthetic-viofo-a229-pro',...report.cameraRecognition}];
   case 'choose_source':return '/Synthetic card (not a mounted volume)';
-  case 'scan_source':if(delayScan)await new Promise(resolve=>pendingScan=resolve);return {...report,cameraRecognition:recognized?report.cameraRecognition:undefined};
-  case 'cancel_scan':pendingScan?.();return null;
-  case 'prepare_review':return {token:'synthetic-only',publicJson:'{}',privateJson:'{}',submissionJson:'{}',payloadHash:'a'.repeat(64),warning:'Synthetic fixture only.'};
-  case 'submit_review':if(outcome==='error')throw Error('offline');return 'a'.repeat(64);
+  case 'scan_source':{const cancelled=delayScan?await new Promise(resolve=>pendingScan=resolve):false;pendingScan=null;return {...report,cancelled,cameraRecognition:recognized?report.cameraRecognition:undefined};}
+  case 'cancel_scan':pendingScan?.(true);return null;
+  case 'prepare_review':{
+   const submissionJson=JSON.stringify({report,...args});
+   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(submissionJson));
+   const payloadHash=Array.from(new Uint8Array(digest),byte=>byte.toString(16).padStart(2,'0')).join('');
+   const token='synthetic-'+payloadHash;preparedHashes.set(token,payloadHash);
+   return {token,publicJson:'{}',privateJson:submissionJson,submissionJson,payloadHash,warning:'Synthetic fixture only.'};
+  }
+  case 'submit_review':if(outcome==='error')throw Error('offline');if(!preparedHashes.has(args.token))throw Error('Unknown synthetic token');return preparedHashes.get(args.token);
   case 'export_review':return false;
   default:throw Error('Unexpected synthetic command: '+cmd);
  }
 }};
-window.fixture={ui:mount(document.querySelector('#app'),bridge),calls,setDelay:value=>delayScan=value,finishScan:()=>pendingScan?.(),setOutcome:value=>outcome=value,setRecognized:value=>recognized=value};
+window.fixture={ui:mount(document.querySelector('#app'),bridge),calls,setDelay:value=>delayScan=value,finishScan:()=>pendingScan?.(false),setCoverage:value=>Object.assign(report,value),setOutcome:value=>outcome=value,setRecognized:value=>recognized=value};
 </script></html>
