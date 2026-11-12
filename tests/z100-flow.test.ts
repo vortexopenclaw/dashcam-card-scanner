@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import {beforeAll,afterAll,expect,test,vi} from 'vitest';
 import {execFileSync} from 'node:child_process';
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync,readFileSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync,readFileSync,realpathSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {mount,type Bridge} from '../src/ui';
@@ -11,7 +11,8 @@ let scratch:string;let native:any;
 const settle=()=>new Promise(resolve=>setTimeout(resolve,0));
 const change=(e:HTMLSelectElement,value:string)=>{e.value=value;e.dispatchEvent(new Event('change',{bubbles:true}));};
 beforeAll(()=>{
- scratch=mkdtempSync(join(tmpdir(),'scanner-z100-flow-'));
+ // Resolve the OS temp alias in the test harness, not in the secure scanner.
+ scratch=realpathSync(mkdtempSync(join(tmpdir(),'scanner-z100-flow-')));
  for(const folder of ['front','inside','rear'])mkdirSync(join(scratch,'DCIM/200video',folder),{recursive:true});
  for(const folder of ['front','inside'])writeFileSync(join(scratch,'DCIM/200video',folder,'S_20300101120100_0001_0001.mp4'),'synthetic header-unavailable video');
  native=JSON.parse(execFileSync('cargo',['run','--quiet','--manifest-path','src-tauri/Cargo.toml','--example','scan_fixture','--',scratch,'--z100'],{encoding:'utf8',timeout:240000}));
