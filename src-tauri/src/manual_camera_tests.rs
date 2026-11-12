@@ -16,6 +16,9 @@ fn main_unit_flow_and_submission() {
         )
         .unwrap();
     }
+    // Resolve the harness's OS temp-directory alias (for example /var ->
+    // /private/var on macOS); production source-link rejection stays intact.
+    let root = root.canonicalize().unwrap();
     let report = crate::engine::scan(&root, &AtomicBool::new(false), |_| {}).unwrap();
     let (auto, camera) = crate::recognition::recognize(&root.join("Z100 Master"), &report);
     assert!(camera.is_none());
