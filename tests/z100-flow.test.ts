@@ -14,7 +14,7 @@ beforeAll(()=>{
  // Resolve the OS temp alias in the test harness, not in the secure scanner.
  scratch=realpathSync(mkdtempSync(join(tmpdir(),'scanner-z100-flow-')));
  for(const folder of ['front','inside','rear'])mkdirSync(join(scratch,'DCIM/200video',folder),{recursive:true});
- for(const folder of ['front','inside'])writeFileSync(join(scratch,'DCIM/200video',folder,'S_20300101120100_0001_0001.mp4'),'synthetic header-unavailable video');
+ for(const folder of ['front','inside','rear'])writeFileSync(join(scratch,'DCIM/200video',folder,'S_20300101120100_0001_0001.mp4'),'synthetic header-unavailable video');
  native=JSON.parse(execFileSync('cargo',['run','--quiet','--manifest-path','src-tauri/Cargo.toml','--example','scan_fixture','--',scratch,'--z100'],{encoding:'utf8',timeout:240000}));
 },240000);
 afterAll(()=>{if(scratch)rmSync(scratch,{recursive:true,force:true});});
@@ -27,17 +27,18 @@ test('actual native preview drives editable picker, observed channels, mode revi
  expect(ui.fields.model.value).toBe('');expect(ui.manufacturerPick.value).toBe('DDPAI');expect(ui.choices.channelCount.value).toBe('Select count');
  change(ui.manufacturerPick,'DDPAI');expect([...ui.modelPick.options].some(o=>o.value==='ddpai-z100-master-main')).toBe(true);
  change(ui.modelPick,'ddpai-z100-master-main');await settle();
- expect(root.textContent).toContain('Manually selected');expect(root.textContent).toContain('not a separately recording accessory');
- expect(ui.choices.channelCount.value).toBe('2');expect(ui.fields.channelSetup.value).toBe('front + telephoto');
+ expect(root.textContent).toContain('Manually selected');expect(root.textContent).toContain('not a separately recording accessory');expect(root.textContent).toContain('3CH on this card');expect(root.textContent).toContain('4CH system');expect(root.textContent).toContain('Exact automatic recognition is unavailable');
+ expect(ui.choices.channelCount.value).toBe('3');expect(ui.fields.channelSetup.value).toBe('front + telephoto + rear');
  expect(ui.choices.parkingMode.value).toBe('unknown'); // per-file S_ evidence does not label the entire mixed card
  expect(root.querySelector<HTMLSelectElement>('select[data-frame-rate]')!.value).toBe('');
  ui.prepare.click();await settle();expect(ui.humanReview.textContent).toContain('time-lapse');expect(ui.humanReview.textContent).toContain('telephoto');
- ui.scan.click();await settle();expect(ui.choices.channelCount.value).toBe('2');
+ ui.scan.click();await settle();expect(ui.choices.channelCount.value).toBe('3');
+ change(ui.choices.channelCount,'4');ui.scan.click();await settle();expect(ui.choices.channelCount.value).toBe('4');
  ui.submit.click();await settle();expect(invoke.mock.calls.some(c=>c[0]==='submit_review')).toBe(true);
- const outgoing=invoke.mock.calls.filter(c=>c[0]==='prepare_review').at(-1)![1];expect(outgoing.labels).toMatchObject({manufacturer:'DDPAI',model:'Z100 Master - Main Unit',channelCount:2,timeLapseFps:null});
- change(ui.modelPick,'other');await settle();expect(ui.fields.channelSetup.value).toBe('');expect(ui.choices.channelCount.value).toBe('Select count');
- change(ui.modelPick,'ddpai-z100-master-main');await settle();change(ui.choices.channelCount,'3');ui.fields.channelSetup.value='Owner custom setup';ui.fields.channelSetup.dispatchEvent(new Event('input',{bubbles:true}));
- change(ui.manufacturerPick,'other');await settle();expect(ui.choices.channelCount.value).toBe('3');expect(ui.fields.channelSetup.value).toBe('Owner custom setup');
+ const outgoing=invoke.mock.calls.filter(c=>c[0]==='prepare_review').at(-1)![1];expect(outgoing.labels).toMatchObject({manufacturer:'DDPAI',model:'Z100 Master - Main Unit',channelCount:4,timeLapseFps:null});
+ change(ui.modelPick,'other');await settle();expect(ui.fields.channelSetup.value).toBe('');expect(ui.choices.channelCount.value).toBe('4');
+ change(ui.modelPick,'ddpai-z100-master-main');await settle();change(ui.choices.channelCount,'4');ui.fields.channelSetup.value='Owner custom setup';ui.fields.channelSetup.dispatchEvent(new Event('input',{bubbles:true}));
+ change(ui.manufacturerPick,'other');await settle();expect(ui.choices.channelCount.value).toBe('4');expect(ui.fields.channelSetup.value).toBe('Owner custom setup');
 });
 test('native submission survives actual gateway admission and stored-record readback',async()=>{
  const {default:worker,IntakeGate}=await import('../intake/worker.js');
@@ -50,12 +51,12 @@ test('native submission survives actual gateway admission and stored-record read
  const response=await worker.fetch(new Request(env.ORIGIN+'/submit-direct',{method:'POST',headers:{'content-type':'application/json','cf-connecting-ip':'192.0.2.1'},body:native.review.submissionJson}),env);
  expect(response.status).toBe(202);const receipt=await response.json();
  const stored=JSON.parse(records.get('pending/v1/'+receipt.id));expect(stored.rawJSON).toBe(native.review.submissionJson);
- expect(stored.report.evidence).toEqual(JSON.parse(native.review.submissionJson).evidence);
+ expect(stored.report.evidence).toEqual(JSON.parse(native.review.submissionJson).evidence);expect(stored.report.owner.channelCount).toBe(4);expect(stored.report.evidence.some((e:any)=>e.channel==='rear')).toBe(true);
  expect(stored.report.structure.folders.some((f:any)=>f.components.includes('inside'))).toBe(true);
 });
 test('real native submission retains physical channel and parking context without inventing cadence or exposing source',()=>{
  const body=JSON.parse(native.review.submissionJson);expect(validate(body)).toBe(body);
- expect(body.evidence).toEqual(expect.arrayContaining([expect.objectContaining({channel:'front',mode:'parking'}),expect.objectContaining({channel:'telephoto',mode:'unknown'})]));
- expect(body.owner.timeLapseFps).toBeUndefined();expect(native.review.submissionJson).not.toContain(scratch);expect(native.review.submissionJson).toContain('20300101');expect(native.review.publicJson).not.toContain('20300101');
+ expect(body.evidence).toEqual(expect.arrayContaining([expect.objectContaining({channel:'front',mode:'parking'}),expect.objectContaining({channel:'telephoto',mode:'unknown'}),expect.objectContaining({channel:'rear',mode:'unknown'})]));
+ expect(body.owner.channelCount).toBe(4);expect(native.mainContext.channelEvidence.count).toBe(3);expect(body.owner.timeLapseFps).toBeUndefined();expect(native.review.submissionJson).not.toContain(scratch);expect(native.review.submissionJson).toContain('20300101');expect(native.review.publicJson).not.toContain('20300101');
  expect(body.structure.folders.some((f:any)=>f.components.includes('inside'))).toBe(true);
 });

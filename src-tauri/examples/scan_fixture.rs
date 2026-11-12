@@ -26,7 +26,8 @@ fn main() {
     if z100 {
         labels.manufacturer = "DDPAI".into();
         labels.model = scanner::manual_camera::MODEL.into();
-        labels.channel_setup = "front + telephoto".into();
+        labels.channel_setup = "front + telephoto + rear + separate cabin".into();
+        labels.channel_count = 4; // Owner-confirmed system, distinct from observed main-card roles.
     }
     let contextual = scanner::manual_camera::apply(&report, z100);
     let mut review = payload::prepare(&contextual, &labels).expect("review failed");

@@ -35,8 +35,10 @@ pub fn hints(name: &str, folder: &str) -> (&'static str, &'static str) {
     let channel = match folder.as_str() {
         "dcim/200video/front" if video => "front",
         "dcim/200video/inside" if video => "telephoto",
+        "dcim/200video/rear" if video => "rear",
         "dcim/201photo/front" if photo => "front",
         "dcim/201photo/inside" if photo => "telephoto",
+        "dcim/201photo/rear" if photo => "rear",
         _ => "unknown",
     };
     let mode = if video && channel == "front" && name.starts_with("S_") {
@@ -53,6 +55,7 @@ pub fn channels(report: &Report) -> crate::observed_channels::ObservedChannels {
     for (folder, role) in [
         ("dcim/200video/front", "front"),
         ("dcim/200video/inside", "telephoto"),
+        ("dcim/200video/rear", "rear"),
     ] {
         if report.folders.iter().any(|f| {
             f.path.eq_ignore_ascii_case(folder)
@@ -71,7 +74,7 @@ pub fn channels(report: &Report) -> crate::observed_channels::ObservedChannels {
         count: (!roles.is_empty()).then_some(roles.len()),
         setup: (!roles.is_empty()).then(|| roles.join(" + ")),
         roles, confidence: "owner_confirmed_unit",
-        reason: "Manually selected main-unit card. Built-in front + telephoto; inside is firmware-labeled telephoto. Observed video roles only, not installed accessory coverage.",
+        reason: "Manually selected main-unit card. Built-in front + telephoto; inside is firmware-labeled telephoto. Optional rear makes 3CH on this card; a 4CH system adds a separate cabin-camera microSD. Observed video roles only, not installed system coverage.",
     }
 }
 pub fn preview(report: &Report, selected: bool) -> serde_json::Value {

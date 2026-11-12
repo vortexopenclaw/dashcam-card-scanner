@@ -86,7 +86,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   const refreshManualContext=async()=>{
     const selected=isMainUnit();if(!report||(!selected&&!manualContext))return;
     const revision=++contextRevision;manualContext=selected;
-    manualNote.hidden=!selected;manualNote.textContent=selected?'Manually selected — confirms Z100 Master main-unit card only, not a separately recording accessory. Built-in front + telephoto; firmware labels telephoto as inside. Shared DDPAI folders do not identify the model.':'';
+    manualNote.hidden=!selected;manualNote.textContent=selected?'Manually selected — confirms Z100 Master main-unit card only, not a separately recording accessory. Built-in front + telephoto; firmware labels telephoto as inside. Optional rear makes 3CH on this card; a 4CH system adds a cabin camera with its own microSD. Counts reflect observed videos, not the installed system. Exact automatic recognition is unavailable in Scanner; shared DDPAI folders do not identify the model.':'';
     const context=await bridge.invoke<{channelEvidence:{count:number|null;setup:string|null};reviewSamples:ReviewSample[]}>('preview_camera_context',{mainUnit:selected});
     if(revision!==contextRevision||!report)return;
     report.reviewSamples=context.reviewSamples;

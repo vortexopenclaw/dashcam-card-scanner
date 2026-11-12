@@ -76,6 +76,29 @@ fn main_unit_flow_and_submission() {
     std::fs::remove_file(root.join("DCIM/200video/inside/S_20300101120100_0001_0001.mp4")).unwrap();
     let partial = crate::engine::scan(&root, &AtomicBool::new(false), |_| {}).unwrap();
     assert_eq!(preview(&partial, true)["channelEvidence"]["count"], 1);
+    // Actual optional rear footage adds one observed role, never a fourth system lens.
+    for folder in ["inside", "rear"] {
+        std::fs::write(root.join("DCIM/200video").join(folder).join("S_20300101120100_0001_0001.mp4"), b"synthetic").unwrap();
+    }
+    std::fs::create_dir_all(root.join("DCIM/201photo/rear")).unwrap();
+    std::fs::write(root.join("DCIM/201photo/rear/S_20300101120100.jpg"), b"synthetic").unwrap();
+    let triple = crate::engine::scan(&root, &AtomicBool::new(false), |_| {}).unwrap();
+    let triple_preview = preview(&triple, true);
+    assert_eq!(triple_preview["channelEvidence"]["count"], 3);
+    assert_eq!(triple_preview["channelEvidence"]["setup"], "front + telephoto + rear");
+    assert!(triple_preview["reviewSamples"].as_array().unwrap().iter().any(|s| s["folder"] == "DCIM/200video/rear" && s["roleHint"] == "rear" && s["modeHint"] == "unknown"));
+    assert_eq!(hints("S_20300101120100.jpg", "DCIM/201photo/rear"), ("rear", "unknown"));
+    let mut system_labels = labels.clone();
+    system_labels.channel_count = 4;
+    system_labels.channel_setup = "front + telephoto + rear + separate cabin".into();
+    let review = crate::annotations::prepare(&apply(&triple, true), &system_labels, &Default::default()).unwrap();
+    let envelope: serde_json::Value = serde_json::from_str(&review.submission_json).unwrap();
+    assert_eq!(envelope["owner"]["channelCount"], 4);
+    assert!(envelope["evidence"].as_array().unwrap().iter().any(|e| e["channel"] == "rear" && e["mode"] == "unknown"));
+    // A rear photo with an empty rear video folder does not establish observed rear video.
+    std::fs::remove_file(root.join("DCIM/200video/rear/S_20300101120100_0001_0001.mp4")).unwrap();
+    let photos_only = crate::engine::scan(&root, &AtomicBool::new(false), |_| {}).unwrap();
+    assert_eq!(preview(&photos_only, true)["channelEvidence"]["count"], 2);
     let accessory = root.join("Z100 Master");
     std::fs::create_dir_all(accessory.join("DCIM/200video/inside")).unwrap();
     std::fs::write(
@@ -93,6 +116,13 @@ fn main_unit_flow_and_submission() {
         .unwrap()
         .iter()
         .all(|s| s["roleHint"] != "telephoto" && s["modeHint"] != "parking"));
+    // Cabin/accessory footage does not establish a main-card role.
+    let cabin = root.join("cabin-card");
+    std::fs::create_dir_all(cabin.join("DCIM/200video/cabin")).unwrap();
+    std::fs::write(cabin.join("DCIM/200video/cabin/S_20300101120100.mp4"), b"synthetic").unwrap();
+    let cabin_report = crate::engine::scan(&cabin, &AtomicBool::new(false), |_| {}).unwrap();
+    assert_eq!(preview(&cabin_report, true)["channelEvidence"]["count"], serde_json::Value::Null);
+    assert_eq!(hints("S_20300101120100.mp4", "DCIM/200video/cabin"), ("unknown", "unknown"));
     std::fs::remove_dir_all(root).unwrap();
 }
 #[test]

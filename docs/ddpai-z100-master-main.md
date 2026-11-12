@@ -7,8 +7,14 @@ The selector-only catalog entry intentionally has no automatic recognition rules
 
 The owner-confirmed main unit has built-in front and telephoto cameras. Current
 firmware labels telephoto recordings `inside`. After explicit selection, observed
-videos under `DCIM/200video/front` and `DCIM/200video/inside` suggest editable
-front/telephoto roles. Empty rear folders and photos/thumbnails do not increase
+videos under `DCIM/200video/front`, `DCIM/200video/inside`, and optional
+`DCIM/200video/rear` suggest editable front/telephoto/rear roles. Corresponding
+`DCIM/201photo` folders use the same physical roles but do not establish video
+coverage. The main-unit card supports 2CH built-in or 3CH with rear; the owner's
+4CH system adds a separately recording cabin camera with its own microSD.
+Observed suggestions can be front-only, 2CH, or 3CH, never a forced system 4CH;
+an explicit owner-reported 4CH setting is preserved separately. Empty rear
+folders and photos/thumbnails do not increase
 the observed video-channel count. Missing clips are not evidence that a built-in
 lens was disabled. This mapping never applies to generic, sibling or accessory
 cards without explicit main-unit confirmation.
@@ -35,7 +41,10 @@ negatives, and prepared submission roles/modes. The frontend integration consume
 real Rust-generated preview output in the mounted app's picker/review/rescan/
 submission flow and sends the actual native envelope through offline gateway
 admission with exact stored-record readback. These are not physical-card or
-footage/codec-decoding validation. Native OCR shipping policy is unchanged.
+footage/codec-decoding validation. Exact automatic model recognition remains
+unavailable in Scanner: its unsafe native model-stamp decoding helper stays
+build-disabled and excluded from shipping resources. Offloader's separate OCR
+implementation is not Scanner recognition parity.
 
 The bounded folder-component allowlist adds `200video`, `201photo`, `202thumb`
 and `inside` in both the native scanner and intake validator. **Deploy the intake
