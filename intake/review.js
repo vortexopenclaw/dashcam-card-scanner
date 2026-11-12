@@ -164,13 +164,23 @@ export async function decideReport(local,id,decision,details){
  await fs.appendFile(path.join(local,'decisions.jsonl'),JSON.stringify(entry)+'\n',{mode:0o600});
  return {...entry,message:'Local decision appended; pending record unchanged.'};
 }
+// Strip private identity recursively, including per-cohort nested review views.
+export function anonymousProposal(value, privateIdentity=JSON.stringify(value).includes('"sourceIdentifier"'), aliases=new Map()) {
+ if(Array.isArray(value))return value.map(v=>anonymousProposal(v,privateIdentity,aliases));
+ if(!value||typeof value!=='object')return value;
+ const components=v=>v.map(s=>{if(!aliases.has(s))aliases.set(s,'folder-'+(aliases.size+1));return aliases.get(s);});
+ return Object.fromEntries(Object.entries(value).filter(([k])=>!['sourceIdentifier','filename','folder'].includes(k)).map(([k,v])=>[k,
+  privateIdentity&&k==='components'&&Array.isArray(v)?components(v):
+  privateIdentity&&k==='folders'&&Array.isArray(v)&&v.every(a=>Array.isArray(a)&&a.every(s=>typeof s==='string'))?v.map(components):
+  anonymousProposal(v,privateIdentity,aliases)]));
+}
 // Public export is an allowlist, never a shallow copy of private review state.
 export async function createProposal(local,id){
  const {record,snapshot,result,decisions}=await context(local,id),latest=decisions.filter(x=>x.id===id&&!x.cohortId).at(-1);
  if(latest?.decision!=='accept')throw Error('Local accept decision required');
  if(latest.snapshotCommit!==snapshot.commit)throw Error('Current snapshot accept decision required; re-review and accept again');
  const keys=['estimatedSettings','derivedTemporalEvidence','ownerAssertions','scannerReportedMeasurements','scannerReportedStructure','structureEvidenceHash','coverage','canonicalFolderComparison','canonicalChannelComparison','numericEvidenceHash','cohortReviews'];
- return {type:'anonymous-review-proposal',notPublished:true,sourceReportHash:record.id,snapshotCommit:snapshot.commit,...Object.fromEntries(keys.filter(k=>result[k]!==undefined).map(k=>[k,result[k]])),caveat:'Unverified anonymous owner assertions and scanner measurements; manual review and explicit public publication approval required.'};
+ return anonymousProposal({type:'anonymous-review-proposal',notPublished:true,sourceReportHash:record.id,snapshotCommit:snapshot.commit,...Object.fromEntries(keys.filter(k=>result[k]!==undefined).map(k=>[k,result[k]])),caveat:'Unverified anonymous owner assertions and scanner measurements; manual review and explicit public publication approval required.'});
 }
 async function main(){
  const [cmd,...args]=process.argv.slice(2);const local=path.resolve(process.env.REVIEW_DATA_DIR||path.join(ROOT,'private'));await fs.mkdir(local,{recursive:true,mode:0o700});

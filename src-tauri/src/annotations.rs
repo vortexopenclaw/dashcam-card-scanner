@@ -189,7 +189,11 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
             serde_json::to_string_pretty(&public).map_err(|_| "Review encoding failed")?;
         let mut private: Value =
             serde_json::from_str(&review.private_json).map_err(|_| "Review encoding failed")?;
-        private["training"]["notes"] = json!(note);
+        if private.get("schemaVersion").is_some() {
+            private["localConfigurationAnnotations"] = json!(a.cohorts);
+        } else {
+            private["training"]["notes"] = json!(note);
+        }
         review.private_json =
             serde_json::to_string_pretty(&private).map_err(|_| "Review encoding failed")?;
     }
@@ -243,6 +247,10 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
                 .warning
                 .push_str(" Complete grouped payload exceeds 16 KiB; export locally instead.");
         } else {
+            let mut exported = body.clone();
+            exported.as_object_mut().unwrap().remove("contributor");
+            review.private_json =
+                serde_json::to_string(&exported).map_err(|_| "Intake encoding failed")?;
             review.submission_json = bytes;
         }
     }
@@ -270,7 +278,7 @@ mod tests {
                 .map(|i| crate::engine::Sample {
                     file_size_bytes: 1000,
                     video: Some(video.clone()),
-                    local_name: format!("PRIVATE-20261015-{i}.MP4"),
+                    local_name: format!("SYNTHETIC-20300115-{i}.MP4"),
                     filename_template: "unknown".into(),
                 })
                 .collect(),
@@ -365,13 +373,9 @@ mod tests {
         assert!(!review.private_json.contains("PrivateTester"));
         assert!(!review.public_json.contains("DO NOT INHERIT"));
         assert!(!review.public_json.contains("channel count 3"));
-        for text in [
-            &review.public_json,
-            &review.private_json,
-            &review.submission_json,
-        ] {
-            assert!(!text.contains("PRIVATE-20261015"));
-        }
+        assert!(!review.public_json.contains("SYNTHETIC-20300115"));
+        assert!(review.private_json.contains("SYNTHETIC-20300115"));
+        assert!(review.submission_json.contains("SYNTHETIC-20300115"));
         println!("APP_CONTRACT:{}", review.submission_json);
         let public: Value = serde_json::from_str(&review.public_json).unwrap();
         println!("APP_PUBLIC:{}", public);
@@ -393,7 +397,7 @@ mod tests {
         let notes = public["notes"].as_str().unwrap();
         assert!(notes.chars().count() <= 2000);
         assert!(notes.contains("exceed the public aggregate"));
-        assert!(review.private_json.contains("\\\"id\\\":\\\"16\\\""));
+        assert!(review.private_json.contains("\"id\":\"16\""));
     }
     #[test]
     fn rejects_overlap_and_invalid_group_references() {

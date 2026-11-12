@@ -152,6 +152,7 @@ mod tests {
         }
     }
     #[test]
+    #[ignore = "requires explicit ownership of mounted-card I/O; synthetic suites must not discover live cards"]
     fn live_bounded_discovery() {
         let cards = discover();
         println!("Live removable camera-like cards: {}", cards.len());

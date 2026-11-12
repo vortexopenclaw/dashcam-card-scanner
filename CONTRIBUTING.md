@@ -4,7 +4,7 @@ This is AGPL-3.0-only software. Preserve license/copyright notices and publish c
 
 Run frontend build/tests and cargo check/test before proposing a change. Do not commit card scans, media, actual filenames, source paths, credentials, private signing keys, config dumps, contacts, device identifiers or GPS. Use generated synthetic fixtures only. No test should contact the production feedback/intake endpoint. The test-only legacy Worker snapshot is unmodified reference code, not permission to deploy changes to that Worker.
 
-Do not infer camera identity from owner labels. Separate video-stream bitrate from whole-file/container rate, capture cadence from playback fps, selected setting from observed measurement, and public aggregates from private paired samples. Preserve useful structure/filename SHAPES without literal personal names/dates.
+Do not infer camera identity from owner labels. Separate video-stream bitrate from whole-file/container rate, capture cadence from playback fps, selected setting from observed measurement, and public aggregates from private paired samples. Public exports preserve useful anonymous structure/filename SHAPES without original names/dates. Explicitly reviewed private envelopes retain bounded safe original basenames and relative folder context linked directly to each retained measurement. Use only synthetic 2030 fixtures in Git; test exact stored-record readback and public privacy stripping.
 
 ## Camera-support parity
 

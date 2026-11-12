@@ -56,6 +56,6 @@ test('native submission survives actual gateway admission and stored-record read
 test('real native submission retains physical channel and parking context without inventing cadence or exposing source',()=>{
  const body=JSON.parse(native.review.submissionJson);expect(validate(body)).toBe(body);
  expect(body.evidence).toEqual(expect.arrayContaining([expect.objectContaining({channel:'front',mode:'parking'}),expect.objectContaining({channel:'telephoto',mode:'unknown'})]));
- expect(body.owner.timeLapseFps).toBeUndefined();expect(native.review.submissionJson).not.toContain(scratch);expect(native.review.submissionJson).not.toContain('20300101');
+ expect(body.owner.timeLapseFps).toBeUndefined();expect(native.review.submissionJson).not.toContain(scratch);expect(native.review.submissionJson).toContain('20300101');expect(native.review.publicJson).not.toContain('20300101');
  expect(body.structure.folders.some((f:any)=>f.components.includes('inside'))).toBe(true);
 });

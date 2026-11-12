@@ -22,7 +22,7 @@ pub const MAX_SAMPLES: usize = 64;
 pub struct Sample {
     pub file_size_bytes: u64,
     pub video: Option<Video>,
-    // Local review association only. Never serialized to reports, exports or intake.
+    // Native-only association; explicitly copied only to reviewed private intake.
     #[serde(skip)]
     pub local_name: String,
     #[serde(skip)]
@@ -563,6 +563,17 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                     }
                 }
                 if !media {
+                    if matches!(lower.as_str(), "jpg" | "jpeg" | "png") {
+                        self.retain_sample(
+                            &mut folder,
+                            Sample {
+                                file_size_bytes: meta.len(),
+                                video: None,
+                                local_name: name.to_str().unwrap_or("").to_owned(),
+                                filename_template: template,
+                            },
+                        );
+                    }
                     continue;
                 }
                 self.report.metadata_coverage.recognized_files += 1;
@@ -616,7 +627,7 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                 let sample = Sample {
                     file_size_bytes: result.as_ref().map_or(meta.len(), |v| v.file_size_bytes),
                     video: result.clone(),
-                    local_name: name.to_string_lossy().into_owned(),
+                    local_name: name.to_str().unwrap_or("").to_owned(),
                     filename_template: template.clone(),
                 };
                 self.retain_sample(&mut folder, sample);
@@ -655,8 +666,8 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
         self.report.folders.push(folder);
     }
     fn retain_sample(&mut self, folder: &mut Folder, sample: Sample) {
-        // Stratify on observed template AND encoding, with at most two clips per
-        // stratum. Late variants replace redundant rows, not metadata coverage.
+        // Retain all small-card rows, stratifying on template AND encoding at
+        // the native cap. Late variants replace redundancy, not metadata coverage.
         let same = |s: &Sample| {
             s.filename_template == sample.filename_template
                 && match (&s.video, &sample.video) {
@@ -666,12 +677,59 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                 }
         };
         let count = folder.samples.iter().filter(|s| same(s)).count();
-        if count >= 2 {
-            return;
-        }
         if self.report.sampled_files < MAX_SAMPLES {
             folder.samples.push(sample);
             self.report.sampled_files += 1;
+            return;
+        }
+        if count > 0 {
+            // Keep exact linked short/outlier pairs after the native retention cap.
+            let indices: Vec<_> = folder
+                .samples
+                .iter()
+                .enumerate()
+                .filter(|(_, s)| same(s))
+                .map(|(i, _)| i)
+                .collect();
+            if sample.video.is_some() {
+                let metric = |s: &Sample, k: usize| {
+                    s.video
+                        .as_ref()
+                        .map(|v| {
+                            if k == 0 {
+                                v.duration_seconds
+                            } else {
+                                v.video_bitrate.unwrap_or(0.)
+                            }
+                        })
+                        .unwrap_or(0.)
+                };
+                let mut protected = BTreeSet::new();
+                let mut exceptional = false;
+                for k in 0..2 {
+                    let lo = *indices
+                        .iter()
+                        .min_by(|&&a, &&b| {
+                            metric(&folder.samples[a], k).total_cmp(&metric(&folder.samples[b], k))
+                        })
+                        .unwrap();
+                    let hi = *indices
+                        .iter()
+                        .max_by(|&&a, &&b| {
+                            metric(&folder.samples[a], k).total_cmp(&metric(&folder.samples[b], k))
+                        })
+                        .unwrap();
+                    exceptional |= metric(&sample, k) < metric(&folder.samples[lo], k)
+                        || metric(&sample, k) > metric(&folder.samples[hi], k);
+                    protected.insert(lo);
+                    protected.insert(hi);
+                }
+                if exceptional {
+                    if let Some(i) = indices.iter().find(|i| !protected.contains(i)) {
+                        folder.samples[*i] = sample;
+                    }
+                }
+            }
             return;
         }
         if count == 0 && !self.sample_reclamation_exhausted {
@@ -809,7 +867,7 @@ mod tests {
         }
         let r = scan(t.path(), &AtomicBool::new(false), |_| {}).unwrap();
         assert_eq!(r.scanned_files, 64);
-        assert_eq!(r.sampled_files, 16);
+        assert_eq!(r.sampled_files, 64);
         let templates: BTreeSet<_> = r.folders[0]
             .samples
             .iter()
@@ -838,9 +896,14 @@ mod tests {
         }
         let r = scan(t.path(), &AtomicBool::new(false), |_| {}).unwrap();
         assert_eq!(r.scanned_files, 100);
-        assert_eq!(r.sampled_files, 40);
+        assert_eq!(r.sampled_files, 64);
         assert_eq!(r.probe_attempts, 0);
-        assert!(r.folders.iter().all(|f| f.samples.len() <= 2));
+        assert!(r.folders.iter().all(|f| f.samples.len() <= 5));
+        assert!(r
+            .folders
+            .iter()
+            .filter(|f| f.file_count > 0)
+            .all(|f| !f.samples.is_empty()));
         assert!(!r.limited);
     }
     #[cfg(windows)]

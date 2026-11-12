@@ -80,7 +80,7 @@ fn native_whole_inventory_infers_one_three_five_capture_fps_not_playback_fps() {
     for capture in [1, 3, 5] {
         let starts: Vec<_> = (0..8).map(|i| 43200 + i * 1800 / capture).collect();
         let r = scan(&starts, 60.0, 30.0, &["F", "R"]);
-        assert!(r.sampled_files < r.metadata_coverage.measured_files);
+        assert_eq!(r.sampled_files, r.metadata_coverage.measured_files); // Small fixtures now retain every linked pair.
         let e = infer(&r);
         assert_eq!(e.suggestion, Some("time_lapse_like"), "{e:?}");
         assert!((e.estimated_capture_fps.unwrap() - capture as f64).abs() < 0.01);

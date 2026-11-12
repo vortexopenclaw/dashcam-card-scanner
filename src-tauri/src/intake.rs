@@ -23,6 +23,22 @@ fn media_type(ext: &str) -> &'static str {
         _ => "other",
     }
 }
+/// Reviewed private basenames use structural safety, not known-camera grammars.
+pub(crate) fn safe_media_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 256
+        && name.trim() == name
+        && !name.starts_with('.')
+        && !name.contains(['/', '\\', ':'])
+        && !name.chars().any(|c| {
+            c.is_control()
+                || ('\u{202a}'..='\u{202e}').contains(&c)
+                || ('\u{2066}'..='\u{2069}').contains(&c)
+        })
+        && name
+            .rsplit_once('.')
+            .is_some_and(|(_, ext)| media_type(ext) != "other")
+}
 fn positive(value: Option<f64>, max: f64) -> Option<f64> {
     value.filter(|v| v.is_finite() && *v > 0. && *v <= max)
 }
@@ -37,8 +53,46 @@ pub fn selected_samples(r: &Report) -> Vec<(usize, &crate::engine::Sample)> {
             for s in &f.samples {
                 families.entry(&s.filename_template).or_default().push(s);
             }
+            if r.sampled_files > 24 {
+                for samples in families.values_mut() {
+                    let mut priority = Vec::new();
+                    for k in 0..2 {
+                        let metric = |s: &&crate::engine::Sample| {
+                            s.video
+                                .as_ref()
+                                .map(|v| {
+                                    if k == 0 {
+                                        v.duration_seconds
+                                    } else {
+                                        v.video_bitrate.unwrap_or(0.)
+                                    }
+                                })
+                                .unwrap_or(f64::INFINITY)
+                        };
+                        if let Some(s) = samples
+                            .iter()
+                            .min_by(|a, b| metric(a).total_cmp(&metric(b)))
+                        {
+                            priority.push(*s);
+                        }
+                        if let Some(s) = samples
+                            .iter()
+                            .max_by(|a, b| metric(a).total_cmp(&metric(b)))
+                        {
+                            priority.push(*s);
+                        }
+                    }
+                    let mut ordered: Vec<&crate::engine::Sample> = Vec::new();
+                    for s in priority.into_iter().chain(samples.iter().copied()) {
+                        if !ordered.iter().any(|t| std::ptr::eq(*t, s)) {
+                            ordered.push(s);
+                        }
+                    }
+                    *samples = ordered;
+                }
+            }
             let mut row = Vec::new();
-            for round in 0..16 {
+            for round in 0..64 {
                 for samples in families.values() {
                     if let Some(s) = samples.get(round) {
                         row.push(*s);
@@ -49,7 +103,7 @@ pub fn selected_samples(r: &Report) -> Vec<(usize, &crate::engine::Sample)> {
         })
         .collect();
     let mut out = Vec::new();
-    for round in 0..16 {
+    for round in 0..64 {
         for (index, row) in ordered.iter().enumerate() {
             if let Some(s) = row.get(round) {
                 if out.len() == 24 {
@@ -162,6 +216,75 @@ fn consensus_hints(hints: &[(Option<String>, Option<String>)]) -> (&'static str,
         },
     )
 }
+/// Bounded linked rows also available to local exports when online intake is unavailable.
+pub(crate) fn reviewed_evidence(r: &Report) -> Vec<Value> {
+    let mut evidence = Vec::new();
+    let mut identities: Vec<_> = r
+        .folders
+        .iter()
+        .enumerate()
+        .flat_map(|(i, f)| {
+            f.samples
+                .iter()
+                .filter(|s| safe_media_name(&s.local_name))
+                .map(move |s| (f.path.as_str(), s.local_name.as_str(), i))
+        })
+        .collect();
+    identities.sort_unstable();
+    identities.dedup();
+    for (index, sample) in selected_samples(r) {
+        let v = sample.video.as_ref();
+        let codec = v
+            .map(|v| v.codec.as_str())
+            .filter(|c| ["h264", "hevc", "av1", "mjpeg", "mpeg4"].contains(c))
+            .unwrap_or("unknown");
+        let (channel, mode) = sample_hints_for_folder(
+            &sample.local_name,
+            &r.folders[index].path,
+            r.recognized_camera_id.as_deref(),
+        );
+        let mut row = json!({"folderIndex":index,"channel":channel,"mode":mode,"width":v.map(|v|v.width).filter(|n|*n>0 && *n<=16384),"height":v.map(|v|v.height).filter(|n|*n>0 && *n<=16384),"fps":positive(v.and_then(|v|v.nominal_frame_rate),240.),"bitrateKbps":positive(v.and_then(|v|v.video_bitrate),1e9).map(|n|n/1000.),"containerBitrateKbps":Value::Null,"sizeBytes":(sample.file_size_bytes>0 && sample.file_size_bytes<=1_000_000_000_000).then_some(sample.file_size_bytes),"durationSeconds":positive(v.map(|v|v.duration_seconds),86400.),"codec":codec});
+        if safe_media_name(&sample.local_name) {
+            let key = (
+                r.folders[index].path.as_str(),
+                sample.local_name.as_str(),
+                index,
+            );
+            row["sourceIdentifier"] = json!(format!(
+                "source-{}",
+                identities.binary_search(&key).expect("retained identity") + 1
+            ));
+            row["filename"] = json!(sample.local_name);
+            row["folder"] = json!(r.folders[index].path);
+        }
+        evidence.push(row);
+    }
+    evidence
+}
+pub(crate) fn reviewed_retention(r: &Report) -> Value {
+    let evidence = reviewed_evidence(r);
+    let total_media: u64 = r
+        .folders
+        .iter()
+        .flat_map(|f| f.extensions.iter())
+        .filter(|(ext, _)| media_type(ext) != "other")
+        .map(|(_, n)| *n)
+        .sum();
+    let retained_identities = evidence
+        .iter()
+        .filter(|e| e.get("filename").is_some())
+        .count();
+    let retained_measurements = evidence
+        .iter()
+        .filter(|e| !e["durationSeconds"].is_null())
+        .count();
+    let measured_files = r
+        .metadata_coverage
+        .measured_files
+        .max(retained_measurements);
+    let coverage = json!({"inventoriedIdentities":total_media,"retainedIdentities":retained_identities,"omittedIdentities":total_media.saturating_sub(retained_identities as u64),"measuredFiles":measured_files,"retainedMeasurements":retained_measurements,"omittedMeasurements":measured_files.saturating_sub(retained_measurements)});
+    coverage
+}
 pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     l.validate()?;
     if !label(l.manufacturer.trim(), 64)
@@ -198,7 +321,6 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
         return Err("Intake requires a complete structural scan of at most 32 folders. Export locally instead.".into());
     }
     let mut folders = Vec::new();
-    let mut evidence = Vec::new();
     let mut total_media = 0u64;
     for f in &r.folders {
         let mut counts: std::collections::BTreeMap<String, u64> = std::collections::BTreeMap::new();
@@ -241,19 +363,7 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
         };
         folders.push(json!({"components":components,"fileCount":f.file_count,"mediaCount":media,"extensions":counts.iter().map(|(e,n)|json!({"extension":e,"mediaType":media_type(e),"count":n})).collect::<Vec<_>>(),"filenameTemplates":f.filename_templates}));
     }
-    for (index, sample) in selected_samples(r) {
-        let v = sample.video.as_ref();
-        let codec = v
-            .map(|v| v.codec.as_str())
-            .filter(|c| ["h264", "hevc", "av1", "mjpeg", "mpeg4"].contains(c))
-            .unwrap_or("unknown");
-        let (channel, mode) = sample_hints_for_folder(
-            &sample.local_name,
-            &r.folders[index].path,
-            r.recognized_camera_id.as_deref(),
-        );
-        evidence.push(json!({"folderIndex":index,"channel":channel,"mode":mode,"width":v.map(|v|v.width).filter(|n|*n>0 && *n<=16384),"height":v.map(|v|v.height).filter(|n|*n>0 && *n<=16384),"fps":positive(v.and_then(|v|v.nominal_frame_rate),240.),"bitrateKbps":positive(v.and_then(|v|v.video_bitrate),1e9).map(|n|n/1000.),"containerBitrateKbps":Value::Null,"sizeBytes":(sample.file_size_bytes>0 && sample.file_size_bytes<=1_000_000_000_000).then_some(sample.file_size_bytes),"durationSeconds":positive(v.map(|v|v.duration_seconds),86400.),"codec":codec}));
-    }
+    let evidence = reviewed_evidence(r);
     if total_media == 0 {
         return Err(
             "Intake requires positive-media structure. Local export remains available.".into(),
@@ -275,7 +385,8 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     if !l.suggested_fields.is_empty() {
         owner["suggestedFields"] = json!(l.suggested_fields);
     }
-    let body=serde_json::to_string(&json!({"schemaVersion":1,"owner":owner,"evidence":evidence,"structure":{"completed":true,"fileCount":r.scanned_files,"mediaCount":total_media,"folders":folders,"observedLayouts":[]}})).map_err(|_|"JSON encoding failed")?;
+    let coverage = reviewed_retention(r);
+    let body=serde_json::to_string(&json!({"schemaVersion":1,"owner":owner,"evidence":evidence,"retention":coverage,"structure":{"completed":true,"fileCount":r.scanned_files,"mediaCount":total_media,"folders":folders,"observedLayouts":[]}})).map_err(|_|"JSON encoding failed")?;
     if body.len() > 16384 {
         return Err("Complete intake exceeds 16 KiB. Export locally; structural totals are never silently truncated.".into());
     }
@@ -446,7 +557,7 @@ mod tests {
         for (token, width, height) in [("A", 3840, 2160), ("B", 1920, 1080), ("C", 2560, 1440)] {
             for mode in ["N", "E", "P"] {
                 report.folders[0].samples.push(Sample {
-                    local_name: format!("20251211_184930_01110_{mode}_{token}.MP4"),
+                    local_name: format!("20300115_184930_01110_{mode}_{token}.MP4"),
                     filename_template: format!("SEQUENCE_{mode}_{token}.MP4"),
                     video: Some(crate::video::Video {
                         file_size_bytes: 100,
@@ -536,7 +647,7 @@ mod tests {
             ("unknown", "unknown")
         );
         assert_eq!(
-            sample_hints("20251211_184930_EF.mp4", Some("missing-camera")),
+            sample_hints("20300115_184930_EF.mp4", Some("missing-camera")),
             ("unknown", "unknown")
         );
         let review = crate::payload::prepare(&report, &labels).unwrap();
@@ -551,7 +662,6 @@ mod tests {
                 "recognizedCameraId",
                 "recognized_camera_id",
                 "vantrue-n4-pro-s",
-                "20251211",
                 "/Volumes/",
             ] {
                 assert!(!text.contains(forbidden), "leaked {forbidden}");
@@ -661,7 +771,6 @@ mod tests {
                 "recognizedCameraId",
                 "recognized_camera_id",
                 "viofo-a119m-pro",
-                name,
                 "/Volumes/",
             ] {
                 assert!(!text.contains(forbidden), "leaked {forbidden}");
@@ -718,7 +827,7 @@ mod tests {
             for (token_mode, mode) in [("N", "normal"), ("E", "protected"), ("P", "parking")] {
                 let hint = crate::recognition::sample_hints(
                     camera,
-                    &format!("20251211_184930_01110_{token_mode}_{token}.MP4"),
+                    &format!("20300115_184930_01110_{token_mode}_{token}.MP4"),
                 );
                 assert_eq!(consensus_hints(&[hint.clone(), hint]), (channel, mode));
             }
@@ -744,14 +853,14 @@ mod tests {
         // These siblings match the N4-shaped basename but have incomplete capture
         // maps. They must not silently be excluded from the unanimity check.
         assert_eq!(
-            sample_hints("20251211_184930_01110_N_C.MP4", None),
+            sample_hints("20300115_184930_01110_N_C.MP4", None),
             ("unknown", "unknown")
         );
     }
     #[test]
-    fn envelope_carries_only_bounded_consensus_not_local_names_or_identity() {
+    fn private_envelope_retains_linked_names_without_native_authority_or_host_paths() {
         use crate::engine::{Folder, Sample};
-        let name = "20251211_184930_EF.mp4";
+        let name = "20300115_184930_EF.mp4";
         let report = Report {
             scanned_files: 1,
             folders: vec![Folder {
@@ -788,15 +897,11 @@ mod tests {
         assert_eq!(value["evidence"][0]["mode"], "protected");
         assert_eq!(value["owner"]["model"], "Unverified");
         let review = crate::payload::prepare(&report, &labels).unwrap();
+        assert!(body.contains(name));
+        assert!(review.private_json.contains(name));
+        assert!(!review.public_json.contains(name));
         for text in [&body, &review.public_json, &review.private_json] {
-            for forbidden in [
-                name,
-                "20251211",
-                "localName",
-                "local_name",
-                "sourceSha256",
-                "/Volumes/",
-            ] {
+            for forbidden in ["localName", "local_name", "sourceSha256", "/Volumes/"] {
                 assert!(!text.contains(forbidden), "leaked {forbidden}");
             }
         }

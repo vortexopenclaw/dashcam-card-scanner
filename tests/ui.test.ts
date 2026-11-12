@@ -22,6 +22,12 @@ async function submit(ui:ReturnType<typeof mount>){ui.submit.click();await settl
 const calls=(invoke:ReturnType<typeof vi.fn>,name:string)=>invoke.mock.calls.filter(c=>c[0]===name);
 // textContent alone includes hidden technical details; model the ordinary visible DOM.
 const visibleText=(node:Node):string=>{if(node instanceof HTMLElement){if(node.hidden)return '';if(node.tagName==='DETAILS'&&!(node as HTMLDetailsElement).open)return node.querySelector('summary')?.textContent||'';}return node.nodeType===Node.TEXT_NODE?node.textContent||'':Array.from(node.childNodes).map(visibleText).join(' ');};
+test('private filename/date retention is disclosed before explicit submission and review shows names beside pairs',async()=>{
+ const {ui,root,report,invoke}=setup();Object.assign(report.reviewSamples[0],{localName:'new-camera20300115.MP4'});await scan(ui);
+ expect(visibleText(root)).toContain('By clicking Submit, you explicitly approve');expect(visibleText(root)).toContain('recording dates');expect(visibleText(root)).toContain('Public exports strip original names and dates');expect(calls(invoke,'submit_review')).toHaveLength(0);
+ ui.prepare.click();await settle();expect(root.textContent).toContain('Sample 1: Movie · new-camera20300115.MP4 ·');expect(calls(invoke,'submit_review')).toHaveLength(0);
+ await submit(ui);expect(invoke).toHaveBeenCalledWith('submit_review',{token:'review-2',consent:true});
+});
 test('source and payload render as literal text, never executable HTML',async()=>{const {ui,root}=setup();await preview(ui);expect(ui.source.textContent).toContain('<img');expect(ui.publicView.textContent).toContain('<img');expect(root.querySelector('img')).toBeNull();expect(ui.reviewPanel.hidden).toBe(false);});
 test('direct submission shows adjacent bottom success without hashes or verification API',async()=>{
  const {ui,invoke,root,listeners}=setup();await scan(ui);input(ui.fields.model,'Current');await submit(ui);

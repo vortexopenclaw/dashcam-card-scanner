@@ -88,7 +88,7 @@ fn a329t_front_only_scan_and_export_keep_observation_separate_from_capability() 
     assert_eq!(public["camera"]["model"], "A329T");
     assert_eq!(public["camera"]["firmware"], "V2.2_260815");
     assert_eq!(public["camera"]["channel_setup"], "front");
-    assert_eq!(private["training"]["channelSetup"], "front");
+    assert_eq!(private["owner"]["channelCount"], 1);
     assert!(!review.public_json.contains("A329S"));
 }
 #[test]

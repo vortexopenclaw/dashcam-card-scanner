@@ -20,6 +20,9 @@ export function sanitizeFolderComponents(components,aliases=new Map()) {
   if(!Array.isArray(components)||components.length>8)throw Error('invalid_components');
   return components.map(s=>{if(typeof s!=='string'||!s||/[\/\\\x00-\x1f]/.test(s)||s==='.'||s==='..')throw Error('invalid_component');if(FOLDERS.has(s.toLowerCase()))return s;if(!aliases.has(s)){if(aliases.size>=256)throw Error('alias_capacity');aliases.set(s,'folder-'+(aliases.size+1));}return aliases.get(s);});
 }
+export function safeMediaName(s) {
+  return typeof s==='string' && new TextEncoder().encode(s).length<=256 && s.trim()===s && !s.startsWith('.') && !/[\/\\:\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/u.test(s) && /\.(?:mp4|mov|m4v|avi|ts|mkv|jpg|jpeg|png)$/i.test(s);
+}
 export function generalizeFilename(name) {
   if(typeof name!=='string'||name.length>256)return 'unknown';
   const m=/^([0-9_]+?)(_?(?:PF|PR|PI|PT|F|R|I|T))?\.([A-Za-z0-9]+)$/.exec(name);
@@ -70,7 +73,7 @@ function temporalEvidence(t){
   }
 }
 export function validate(p) {
-  exact(p,['schemaVersion','owner','evidence'],['structure','contributor','cohorts','temporalEvidence']);if(p.schemaVersion!==1)throw Error('invalid_version');
+  exact(p,['schemaVersion','owner','evidence'],['structure','contributor','cohorts','temporalEvidence','retention']);if(p.schemaVersion!==1)throw Error('invalid_version');
   settings(p.owner,true);
   if(p.temporalEvidence!==undefined)temporalEvidence(p.temporalEvidence);
   if(p.contributor!==undefined){
@@ -80,9 +83,23 @@ export function validate(p) {
   if(p.structure!==undefined)structure(p.structure);
   array(p.evidence,0,24);if(!p.evidence.length&&!p.structure)throw Error('missing_evidence');
   for(const e of p.evidence){
-    exact(e,['channel','mode','width','height','fps','bitrateKbps','containerBitrateKbps','sizeBytes','durationSeconds','codec'],['folderIndex']);role(e);choice(e.codec,['h264','hevc','av1','mjpeg','mpeg4','unknown']);
+    exact(e,['channel','mode','width','height','fps','bitrateKbps','containerBitrateKbps','sizeBytes','durationSeconds','codec'],['folderIndex','sourceIdentifier','filename','folder']);role(e);choice(e.codec,['h264','hevc','av1','mjpeg','mpeg4','unknown']);
     for(const [k,max,int] of [['width',16384,true],['height',16384,true],['fps',240,false],['bitrateKbps',1000000,false],['containerBitrateKbps',1000000,false],['sizeBytes',1000000000000,true],['durationSeconds',86400,false]])if(e[k]!==null)number(e[k],max,int);
     if(e.folderIndex!==undefined)folderIndex(e.folderIndex,p.structure);
+    const identity=['sourceIdentifier','filename','folder'];
+    if(identity.some(k=>e[k]!==undefined)){
+      if(!identity.every(k=>typeof e[k]==='string')||!/^source-[1-9][0-9]{0,6}$/.test(e.sourceIdentifier)||!safeMediaName(e.filename))throw Error('invalid_media_identity');
+      folderIndex(e.folderIndex,p.structure);
+      if(e.folder!==(p.structure.folders[e.folderIndex].components.join('/')||'.'))throw Error('identity_folder_mismatch');
+    }
+  }
+  const linked=p.evidence.filter(e=>e.sourceIdentifier!==undefined);
+  unique(linked.map(e=>e.sourceIdentifier));unique(linked.map(e=>[e.folder,e.filename]));
+  if(p.retention!==undefined){
+    const r=p.retention;
+    exact(r,['inventoriedIdentities','retainedIdentities','omittedIdentities','measuredFiles','retainedMeasurements','omittedMeasurements']);
+    Object.values(r).forEach(count);
+    if(r.inventoriedIdentities!==p.structure?.mediaCount||r.retainedIdentities!==linked.length||r.retainedMeasurements!==p.evidence.filter(e=>e.durationSeconds!==null).length||r.retainedIdentities+r.omittedIdentities!==r.inventoriedIdentities||r.retainedMeasurements+r.omittedMeasurements!==r.measuredFiles||r.measuredFiles>r.inventoriedIdentities)throw Error('invalid_retention_counts');
   }
   if(p.cohorts!==undefined){
     array(p.cohorts,1,16);unique(p.cohorts.map(c=>c.id));const used=new Set(),folders=new Set();
