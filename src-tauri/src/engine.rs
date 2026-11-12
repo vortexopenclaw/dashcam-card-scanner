@@ -226,7 +226,7 @@ fn offline_placeholder(m: &cap_std::fs::Metadata) -> bool {
     }
 }
 fn camera_component(s: &str) -> Option<String> {
-    const SAFE:&str="dcim movie movies ro parking photo photos video videos normal event events emergency record recording front rear interior telephoto left right lock locked snapshot snapshots continuous driving blackvue innovv garmin thinkware viofo";
+    const SAFE:&str="dcim 200video 201photo 202thumb inside movie movies ro parking photo photos video videos normal event events emergency record recording front rear interior telephoto left right lock locked snapshot snapshots continuous driving blackvue innovv garmin thinkware viofo";
     SAFE.split(' ')
         .any(|v| v == s.to_ascii_lowercase())
         .then(|| s.to_string())

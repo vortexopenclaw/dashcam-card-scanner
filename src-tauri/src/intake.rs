@@ -70,7 +70,8 @@ fn sample_hints(name: &str, recognized_camera_id: Option<&str>) -> (&'static str
     sample_hints_for_folder(name, "", recognized_camera_id)
 }
 /// Shared local-review/intake hints. Only validated native identity authorizes
-/// folder context; owner labels never restrict the all-candidate consensus.
+/// folder context, except the explicit main-unit confirmation adapter. Ordinary
+/// owner labels never restrict the all-candidate consensus.
 pub(crate) fn sample_hints_for_folder(
     name: &str,
     folder: &str,
@@ -101,6 +102,9 @@ pub(crate) fn sample_hints_for_folder(
         });
     if name.len() > 256 {
         return ("unknown", "unknown");
+    }
+    if recognized_camera_id == Some(crate::manual_camera::ID) {
+        return crate::manual_camera::hints(name, folder);
     }
     let hints = crate::recognition::catalog()
         .iter()

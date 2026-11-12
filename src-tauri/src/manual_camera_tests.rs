@@ -1,0 +1,121 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+use super::*;
+use std::sync::atomic::AtomicBool;
+#[test]
+fn main_unit_flow_and_submission() {
+    let root = std::env::temp_dir().join(format!("scanner-z100-{}", uuid::Uuid::new_v4()));
+    for folder in ["front", "inside", "rear"] {
+        std::fs::create_dir_all(root.join("DCIM/200video").join(folder)).unwrap();
+    }
+    for folder in ["front", "inside"] {
+        std::fs::write(
+            root.join("DCIM/200video")
+                .join(folder)
+                .join("S_20300101120100_0001_0001.mp4"),
+            b"synthetic",
+        )
+        .unwrap();
+    }
+    let report = crate::engine::scan(&root, &AtomicBool::new(false), |_| {}).unwrap();
+    let (auto, camera) = crate::recognition::recognize(&root.join("Z100 Master"), &report);
+    assert!(camera.is_none());
+    assert!(auto.get("model").is_none());
+    assert_eq!(auto["manufacturer"], "DDPAI");
+    assert!(auto["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|c| c["id"] != ID));
+    let generic = preview(&report, false);
+    assert!(generic["reviewSamples"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|s| s["roleHint"] != "telephoto" && s["modeHint"] != "parking"));
+    let main = preview(&report, true);
+    assert_eq!(main["channelEvidence"]["count"], 2);
+    assert_eq!(main["channelEvidence"]["setup"], "front + telephoto");
+    let samples = main["reviewSamples"].as_array().unwrap();
+    assert!(samples.iter().any(|s| s["roleHint"] == "front"
+        && s["modeHint"] == "parking"
+        && s["modeEvidence"]["parkingSubtype"] == "time-lapse"));
+    assert!(samples
+        .iter()
+        .any(|s| s["roleHint"] == "telephoto" && s["modeHint"] == "unknown"));
+    let labels = crate::payload::Labels {
+        manufacturer: "DDPAI".into(),
+        model: MODEL.into(),
+        channel_setup: "front + telephoto".into(),
+        channel_count: 2,
+        firmware: String::new(),
+        settings: String::new(),
+        quality: "unknown".into(),
+        quality_label: None,
+        parking_mode: "unknown".into(),
+        parking_mode_label: None,
+        time_lapse_fps: None,
+        suggested_fields: vec![],
+    };
+    assert!(selected(&labels));
+    let contextual = apply(&report, selected(&labels));
+    let review = crate::annotations::prepare(&contextual, &labels, &Default::default()).unwrap();
+    let envelope: serde_json::Value = serde_json::from_str(&review.submission_json).unwrap();
+    let evidence = envelope["evidence"].as_array().unwrap();
+    assert!(evidence
+        .iter()
+        .any(|e| e["channel"] == "front" && e["mode"] == "parking"));
+    assert!(evidence
+        .iter()
+        .any(|e| e["channel"] == "telephoto" && e["mode"] == "unknown"));
+    assert!(report.recognized_camera_id.is_none());
+    assert_eq!(preview(&report, false), generic);
+    // Incomplete observed coverage is one observed lens, not a disabled built-in lens.
+    std::fs::remove_file(root.join("DCIM/200video/inside/S_20300101120100_0001_0001.mp4")).unwrap();
+    let partial = crate::engine::scan(&root, &AtomicBool::new(false), |_| {}).unwrap();
+    assert_eq!(preview(&partial, true)["channelEvidence"]["count"], 1);
+    let accessory = root.join("Z100 Master");
+    std::fs::create_dir_all(accessory.join("DCIM/200video/inside")).unwrap();
+    std::fs::write(
+        accessory.join("DCIM/200video/inside/S_20300101120100.mp4"),
+        b"synthetic",
+    )
+    .unwrap();
+    let accessory_report =
+        crate::engine::scan(&accessory, &AtomicBool::new(false), |_| {}).unwrap();
+    assert!(crate::recognition::recognize(&accessory, &accessory_report)
+        .1
+        .is_none());
+    assert!(preview(&accessory_report, false)["reviewSamples"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|s| s["roleHint"] != "telephoto" && s["modeHint"] != "parking"));
+    std::fs::remove_dir_all(root).unwrap();
+}
+#[test]
+fn scope_negatives() {
+    let name = "S_20300101120100.mp4";
+    for id in [None, Some("ddpai-sibling"), Some("ddpai-z100-accessory")] {
+        assert_ne!(
+            crate::intake::sample_hints_for_folder(name, "DCIM/200video/inside", id).0,
+            "telephoto"
+        );
+        assert_ne!(
+            crate::mode_evidence::file_mode_evidence(name, "DCIM/200video/front", id)
+                .parking_subtype,
+            Some("time-lapse")
+        );
+    }
+    for (name, folder) in [
+        (name, "DCIM/200video/inside"),
+        (name, "DCIM/200video/rear"),
+        (name, "Other/front"),
+        ("S_20300101120100.jpg", "DCIM/201photo/front"),
+        ("20300101120100.mp4", "DCIM/200video/front"),
+    ] {
+        assert_ne!(
+            crate::mode_evidence::file_mode_evidence(name, folder, Some(ID)).parking_subtype,
+            Some("time-lapse")
+        );
+    }
+}

@@ -2,6 +2,7 @@
 pub mod annotations;
 pub mod engine;
 pub mod intake;
+pub mod manual_camera;
 pub mod mode_evidence;
 pub mod payload;
 pub mod recognition;
@@ -196,6 +197,12 @@ fn cancel_scan(s: State<'_, AppState>) {
     s.cancel.store(true, Ordering::SeqCst);
 }
 #[tauri::command]
+fn preview_camera_context(main_unit: bool, s: State<'_, AppState>) -> Result<serde_json::Value, String> {
+    let _busy = begin(&s)?;
+    let d = lock(&s)?;
+    Ok(manual_camera::preview(d.report.as_ref().ok_or("Scan first.")?, main_unit))
+}
+#[tauri::command]
 fn prepare_review(
     labels: Labels,
     annotations: Option<annotations::Annotations>,
@@ -207,7 +214,8 @@ fn prepare_review(
     let report = d.report.as_ref().ok_or("Scan first.")?;
     let mut annotations = annotations.unwrap_or_default();
     annotations.assignments_required = !annotations.cohorts.is_empty();
-    let mut review = annotations::prepare(report, &labels, &annotations)?;
+    let contextual = manual_camera::apply(report, manual_camera::selected(&labels));
+    let mut review = annotations::prepare(&contextual, &labels, &annotations)?;
     review.payload_hash = intake::hash(review.submission_json.as_bytes());
     d.review = Some(review.clone());
     Ok(review)
@@ -607,6 +615,7 @@ pub fn run() {
             let handler: fn(tauri::ipc::Invoke<tauri::Wry>) -> bool = tauri::generate_handler![
                 choose_source,
                 camera_catalog,
+                preview_camera_context,
                 discover_cards,
                 select_discovered_card,
                 scan_source,

@@ -265,6 +265,12 @@ fn recognize_metadata_with_catalog<'a>(
         value["manufacturer"] = serde_json::json!(families.first().unwrap());
         value["confidence"] = serde_json::json!("pattern");
     }
+    if families.is_empty() && report.folders.iter().any(|f| {
+        matches!(f.path.to_ascii_lowercase().as_str(), "dcim/200video/front" | "dcim/200video/inside" | "dcim/200video/rear") && f.file_count > 0
+    }) {
+        value["manufacturer"] = serde_json::json!("DDPAI");
+        value["reason"] = serde_json::json!("Shared DDPAI numbered-folder layout; choose the model and recording unit manually. This does not identify Z100 Master or an installed rear camera.");
+    }
     (value, None)
 }
 #[cfg(test)]
@@ -423,7 +429,7 @@ mod tests {
     }
     #[test]
     fn catalog_is_bounded_and_public() {
-        assert_eq!(catalog().len(), 102);
+        assert_eq!(catalog().len(), 103);
         let text = serde_json::to_string(catalog()).unwrap();
         assert!(!text.contains("/Volumes/") && !text.contains("sourceSha256"));
         for c in catalog() {

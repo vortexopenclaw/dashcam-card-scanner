@@ -35,7 +35,8 @@ fn unknown() -> FileModeEvidence {
     }
 }
 
-/// Same trust boundary as observed_channels: native identity only, never owner fields.
+/// Same trust boundary as observed_channels: native identity or the explicit
+/// main-unit confirmation adapter, never arbitrary owner identity fields.
 /// Without identity every matching catalog candidate must agree, including unknowns.
 pub fn file_mode_evidence(name: &str, folder: &str, native_id: Option<&str>) -> FileModeEvidence {
     if name.len() > 256 || folder.len() > 4096 || !observed_channels::is_media(name) {
@@ -48,6 +49,13 @@ pub fn file_mode_evidence(name: &str, folder: &str, native_id: Option<&str>) -> 
             "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv"
         )
     }) {
+        return unknown();
+    }
+    if native_id == Some(crate::manual_camera::ID) {
+        let (role, mode) = crate::manual_camera::hints(name, folder);
+        if role == "front" && mode == "parking" {
+            return FileModeEvidence { context: "parking", parking_subtype: Some("time-lapse"), trigger: "unknown", protected: None, basis: "owner_confirmed_main_unit_front_s_marker" };
+        }
         return unknown();
     }
     // The same bundled catalog as native recognition, with precompiled rules;

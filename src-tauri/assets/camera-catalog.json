@@ -1,6 +1,17 @@
 {
   "cameras": [
     {
+      "id": "ddpai-z100-master-main",
+      "manufacturer": "DDPAI",
+      "model": "Z100 Master - Main Unit",
+      "channelCount": 2,
+      "channelSetup": "front + telephoto",
+      "selectorOnly": true,
+      "manualOnly": true,
+      "patterns": [],
+      "folders": []
+    },
+    {
       "channelCount": 2,
       "channelSetup": "front + rear",
       "folders": [
