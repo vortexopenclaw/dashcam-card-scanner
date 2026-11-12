@@ -386,29 +386,62 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
         owner["suggestedFields"] = json!(l.suggested_fields);
     }
     let coverage = reviewed_retention(r);
-    let body=serde_json::to_string(&json!({"schemaVersion":1,"owner":owner,"evidence":evidence,"retention":coverage,"structure":{"completed":true,"fileCount":r.scanned_files,"mediaCount":total_media,"folders":folders,"observedLayouts":[]}})).map_err(|_|"JSON encoding failed")?;
-    if body.len() > 16384 {
-        return Err("Complete intake exceeds 16 KiB. Export locally; structural totals are never silently truncated.".into());
+    let mut payload = json!({"schemaVersion":1,"owner":owner,"evidence":evidence,"retention":coverage,"structure":{"completed":true,"fileCount":r.scanned_files,"mediaCount":total_media,"folders":folders,"observedLayouts":[]}});
+    if let Some(coverage) = &r.component_metadata_coverage {
+        payload["scan"] = json!({"componentMetadata":r.component_metadata,"componentMetadataCoverage":coverage});
     }
-    let mut payload: Value = serde_json::from_str(&body).map_err(|_| "JSON encoding failed")?;
     payload["temporalEvidence"] = temporal_summary(r);
+    fit_payload(&mut payload)
+}
+/// Preserve structure and private observations first, with explicit retention counts.
+/// Group membership uses the unchanged prefix of the reviewed sample order.
+pub(crate) fn fit_payload(payload: &mut Value) -> Result<String, String> {
     loop {
         let encoded = serde_json::to_string(&payload).map_err(|_| "JSON encoding failed")?;
         if encoded.len() <= 16384 {
+            if payload["evidence"].as_array().is_some_and(Vec::is_empty) {
+                if let Some(cohorts) = payload.get("cohorts").and_then(Value::as_array) {
+                    let folders: std::collections::BTreeSet<_> = cohorts.iter().filter_map(|c| c["folderIndices"].as_array()).flatten().filter_map(Value::as_u64).collect();
+                    if folders.len() != payload["structure"]["folders"].as_array().map_or(0, Vec::len) {
+                        return Err("Reduced grouped intake requires complete folder associations. Export locally.".into());
+                    }
+                }
+            }
             return Ok(encoded);
         }
-        let t = &mut payload["temporalEvidence"];
-        if t["cohorts"]
-            .as_array_mut()
-            .expect("cohorts")
-            .pop()
-            .is_none()
-        {
-            return Ok(body);
+        if let Some(t) = payload.get_mut("temporalEvidence") {
+            if t["cohorts"].as_array_mut().expect("cohorts").pop().is_some() {
+                t["omittedCohortCount"] = json!(t["cohortCount"].as_u64().unwrap() - t["cohorts"].as_array().unwrap().len() as u64);
+            } else { payload.as_object_mut().unwrap().remove("temporalEvidence"); }
+            continue;
         }
-        t["omittedCohortCount"] = json!(
-            t["cohortCount"].as_u64().unwrap() - t["cohorts"].as_array().unwrap().len() as u64
-        );
+        if payload["evidence"].as_array_mut().expect("evidence").pop().is_some() {
+            let n = payload["evidence"].as_array().unwrap().len();
+            let ids = payload["evidence"].as_array().unwrap().iter().filter(|e| e.get("filename").is_some()).count();
+            let measured = payload["evidence"].as_array().unwrap().iter().filter(|e| !e["durationSeconds"].is_null()).count();
+            let r = &mut payload["retention"];
+            r["retainedIdentities"] = json!(ids);
+            r["omittedIdentities"] = json!(r["inventoriedIdentities"].as_u64().unwrap().saturating_sub(ids as u64));
+            r["retainedMeasurements"] = json!(measured);
+            r["omittedMeasurements"] = json!(r["measuredFiles"].as_u64().unwrap().saturating_sub(measured as u64));
+            if let Some(cohorts) = payload.get_mut("cohorts").and_then(Value::as_array_mut) {
+                for c in cohorts {
+                    c["evidenceIndices"].as_array_mut().unwrap().retain(|i| i.as_u64().is_some_and(|i| i < n as u64));
+                    if c["evidenceIndices"].as_array().unwrap().is_empty() && c["folderIndices"].as_array().is_none_or(Vec::is_empty) {
+                        return Err("Configuration group exceeds private intake budget. Export locally.".into());
+                    }
+                }
+            }
+            continue;
+        }
+        if payload.get_mut("scan").and_then(|s| s["componentMetadata"].as_array_mut()).is_some_and(|rows| rows.pop().is_some()) {
+            let c = &mut payload["scan"]["componentMetadataCoverage"];
+            c["retainedEntries"] = json!(c["retainedEntries"].as_u64().unwrap() - 1);
+            c["omittedEntries"] = json!(c["omittedEntries"].as_u64().unwrap() + 1);
+            c["limited"] = json!(true);
+            continue;
+        }
+        return Err("Complete intake exceeds 16 KiB. Structural totals are never truncated; export locally.".into());
     }
 }
 fn temporal_summary(r: &Report) -> Value {

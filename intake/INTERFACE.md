@@ -28,6 +28,30 @@ Empty evidence is allowed ONLY for completed usable positive-media structure. Ne
 
 Review/proposal retain structure, paired measurements, owner assertions separately, report/evidence/structure hashes and canonical snapshot commit. Numeric duplicates exclude owner labels and positional folderIndex; they retain channel, mode, codec and every paired measurement. Raw samples retain location references separately. Cohorts preserve channel/mode/folder associations resolved to case-sensitive component arrays, independent of folder traversal order; structure hashes similarly normalize ordering without changing the retained report. Canonical folder comparisons use exact allowlisted structured paths only; aliases, filename regexes/unstructured claims remain manual (never execute upstream regexes). Complete observed channel sets compare structured variants only. No pattern match proves settings/numeric agreement. Proposal requires latest explicit local accept against the CURRENT snapshot commit; after a snapshot change, re-review and explicitly accept again. Never publishes.
 
+## Additive private camera-log observations
+
+Optional envelope `scan` accepts only optional `componentMetadata` (0–32 entries)
+and `componentMetadataCoverage`. Old reports omit it. Entries require exactly
+`manufacturer:'DDPAI'`, `component:'logging_device'|'rear'|'inside'`, nullable
+`reportedModel`, nullable recognized retail `model`, nullable `firmwareVersion`,
+`sourceKind:'ddpai_ui_device_info'`, `sourceFile`, positive `sourceLine` and
+boolean `identityEstablished`. Models are at most 80 characters / 240 UTF-8 bytes;
+firmware is at most 64 ASCII version-shaped characters. Source paths match only
+`DCIM/207log/ui/ui_<14 digits>_<3 digits>.log`; no absolute paths, traversal,
+controls or arbitrary log names. Duplicate (component, sourceFile, sourceLine)
+associations are rejected. Blank model observations use null and false, including
+unbound component versions; they never establish accessory identity.
+
+Coverage is exactly nonnegative integer `inspectedFiles`, `retainedEntries`,
+`omittedEntries` and boolean `limited`. Retained count equals the array length;
+positive omissions require limited=true. Unknown evidence in unread files is
+limited=true with no invented entry count. Historical log versions never replace
+owner firmware or establish clip settings. Protocol inside is not a physical-view
+claim. The private validator/storage preserves exact allowlisted fields and
+reviewed bytes. Public/anonymous exports recursively remove metadata and coverage;
+raw log bodies, credentials, serials, GPS and log-body hashes are never accepted.
+See [reader, identity and budget contract](../docs/ddpai-private-log-metadata.md).
+
 ## Private review decision details (local API)
 
 `decideReport(dataDir,id,decision,details?)` accepts optional strict object `{note?,question?,reason?,reference?,cohortId?}`; each supplied text is a nonblank string <=2000 characters, without control characters except newline/tab. Unknown keys are rejected. `reference` is plain local text (existing report hash + cohort context or canonical profile ID + configuration context), never auto-opened or treated as proof. With details supplied, `needs-info` requires `question`; `duplicate` (GUI label “Mark as already covered…”) requires `reason` AND `reference`. Known model alone is not evidence of coverage. Legacy omitted details remain supported but make no coverage claim. Nothing messages a contributor: compose/store a specific private question and manually copy it to the optional DashcamTalk user.

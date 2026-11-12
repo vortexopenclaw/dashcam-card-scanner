@@ -6,9 +6,11 @@
  * deliberately have no count here (even when their product name includes CH).
  */
 import {fixedSingleCapabilities} from './fixed-single-capabilities';
+import ddpaiIdentities from './ddpai-identities.json';
 export type ModelOption={id:string;manufacturer:string;model:string;source?:string;aliases?:string[];fixedSingleChannel?:boolean;provenance?:'official-catalog'|'official-manual'|'manufacturer-manual-mirror'|'official-product-support'|'owner-provided-prerelease'|'owner-confirmed'|'native-catalog'};
 const models=(manufacturer:string,source:string,names:string[],single:string[]=[]):ModelOption[]=>names.map(model=>({id:`ui:${manufacturer}:${model}`,manufacturer,model,source,fixedSingleChannel:single.includes(model),provenance:'official-catalog'}));
 export const modelOptions:ModelOption[]=[
+ ...[...new Map(ddpaiIdentities.identities.map(c=>[c.model.toLowerCase(),c])).values()].map(c=>({id:`ddpai:${c.id}`,manufacturer:'DDPAI',model:c.model,source:c.sources[0],provenance:'official-product-support' as const})),
  {id:'ddpai-z100-master-main',manufacturer:'DDPAI',model:'Z100 Master - Main Unit',provenance:'owner-confirmed',source:'https://www.ddpai.com/en-us/products/z100-master'},
  ...models('Viofo','https://www.viofo.com/pages/support-product',[
   'A119M Pro','A119 MINI','A119 MINI 2','A119 V3','VS1','WM1','A229 Pro 1CH','A229 Plus 1CH','A329S 1CH',

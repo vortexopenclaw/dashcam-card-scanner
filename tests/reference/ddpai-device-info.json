@@ -1,0 +1,20 @@
+{
+  "msgHdr": {
+    "protVer": "<omitted>",
+    "msgID": "<omitted>",
+    "transID": "<omitted>",
+    "isAck": "<omitted>",
+    "needAck": "<omitted>"
+  },
+  "model": "DDPAI DZ2602_GLOBAL_Z100 Master",
+  "soft_version": "8.0.0.16",
+  "wifi_ssid": "<omitted>",
+  "wifi_pwd": "<omitted>",
+  "sn_code": "<omitted>",
+  "bt_info": "<omitted>",
+  "promotion_name": "<omitted>",
+  "rear_version": "v9.0.0.0",
+  "rear_model": "",
+  "inside_version": "v9.0.0.0",
+  "inside_model": ""
+}

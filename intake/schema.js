@@ -72,8 +72,29 @@ function temporalEvidence(t){
     if((!t.inventoryComplete||t.temporalLimited||c.adjacentPairCount<4)&&(c.suggestion!==null||c.startIntervalMedianSeconds!==null||c.estimatedCaptureFps!==null||c.relativeDrivingBitrate!==null))throw Error('incomplete_temporal_cadence');
   }
 }
+const safeObservedModel=s=>typeof s==='string'&&s.length>0&&[...s].length<=80&&new TextEncoder().encode(s).length<=240&&s.trim()===s&&/^[\p{L}\p{N} ._()+-]+$/u.test(s);
+function componentScan(s){
+  exact(s,[],['componentMetadata','componentMetadataCoverage']);
+  const rows=s.componentMetadata===undefined?[]:s.componentMetadata;array(rows,0,32);
+  for(const e of rows){
+    exact(e,['manufacturer','component','reportedModel','model','firmwareVersion','sourceKind','sourceFile','sourceLine','identityEstablished']);
+    if(e.manufacturer!=='DDPAI'||e.sourceKind!=='ddpai_ui_device_info')throw Error('invalid_component_source');
+    choice(e.component,['logging_device','rear','inside']);
+    for(const k of ['reportedModel','model'])if(e[k]!==null&&!safeObservedModel(e[k]))throw Error('invalid_component_model');
+    if(e.firmwareVersion!==null&&(typeof e.firmwareVersion!=='string'||e.firmwareVersion.length>64||!/^v?[0-9]{1,4}(?:\.[0-9]{1,4}){2,5}(?:[-_][A-Za-z0-9]{1,16})?$/.test(e.firmwareVersion)))throw Error('invalid_component_firmware');
+    if(typeof e.identityEstablished!=='boolean'||e.identityEstablished!==(e.reportedModel!==null)||e.reportedModel===null&&e.model!==null||e.reportedModel===null&&e.firmwareVersion===null)throw Error('invalid_component_identity');
+    if(typeof e.sourceFile!=='string'||!/^DCIM\/207log\/ui\/ui_[0-9]{14}_[0-9]{3}\.log$/.test(e.sourceFile))throw Error('invalid_component_path');
+    number(e.sourceLine,10000000,true);
+  }
+  unique(rows.map(e=>[e.component,e.sourceFile,e.sourceLine]));
+  if(s.componentMetadataCoverage!==undefined){
+    const c=s.componentMetadataCoverage;exact(c,['inspectedFiles','retainedEntries','omittedEntries','limited']);Object.entries(c).filter(([k])=>k!=='limited').forEach(([,n])=>count(n));
+    if(typeof c.limited!=='boolean'||c.retainedEntries!==rows.length||c.omittedEntries>0&&!c.limited||rows.length>0&&c.inspectedFiles===0||new Set(rows.map(e=>e.sourceFile)).size>c.inspectedFiles)throw Error('invalid_component_coverage');
+  }
+}
 export function validate(p) {
-  exact(p,['schemaVersion','owner','evidence'],['structure','contributor','cohorts','temporalEvidence','retention']);if(p.schemaVersion!==1)throw Error('invalid_version');
+  exact(p,['schemaVersion','owner','evidence'],['structure','contributor','cohorts','temporalEvidence','retention','scan']);if(p.schemaVersion!==1)throw Error('invalid_version');
+  if(p.scan!==undefined)componentScan(p.scan);
   settings(p.owner,true);
   if(p.temporalEvidence!==undefined)temporalEvidence(p.temporalEvidence);
   if(p.contributor!==undefined){

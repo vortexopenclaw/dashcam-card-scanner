@@ -23,6 +23,10 @@ pub fn recognize_with_ocr(
             None,
         );
     }
+    if let Some(value) = crate::ddpai_log::recognition(report) {
+        // No catalog maximum or accessory protocol role becomes installed-channel evidence.
+        return (value, None);
+    }
     let evidence = stamp_ocr::probe(root, report, cancel, &mut progress);
     if report.cancelled || cancel.load(std::sync::atomic::Ordering::Relaxed) {
         return (

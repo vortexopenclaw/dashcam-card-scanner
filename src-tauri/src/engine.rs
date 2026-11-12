@@ -67,6 +67,11 @@ pub struct MetadataCoverage {
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Report {
+    /// Private historical observations; anonymous exports explicitly exclude these.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub component_metadata: Vec<crate::ddpai_log::ComponentMetadata>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub component_metadata_coverage: Option<crate::ddpai_log::Coverage>,
     /// Native whole-inventory adjacency evidence, independent of representative samples.
     /// Both directions skipped: imported JSON cannot manufacture temporal authority.
     #[serde(skip)]
@@ -417,6 +422,15 @@ fn scan_with_limits(
         files: r.scanned_files,
         probed: r.probe_attempts,
     });
+    if !walker.report.cancelled {
+        let (metadata, coverage) = crate::ddpai_log::read(&root, cancel);
+        walker.report.component_metadata = metadata;
+        walker.report.component_metadata_coverage = coverage;
+        if cancel.load(Ordering::Relaxed) { walker.report.cancelled = true; }
+        if crate::ddpai_log::confirmed_z100_main(&walker.report) {
+            walker.report.recognized_camera_id = Some(crate::manual_camera::ID.into());
+        }
+    }
     Ok(walker.report)
 }
 struct Walker<'a, F> {

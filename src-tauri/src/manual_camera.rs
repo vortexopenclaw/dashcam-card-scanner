@@ -73,8 +73,12 @@ pub fn channels(report: &Report) -> crate::observed_channels::ObservedChannels {
     crate::observed_channels::ObservedChannels {
         count: (!roles.is_empty()).then_some(roles.len()),
         setup: (!roles.is_empty()).then(|| roles.join(" + ")),
-        roles, confidence: "owner_confirmed_unit",
-        reason: "Manually selected main-unit card. Built-in front + telephoto; inside is firmware-labeled telephoto. Optional rear makes 3CH on this card; a 4CH system adds a separate cabin-camera microSD. Observed video roles only, not installed system coverage.",
+        roles, confidence: if crate::ddpai_log::confirmed_z100_main(report) { "structured_log_and_layout" } else { "owner_confirmed_unit" },
+        reason: if crate::ddpai_log::confirmed_z100_main(report) {
+            "Structured logging-device Z100 Master identity corroborated by main-card front-video metadata. Main-card inside is telephoto; protocol inside_model remains a separate observation. Observed video roles only; a 4CH system includes a separately recording cabin card."
+        } else {
+            "Manually selected main-unit card. Built-in front + telephoto; inside is firmware-labeled telephoto. Optional rear makes 3CH on this card; a 4CH system adds a separate cabin-camera microSD. Observed video roles only, not installed system coverage."
+        },
     }
 }
 pub fn preview(report: &Report, selected: bool) -> serde_json::Value {

@@ -1,0 +1,1696 @@
+{
+  "scope": "Public official catalogue identities, regional manual discoveries and demonstrated display/SSID variants; NOT a verified firmware/log alias dictionary. Regional rows and revisions intentionally separate.",
+  "identities": [
+    {
+      "id": "cn-a2-47",
+      "model": "A2",
+      "region": "China",
+      "aliases": [
+        "九鹰A2"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/9-eagle-a2/",
+        "https://cn.ddpai.com/product-support/9-eagle-a2/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-a2-pro-46",
+      "model": "A2 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/a2-pro/",
+        "https://cn.ddpai.com/product-support/a2-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-a2s-pro-45",
+      "model": "A2S Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/a2s-pro/",
+        "https://cn.ddpai.com/product-support/a2s-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-d2-64",
+      "model": "D2",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/d2/",
+        "https://cn.ddpai.com/product-support/d2/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-d5-65",
+      "model": "D5",
+      "region": "China",
+      "aliases": [
+        "D5系列"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/d5/",
+        "https://cn.ddpai.com/product-support/d5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-ddpai-q5-66",
+      "model": "DDPAI Q5",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/q5/",
+        "https://cn.ddpai.com/product-support/q5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-e3-68",
+      "model": "E3",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://cn.ddpai.com/product-support/e3/",
+        "https://cn.ddpai.com/product-support/e3/"
+      ],
+      "notes": [
+        "Original index manual URL returns 404; alternate official site-navigation manual URL verified."
+      ]
+    },
+    {
+      "id": "cn-e3pro-71",
+      "model": "E3Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://cn.ddpai.com/cn/product-support/e3pro-product-user-guide/",
+        "https://cn.ddpai.com/product-support/e3pro-product-user-guide/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-e3-69",
+      "model": "E3天猫精灵版",
+      "region": "China",
+      "aliases": [
+        "mola E3 天猫精灵版"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://cn.ddpai.com/product-support/tianmao-vision-e3/",
+        "https://cn.ddpai.com/product-support/tianmao-vision-e3/"
+      ],
+      "notes": [
+        "Original index manual URL returns 404; alternate official site-navigation manual URL verified."
+      ]
+    },
+    {
+      "id": "cn-e5-70",
+      "model": "E5",
+      "region": "China",
+      "aliases": [
+        "mola E5"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mola-e5/",
+        "https://cn.ddpai.com/product-support/mola-e5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-k200-4k-60",
+      "model": "K200 4K",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://cn.ddpai.com/cn/product-support/k200-4k-%e4%ba%a7%e5%93%81%e4%bd%bf%e7%94%a8%e6%8c%87%e5%8d%97/",
+        "https://cn.ddpai.com/product-support/k200-4k-%E4%BA%A7%E5%93%81%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-k3-61",
+      "model": "K3",
+      "region": "China",
+      "aliases": [
+        "K3系列"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/k3/",
+        "https://cn.ddpai.com/product-support/k3/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-k5-62",
+      "model": "K5",
+      "region": "China",
+      "aliases": [
+        "K5系列"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/k5/",
+        "https://cn.ddpai.com/product-support/k5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-k7-63",
+      "model": "K7",
+      "region": "China",
+      "aliases": [
+        "K7系列"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/k7/",
+        "https://cn.ddpai.com/product-support/k7/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-m4-59",
+      "model": "M4",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/m4/",
+        "https://cn.ddpai.com/product-support/m4/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-m5-58",
+      "model": "M5",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/m5/",
+        "https://cn.ddpai.com/product-support/m5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-m5s-57",
+      "model": "M5S",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/m5s/",
+        "https://cn.ddpai.com/product-support/m5s/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-m6-56",
+      "model": "M6",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/m6/",
+        "https://cn.ddpai.com/product-support/m6/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-m6-plus-55",
+      "model": "M6 Plus",
+      "region": "China",
+      "aliases": [
+        "M6 plus"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/m6-plus/",
+        "https://cn.ddpai.com/product-support/m6-plus/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-m6c-54",
+      "model": "M6C",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/m6c/",
+        "https://cn.ddpai.com/product-support/m6c/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini-23",
+      "model": "MINI",
+      "region": "China",
+      "aliases": [
+        "mini"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini/",
+        "https://cn.ddpai.com/product-support/mini/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini-one-19",
+      "model": "MINI ONE 夜视版",
+      "region": "China",
+      "aliases": [
+        "mini ONE夜视版"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini-one-with-night-vision/",
+        "https://cn.ddpai.com/product-support/mini-one-with-night-vision/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini-pro-10",
+      "model": "MINI Pro",
+      "region": "China",
+      "aliases": [
+        "MINIPro"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini-pro/",
+        "https://cn.ddpai.com/product-support/mini-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini2-22",
+      "model": "MINI2",
+      "region": "China",
+      "aliases": [
+        "mini2"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini2/",
+        "https://cn.ddpai.com/product-support/mini2/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini2s-20",
+      "model": "MINI2S",
+      "region": "China",
+      "aliases": [
+        "mini2S"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini2s/",
+        "https://cn.ddpai.com/product-support/mini2s/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini2s-21",
+      "model": "MINI2S 变形金刚",
+      "region": "China",
+      "aliases": [
+        "mini2S 变形金刚"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini2s-transformers/",
+        "https://cn.ddpai.com/product-support/mini2s-transformers/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini2x-07",
+      "model": "MINI2X",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini2x/",
+        "https://cn.ddpai.com/product-support/mini2x/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3-17",
+      "model": "MINI3",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": false,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3/",
+        "https://cn.ddpai.com/product-support/mini3/"
+      ],
+      "notes": [
+        "Linked manual heading names a different model; do not derive aliases or log identity from its body."
+      ]
+    },
+    {
+      "id": "cn-mini3-pro-14",
+      "model": "MINI3 Pro",
+      "region": "China",
+      "aliases": [
+        "mini3 Pro"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3-pro/",
+        "https://cn.ddpai.com/product-support/mini3-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3-pro-15",
+      "model": "MINI3 Pro 小鹏定制版",
+      "region": "China",
+      "aliases": [
+        "mini3 Pro 小鹏定制版"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3-xpeng/",
+        "https://cn.ddpai.com/product-support/mini3-xpeng/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3-pro-16",
+      "model": "MINI3 Pro 广汽埃安版",
+      "region": "China",
+      "aliases": [
+        "mini3 Pro 广汽埃安版"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3-pro-aion-vision/",
+        "https://cn.ddpai.com/product-support/mini3-pro-aion-vision/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3-ultra-11",
+      "model": "MINI3 Ultra",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3-ultra/",
+        "https://cn.ddpai.com/product-support/mini3-ultra/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3s-06",
+      "model": "MINI3S",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3s/",
+        "https://cn.ddpai.com/product-support/mini3s/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3s-4k-04",
+      "model": "MINI3S 4K",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3s-4k/",
+        "https://cn.ddpai.com/product-support/mini3s-4k/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3s-master-00",
+      "model": "MINI3S Master",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://cn.ddpai.com/cn/product-support/mini3s-master/",
+        "https://cn.ddpai.com/product-support/mini3s-master/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3x-05",
+      "model": "MINI3X",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini3x/",
+        "https://cn.ddpai.com/product-support/mini3x/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini3x-01",
+      "model": "MINI3X 系列",
+      "region": "China",
+      "aliases": [
+        "MINI3X系列"
+      ],
+      "recognitionEligible": false,
+      "sources": [
+        "https://cn.ddpai.com/cn/product-support/mini3x%e7%b3%bb%e5%88%97%e4%ba%a7%e5%93%81%e4%bd%bf%e7%94%a8%e6%8c%87%e5%8d%97/",
+        "https://cn.ddpai.com/product-support/mini3x%E7%B3%BB%E5%88%97%E4%BA%A7%E5%93%81%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97/"
+      ],
+      "notes": [
+        "Series-level record, not an exact individual model."
+      ]
+    },
+    {
+      "id": "cn-mini4-09",
+      "model": "MINI4",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini4/",
+        "https://cn.ddpai.com/product-support/mini4/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini5-12",
+      "model": "MINI5",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini5/",
+        "https://cn.ddpai.com/product-support/mini5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini5-13",
+      "model": "MINI5 小鹏定制版",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini5-xpeng/",
+        "https://cn.ddpai.com/product-support/mini5-xpeng/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini7x-08",
+      "model": "MINI7X",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini-7x/",
+        "https://cn.ddpai.com/product-support/mini-7x/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-minione-18",
+      "model": "MINIONE",
+      "region": "China",
+      "aliases": [
+        "miniONE"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/minione/",
+        "https://cn.ddpai.com/product-support/minione/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-minipro-2k-03",
+      "model": "MINIPro 2K",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/minipro-2k/",
+        "https://cn.ddpai.com/product-support/minipro-2k/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-minipro-3k-02",
+      "model": "MINIPro 3K",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/minipro-3k/",
+        "https://cn.ddpai.com/product-support/minipro-3k/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-minise-25",
+      "model": "MINISE",
+      "region": "China",
+      "aliases": [
+        "miniSE"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/minise/",
+        "https://cn.ddpai.com/product-support/minise/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-mini-24",
+      "model": "MINI夜视",
+      "region": "China",
+      "aliases": [
+        "mini夜视"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mini-night-vision/",
+        "https://cn.ddpai.com/product-support/mini-night-vision/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-n2-49",
+      "model": "N2",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/n2/",
+        "https://cn.ddpai.com/product-support/n2/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-n3-52",
+      "model": "N3",
+      "region": "China",
+      "aliases": [
+        "mola N3"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mola-n3/",
+        "https://cn.ddpai.com/product-support/mola-n3/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-n3-pro-51",
+      "model": "N3 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/n3-pro/",
+        "https://cn.ddpai.com/product-support/n3-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-n4t-pro-48",
+      "model": "N4T Pro",
+      "region": "China",
+      "aliases": [
+        "N4TPro"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://cn.ddpai.com/cn/product-support/n4tpro/",
+        "https://cn.ddpai.com/product-support/n4tpro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-n5-pro-50",
+      "model": "N5 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/n5-pro/",
+        "https://cn.ddpai.com/product-support/n5-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-ranger-80",
+      "model": "RANGER",
+      "region": "China",
+      "aliases": [
+        "骑行相机"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/ranger/",
+        "https://cn.ddpai.com/product-support/ranger/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-ranger-m1-79",
+      "model": "RANGER M1",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/ranger-m1/",
+        "https://cn.ddpai.com/product-support/ranger-m1/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-s5-77",
+      "model": "S5",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/s5/",
+        "https://cn.ddpai.com/product-support/s5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-s50-76",
+      "model": "S50",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/s50/",
+        "https://cn.ddpai.com/product-support/s50/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-s500-pro-75",
+      "model": "S500 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/s500-pro/",
+        "https://cn.ddpai.com/product-support/s500-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-v100-78",
+      "model": "V100",
+      "region": "China",
+      "aliases": [
+        "全景车盒V100"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/v100/",
+        "https://cn.ddpai.com/product-support/v100/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x1-33",
+      "model": "X1",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x1/",
+        "https://cn.ddpai.com/product-support/x1/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x2-32",
+      "model": "X2",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x2/",
+        "https://cn.ddpai.com/product-support/x2/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x2-pro-30",
+      "model": "X2 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x2-pro/",
+        "https://cn.ddpai.com/product-support/x2-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x2s-31",
+      "model": "X2S",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x2s/",
+        "https://cn.ddpai.com/product-support/x2s/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x2s-pro-29",
+      "model": "X2S Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x2s-pro/",
+        "https://cn.ddpai.com/product-support/x2s-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x3-pro-28",
+      "model": "X3 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x3-pro/",
+        "https://cn.ddpai.com/product-support/x3-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x5-pro-27",
+      "model": "X5 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x5-pro/",
+        "https://cn.ddpai.com/product-support/x5-pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-x5-race-26",
+      "model": "X5 Race",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/x5-race/",
+        "https://cn.ddpai.com/product-support/x5-race/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z30-38",
+      "model": "Z30",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z30/",
+        "https://cn.ddpai.com/product-support/z30/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z30-4k-34",
+      "model": "Z30 4K",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://cn.ddpai.com/cn/product-support/z30-4k-2/",
+        "https://cn.ddpai.com/product-support/z30-4k-2/"
+      ],
+      "notes": [
+        "Two separate official Z30 4K entries/manual URLs retained; revision/alias relationship unresolved."
+      ]
+    },
+    {
+      "id": "cn-z30-4k-39",
+      "model": "Z30 4K版",
+      "region": "China",
+      "aliases": [
+        "Z30 4K"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z30-4k/",
+        "https://cn.ddpai.com/product-support/z30-4k/"
+      ],
+      "notes": [
+        "Two separate official Z30 4K entries/manual URLs retained; revision/alias relationship unresolved."
+      ]
+    },
+    {
+      "id": "cn-z30-lite-37",
+      "model": "Z30 Lite",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z30-lite/",
+        "https://cn.ddpai.com/product-support/z30-lite/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z40-43",
+      "model": "Z40",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z40/",
+        "https://cn.ddpai.com/product-support/z40/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z45-40",
+      "model": "Z45",
+      "region": "China",
+      "aliases": [
+        "DDPAI Z45"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z45/",
+        "https://cn.ddpai.com/product-support/z45/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z5-44",
+      "model": "Z5",
+      "region": "China",
+      "aliases": [
+        "mola Z5"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mola-z5/",
+        "https://cn.ddpai.com/product-support/mola-z5/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z50-42",
+      "model": "Z50",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z50/",
+        "https://cn.ddpai.com/product-support/z50/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z60-41",
+      "model": "Z60",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z60/",
+        "https://cn.ddpai.com/product-support/z60/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z60-pro-36",
+      "model": "Z60 Pro",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/z60pro/",
+        "https://cn.ddpai.com/product-support/z60pro/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-z90-35",
+      "model": "Z90 系列",
+      "region": "China",
+      "aliases": [
+        "Z90系列"
+      ],
+      "recognitionEligible": false,
+      "sources": [
+        "https://cn.ddpai.com/cn/product-support/z90/",
+        "https://cn.ddpai.com/product-support/z90/"
+      ],
+      "notes": [
+        "Series-level record, not an exact individual model."
+      ]
+    },
+    {
+      "id": "cn-mix3-53",
+      "model": "mix3",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/mix3/",
+        "https://cn.ddpai.com/product-support/mix3/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-q2-73",
+      "model": "九鹰Q2",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": false,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/9-eagles-q2/",
+        "https://cn.ddpai.com/product-support/9-eagles-q2/"
+      ],
+      "notes": [
+        "Linked manual heading names a different model; do not derive aliases or log identity from its body."
+      ]
+    },
+    {
+      "id": "cn-q2s-72",
+      "model": "九鹰Q2S",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/9-eagles-q2s/",
+        "https://cn.ddpai.com/product-support/9-eagles-q2s/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-q3-74",
+      "model": "九鹰Q3",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/9-eagles-q3/",
+        "https://cn.ddpai.com/product-support/9-eagles-q3/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "cn-q2s-67",
+      "model": "五菱Q2S",
+      "region": "China",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/cn/product-support/wuling-q2s/",
+        "https://cn.ddpai.com/product-support/wuling-q2s/"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-9-eagles-a2",
+      "model": "9 Eagles A2",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/9-eagles-a2-user-manual"
+      ],
+      "notes": [
+        "Regional CN A2 relationship not assumed."
+      ]
+    },
+    {
+      "id": "global-k200",
+      "model": "K200",
+      "region": "global-English",
+      "aliases": [
+        "K200 2K + 1K Dash Cam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/k200-user-manual",
+        "https://www.ddpai.com/products/k200"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini",
+      "model": "MINI",
+      "region": "global-English",
+      "aliases": [
+        "Mini"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini-one",
+      "model": "MINI ONE",
+      "region": "global-English",
+      "aliases": [
+        "MINIONE",
+        "miniONE"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/minione-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini-vision",
+      "model": "MINI Vision",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini-vision-user-manual",
+        "https://www.ddpai.com/products/mini-vision"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini2x",
+      "model": "MINI2X",
+      "region": "global-English",
+      "aliases": [
+        "MINI2X 2K Dash Cam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini2x-user-manual",
+        "https://www.ddpai.com/products/mini2x-2k-dash-cam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini2x-2026",
+      "model": "MINI2X 2026",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini2x-2026-user-manual",
+        "https://www.ddpai.com/products/mini2x-2026"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini3",
+      "model": "MINI3",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini3-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini3x-v3",
+      "model": "MINI3X (V3)",
+      "region": "global-English",
+      "aliases": [
+        "MINI3X"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini3x-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini5",
+      "model": "MINI5",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini5-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mini7x",
+      "model": "MINI7X",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/mini7x-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-minipro-2k",
+      "model": "MINIPro 2K",
+      "region": "global-English",
+      "aliases": [
+        "MINIPRO 2K Dashcam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/minipro-user-manual",
+        "https://www.ddpai.com/products/mini-pro-2k-dashcam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-minipro-3k",
+      "model": "MINIPro 3K",
+      "region": "global-English",
+      "aliases": [
+        "MINI PRO 3K"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/minipro-user-manual",
+        "https://www.ddpai.com/products/mini-pro-3k"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-minipro-4k",
+      "model": "MINIPro 4K",
+      "region": "global-English",
+      "aliases": [
+        "MINI PRO 4K"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/minipro-user-manual",
+        "https://www.ddpai.com/products/mini-pro-4k"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-mola-e3-rearview-mirror-dashcam-with-navigation",
+      "model": "MOLA E3 Rearview Mirror Dashcam with Navigation‌",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/products/mola-e3-rearview-mirror-dashcam"
+      ],
+      "notes": [
+        "No equivalence to similarly named manual revision is assumed."
+      ]
+    },
+    {
+      "id": "global-n1-dual",
+      "model": "N1 Dual",
+      "region": "global-English",
+      "aliases": [
+        "N1 Dual Dash Cam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n1-dual-user-manual",
+        "https://www.ddpai.com/products/n1-dual-dashcam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n1-pro",
+      "model": "N1 Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n1-pro-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n2",
+      "model": "N2",
+      "region": "global-English",
+      "aliases": [
+        "N2 2K Dash Cam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n2-user-manual",
+        "https://www.ddpai.com/products/n2-2k-dash-cam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n3",
+      "model": "N3",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n3-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n3-pro",
+      "model": "N3 Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n3-pro-original-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n3-pro-v2",
+      "model": "N3 Pro (V2)",
+      "region": "global-English",
+      "aliases": [
+        "N3 Pro"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n3-pro-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n3-pro-gps-upgraded",
+      "model": "N3 Pro GPS (Upgraded)",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/products/n3-pro-upgraded"
+      ],
+      "notes": [
+        "No equivalence to similarly named manual revision is assumed."
+      ]
+    },
+    {
+      "id": "global-n4q",
+      "model": "N4Q",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/products/n4q"
+      ],
+      "notes": [
+        "No equivalence to similarly named manual revision is assumed."
+      ]
+    },
+    {
+      "id": "global-n4t",
+      "model": "N4T",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n4t-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n4t-pro",
+      "model": "N4T Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n4t-user-manual",
+        "https://www.ddpai.com/products/n4t-pro"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n5-dual",
+      "model": "N5 Dual",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n5-dual-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n5-dual-2026",
+      "model": "N5 Dual (2026)",
+      "region": "global-English",
+      "aliases": [
+        "N5(2026)",
+        "N5 Dual 2026 4K Dash Cam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n5-2026-user-manual",
+        "https://www.ddpai.com/products/n5-dual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-n5-pro",
+      "model": "N5 Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/products/n5-pro-dash-cam"
+      ],
+      "notes": [
+        "No equivalence to similarly named manual revision is assumed."
+      ]
+    },
+    {
+      "id": "global-n5-pro-2026",
+      "model": "N5 Pro (2026)",
+      "region": "global-English",
+      "aliases": [
+        "N5 Pro"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/n5pro-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-ranger",
+      "model": "RANGER",
+      "region": "global-English",
+      "aliases": [
+        "Ranger Riding Camera",
+        "Ranger 4K Riding Camera"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/ranger-user-manual",
+        "https://www.ddpai.com/products/ranger-riding-camera"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-ranger-m1",
+      "model": "RANGER M1",
+      "region": "global-English",
+      "aliases": [
+        "RANGER M1 3K Motorcycle Dashcam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/ranger-m1-user-manual",
+        "https://www.ddpai.com/products/ranger-m1-3k-motorcycle-dashcam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-x2s-pro",
+      "model": "X2S Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/x2s-pro-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-x5-pro",
+      "model": "X5 Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/x5-pro-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z100",
+      "model": "Z100",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z100-series-user-manual",
+        "https://www.ddpai.com/products/z100"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z100-master",
+      "model": "Z100 Master",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z100-series-user-manual",
+        "https://www.ddpai.com/products/z100-master"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z100-pro",
+      "model": "Z100 Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z100-series-user-manual",
+        "https://www.ddpai.com/products/z100-pro"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z40",
+      "model": "Z40",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z40-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z50",
+      "model": "Z50",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z50-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z50-pro",
+      "model": "Z50 Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z50pro-user-manual",
+        "https://www.ddpai.com/products/z50-pro-4k-dash-cam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z50-pro-2026",
+      "model": "Z50 Pro (2026)",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z50-pro-2-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z60",
+      "model": "Z60",
+      "region": "global-English",
+      "aliases": [
+        "Z60 4K Dash Cam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z60-user-manual",
+        "https://www.ddpai.com/products/z60-4k-dash-cam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z60-2026",
+      "model": "Z60 (2026)",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z60t-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z60-master",
+      "model": "Z60 Master",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z60-master-user-manual",
+        "https://www.ddpai.com/products/z60-master"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z60-pro",
+      "model": "Z60 Pro",
+      "region": "global-English",
+      "aliases": [
+        "Z60Pro",
+        "Z60 Pro 4K Dash Cam"
+      ],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z60pro-user-manual",
+        "https://www.ddpai.com/products/z60-pro-4k-dash-cam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z60t",
+      "model": "Z60T",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z60t-user-manual",
+        "https://www.ddpai.com/products/z60t-4k-2k-1k-dash-cam"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z90",
+      "model": "Z90",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z90-series-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z90-2026",
+      "model": "Z90 (2026)",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z90t-z902026-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z90-master",
+      "model": "Z90 Master",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z90-series-user-manual",
+        "https://www.ddpai.com/products/z90-master"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z90-max",
+      "model": "Z90 Max",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z90-max-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z90-pro",
+      "model": "Z90 Pro",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z90-series-user-manual"
+      ],
+      "notes": []
+    },
+    {
+      "id": "global-z90-pro-new",
+      "model": "Z90 Pro (New)",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/products/z90-pro"
+      ],
+      "notes": [
+        "No equivalence to similarly named manual revision is assumed."
+      ]
+    },
+    {
+      "id": "global-z90t",
+      "model": "Z90T",
+      "region": "global-English",
+      "aliases": [],
+      "recognitionEligible": true,
+      "sources": [
+        "https://www.ddpai.com/pages/z90t-z902026-user-manual",
+        "https://www.ddpai.com/products/z90t"
+      ],
+      "notes": []
+    }
+  ]
+}

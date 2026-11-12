@@ -27,7 +27,7 @@ test('actual native preview drives editable picker, observed channels, mode revi
  expect(ui.fields.model.value).toBe('');expect(ui.manufacturerPick.value).toBe('DDPAI');expect(ui.choices.channelCount.value).toBe('Select count');
  change(ui.manufacturerPick,'DDPAI');expect([...ui.modelPick.options].some(o=>o.value==='ddpai-z100-master-main')).toBe(true);
  change(ui.modelPick,'ddpai-z100-master-main');await settle();
- expect(root.textContent).toContain('Manually selected');expect(root.textContent).toContain('not a separately recording accessory');expect(root.textContent).toContain('3CH on this card');expect(root.textContent).toContain('4CH system');expect(root.textContent).toContain('Exact automatic recognition is unavailable');
+ expect(root.textContent).toContain('Manually selected');expect(root.textContent).toContain('not a separately recording accessory');expect(root.textContent).toContain('3CH on this card');expect(root.textContent).toContain('4CH system');expect(root.textContent).toContain('Shared DDPAI folders alone do not identify the model');
  expect(ui.choices.channelCount.value).toBe('3');expect(ui.fields.channelSetup.value).toBe('front + telephoto + rear');
  expect(ui.choices.parkingMode.value).toBe('unknown'); // per-file S_ evidence does not label the entire mixed card
  expect(root.querySelector<HTMLSelectElement>('select[data-frame-rate]')!.value).toBe('');

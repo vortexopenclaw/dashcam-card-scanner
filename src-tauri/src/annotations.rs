@@ -223,25 +223,16 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
         if let Some(c) = &a.contributor {
             body["contributor"] = json!({"dashcamTalkUsername":private_username(c)?});
         }
-        while serde_json::to_vec(&body)
-            .map_err(|_| "Intake encoding failed")?
-            .len()
-            > 16384
-            && body.get("temporalEvidence").is_some()
-        {
-            let t = &mut body["temporalEvidence"];
-            if t["cohorts"].as_array_mut().unwrap().pop().is_some() {
-                t["omittedCohortCount"] = json!(
-                    t["cohortCount"].as_u64().unwrap()
-                        - t["cohorts"].as_array().unwrap().len() as u64
-                );
-            } else {
-                body.as_object_mut().unwrap().remove("temporalEvidence");
+        let retained = body["evidence"].as_array().unwrap().len();
+        let mut groups_fit = true;
+        if let Some(cohorts) = body.get_mut("cohorts").and_then(Value::as_array_mut) {
+            for c in cohorts {
+                c["evidenceIndices"].as_array_mut().unwrap().retain(|i| i.as_u64().is_some_and(|i| i < retained as u64));
+                groups_fit &= !c["evidenceIndices"].as_array().unwrap().is_empty() || c["folderIndices"].as_array().is_some_and(|f| !f.is_empty());
             }
-            review.warning.push_str(" Optional temporal summary reduced/omitted to fit 16 KiB; paired measurements preserved.");
         }
-        let bytes = serde_json::to_string(&body).map_err(|_| "Intake encoding failed")?;
-        if bytes.len() > 16384 {
+        let fitted = if groups_fit { intake::fit_payload(&mut body) } else { Err("Group has no retained evidence".into()) };
+        if fitted.is_err() {
             review.submission_json.clear();
             review
                 .warning
@@ -251,7 +242,7 @@ pub fn prepare(r: &Report, l: &Labels, a: &Annotations) -> Result<Review, String
             exported.as_object_mut().unwrap().remove("contributor");
             review.private_json =
                 serde_json::to_string(&exported).map_err(|_| "Intake encoding failed")?;
-            review.submission_json = bytes;
+            review.submission_json = fitted.unwrap();
         }
     }
     review.warning.push_str(" Protection status and parking subtype are independent. Filename suffixes are observable tokens only; no universal channel/model mapping is assumed. Capture cadence is owner-reported, not video playback fps. Contributor, if opted in, appears only in the secure-intake preview, never either local export.");
