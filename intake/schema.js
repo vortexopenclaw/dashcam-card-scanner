@@ -9,7 +9,7 @@ function number(n,max,integer=false) { if(typeof n!=='number'||!Number.isFinite(
 function choice(s,values) { if(!values.includes(s)) throw Error('invalid_enum'); }
 const CHANNELS=['front','rear','interior','telephoto','left','right','unknown'];
 const MODES=['normal','protected','parking','unknown'];
-const FOLDERS=new Set('DCIM Movie Movies RO Parking Photo Photos Video Videos Normal Event Events Emergency Record Recording Front Rear Interior Telephoto Left Right Lock Locked Snapshot Snapshots Continuous Driving BlackVue INNOVV Garmin Thinkware VIOFO'.toLowerCase().split(' '));
+const FOLDERS=new Set('DCIM 200video 201photo 202thumb Inside Movie Movies RO Parking Photo Photos Video Videos Normal Event Events Emergency Record Recording Front Rear Interior Telephoto Left Right Lock Locked Snapshot Snapshots Continuous Driving BlackVue INNOVV Garmin Thinkware VIOFO'.toLowerCase().split(' '));
 const EXTENSIONS={video:['mp4','mov','m4v','avi','ts','mkv'],image:['jpg','jpeg','png'],other:['dat','bin','txt','log','nmea','srt','unknown']};
 const STEMS=['YYYY_MMDD_HHMMSS_SEQUENCE','YYYYMMDD_HHMMSS_SEQUENCE','YYYYMMDD_HHMMSS','YYYY_MMDD_HHMMSS','SEQUENCE'];
 const SHAPES=[/^(\d{4})_(\d{4})_(\d{6})_(\d+)$/, /^(\d{8})_(\d{6})_(\d+)$/, /^(\d{8})_(\d{6})$/, /^(\d{4})_(\d{4})_(\d{6})$/, /^(\d+)$/];

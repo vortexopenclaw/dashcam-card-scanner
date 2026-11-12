@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //! IPC-only editable suggestions. Never attach these fields to exported reports.
-//! Identity arguments must come from native recognition, never owner labels/JSON.
+//! Identity arguments come from native recognition or the explicit main-unit
+//! confirmation adapter, never imported report JSON or arbitrary owner labels.
 use crate::{engine::Report, recognition};
 use serde::Serialize;
 use std::{
@@ -293,6 +294,7 @@ pub fn observed_channels(report: &Report, validated_native_id: Option<&str>) -> 
             "Unknown native camera identity; no channel suggestion.",
         );
     }
+    if id == Some(crate::manual_camera::ID) { return crate::manual_camera::channels(report); }
     let mut evidence = Evidence::default();
     let whole_native_names = report.temporal.complete_for(report);
     if whole_native_names {

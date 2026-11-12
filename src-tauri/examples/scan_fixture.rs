@@ -8,7 +8,8 @@ fn main() {
         .expect("usage: cargo run --example scan_fixture -- SOURCE");
     let report = engine::scan(Path::new(&path), &AtomicBool::new(false), |_| {})
         .expect("read-only scan failed");
-    let labels = payload::Labels {
+    let z100 = std::env::args().any(|a| a == "--z100");
+    let mut labels = payload::Labels {
         manufacturer: "Synthetic".into(),
         model: "Fixture".into(),
         channel_setup: "front + rear".into(),
@@ -22,7 +23,16 @@ fn main() {
         time_lapse_fps: None,
         suggested_fields: vec![],
     };
-    let mut review = payload::prepare(&report, &labels).expect("review failed");
+    if z100 {
+        labels.manufacturer = "DDPAI".into();
+        labels.model = scanner::manual_camera::MODEL.into();
+        labels.channel_setup = "front + telephoto".into();
+    }
+    let contextual = scanner::manual_camera::apply(&report, z100);
+    let mut review = payload::prepare(&contextual, &labels).expect("review failed");
     review.payload_hash = intake::hash(review.submission_json.as_bytes());
-    println!("{}", serde_json::json!({"report":report,"review":review}));
+    println!(
+        "{}",
+        serde_json::json!({"report":report,"cameraRecognition":scanner::recognition::recognize(Path::new(&path),&report).0,"review":review,"genericContext":scanner::manual_camera::preview(&report,false),"mainContext":scanner::manual_camera::preview(&report,true)})
+    );
 }
