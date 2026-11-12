@@ -90,7 +90,7 @@ test('shared folder context does not contaminate sampled modes or double count r
 test('local private list/review retain handle; accepted public proposal recursively purges contact and raw JSON',async t=>{
  const p=mixed();p.contributor={dashcamTalkUsername:'Private Synthetic Handle'};const {dir,r}=await local(t,p);
  assert.equal((await listReports(dir))[0].contributor.dashcamTalkUsername,p.contributor.dashcamTalkUsername);assert.equal((await reviewReport(dir,r.id)).sanitizedRawReport.contributor.dashcamTalkUsername,p.contributor.dashcamTalkUsername);await assert.rejects(createProposal(dir,r.id),/accept/);
- await decideReport(dir,r.id,'accept');const proposal=await createProposal(dir,r.id),text=JSON.stringify(proposal);assert.equal(proposal.cohortReviews.length,2);assert.equal(proposal.sourceReportHash,r.id);
+ await decideReport(dir,r.id,'accept');const proposal=await createProposal(dir,r.id),text=JSON.stringify(proposal);assert.equal(proposal.cohortReviews.length,2);assert.equal(proposal.sourceReportHash,undefined);assert(!text.includes(r.id));
  for(const forbidden of ['contributor','dashcamTalkUsername','Private Synthetic Handle','sanitizedRawReport','rawJSON',r.receivedAt])assert(!text.includes(forbidden),forbidden);
  assert.equal((await listReports(dir))[0].decision.decision,'accept');await fs.writeFile(path.join(dir,'snapshot.json'),JSON.stringify({commit:'synthetic-commit-b',profiles:[]}));await assert.rejects(createProposal(dir,r.id),/Current snapshot/);await decideReport(dir,r.id,'accept');assert.equal((await createProposal(dir,r.id)).snapshotCommit,'synthetic-commit-b');
 });

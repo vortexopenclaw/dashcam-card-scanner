@@ -13,10 +13,10 @@ import {validate,safeMediaName,sha256} from '../intake/schema.js';
 import {checkRecord,createProposal,decideReport,evidenceHash} from '../intake/review.js';
 const u32=n=>{const b=Buffer.alloc(4);b.writeUInt32BE(n);return b;};
 const box=(s,...a)=>{const b=Buffer.concat(a);return Buffer.concat([u32(b.length+8),Buffer.from(s),b]);};
-function media(short=false){
+function media(short=false,codec='avc1'){
  const mdhd=Buffer.alloc(24);mdhd.writeUInt32BE(1000,12);mdhd.writeUInt32BE(short?100:200,16);
  const hdlr=Buffer.alloc(24);hdlr.write('vide',8);const entry=Buffer.alloc(78);entry.writeUInt16BE(640,24);entry.writeUInt16BE(360,26);
- return Buffer.concat([box('moov',box('trak',box('mdia',box('mdhd',mdhd),box('hdlr',hdlr),box('minf',box('stbl',box('stsd',Buffer.alloc(4),u32(1),box('avc1',entry)),box('stsz',Buffer.alloc(4),u32(1000),u32(short?3:6))))))),box('mdat',Buffer.alloc(short?3000:6000))]);
+ return Buffer.concat([box('moov',box('trak',box('mdia',box('mdhd',mdhd),box('hdlr',hdlr),box('minf',box('stbl',box('stsd',Buffer.alloc(4),u32(1),box(codec,entry)),box('stsz',Buffer.alloc(4),u32(1000),u32(short?3:6))))))),box('mdat',Buffer.alloc(short?3000:6000))]);
 }
 let scratch,native,expected;
 const scan=(root,flags=[])=>JSON.parse(execFileSync('cargo',['run','--quiet','--manifest-path','src-tauri/Cargo.toml','--example','scan_fixture','--',root,...flags],{encoding:'utf8',timeout:240000,maxBuffer:4e6}));
@@ -51,7 +51,8 @@ test('actual direct intake validation and immutable exact-key storage retain eve
  for(const row of JSON.parse(bytes).evidence)expect(record.report.evidence.find(e=>e.sourceIdentifier===row.sourceIdentifier)).toEqual(row);
  const local=join(scratch,'review');await fs.mkdir(join(local,'pending'),{recursive:true});await fs.writeFile(join(local,'pending',hash+'.json'),JSON.stringify(record));await fs.writeFile(join(local,'snapshot.json'),JSON.stringify({commit:'synthetic-local-only',profiles:[]}));
  await expect(createProposal(local,hash)).rejects.toThrow(/accept/);await decideReport(local,hash,'accept');const proposal=await createProposal(local,hash);const exported=JSON.stringify(proposal);
- for(const token of ['sourceIdentifier','"filename"','20300115','unfamiliar-','200video','201photo','inside'])expect(exported).not.toContain(token);
+ for(const token of [hash,'sourceReportHash','sourceIdentifier','"filename"','20300115','unfamiliar-','200video','201photo','inside'])expect(exported).not.toContain(token);
+ expect(JSON.parse((await fs.readFile(join(local,'decisions.jsonl'),'utf8')).trim()).id).toBe(hash);
  expect(proposal.scannerReportedMeasurements.map(e=>[e.sizeBytes,e.durationSeconds,e.bitrateKbps,e.channel,e.mode])).toEqual(record.report.evidence.map(e=>[e.sizeBytes,e.durationSeconds,e.bitrateKbps,e.channel,e.mode]));
  expect(await evidenceHash(record.report)).toBe(proposal.numericEvidenceHash);expect(await fs.readFile(join(local,'pending',hash+'.json'),'utf8')).toBe(JSON.stringify(record));
  const evidence={identities:record.report.retention.retainedIdentities,exactPairs:record.report.retention.retainedMeasurements,kvKey:'pending/v1/'+hash,bodyBytes:Buffer.byteLength(bytes),publicIdentities:0,retention:record.report.retention,storedEvidence:record.report.evidence,publicEvidence:proposal.scannerReportedMeasurements};
@@ -73,6 +74,15 @@ test('native unsafe original names remain anonymous with explicit counts, never 
 test('intake-unavailable structural budgets keep linked private local evidence rather than silently dropping names',()=>{
  const root=join(scratch,'many-folders');mkdirSync(root);for(let i=0;i<33;i++){const folder=join(root,'synthetic-'+i);mkdirSync(folder);writeFileSync(join(folder,'new-camera2030.MP4'),media());}
  const review=scan(root).review;expect(review.submissionJson).toBe('');const local=JSON.parse(review.privateJson);expect(local.privateEvidence).toHaveLength(24);expect(local.privateEvidence.every(e=>e.filename==='new-camera2030.MP4'&&e.folder.startsWith('folder-')&&e.sourceIdentifier)).toBe(true);expect(local.privateRetention).toMatchObject({inventoriedIdentities:33,retainedIdentities:24,omittedIdentities:9,retainedMeasurements:24,omittedMeasurements:9});expect(review.publicJson).not.toContain('new-camera2030');
+},240000);
+test('late minority codec keeps both linked durations through native and intake caps with explicit omissions',()=>{
+ const root=join(scratch,'minority-budget');mkdirSync(root);
+ for(let i=0;i<65;i++)writeFileSync(join(root,`2030_${String(i).padStart(5,'0')}.MP4`),media(i===64,i<63?'avc1':'hvc1'));
+ const p=validate(JSON.parse(scan(root).review.submissionJson));
+ expect(p.retention).toEqual({inventoriedIdentities:65,retainedIdentities:24,omittedIdentities:41,measuredFiles:65,retainedMeasurements:24,omittedMeasurements:41});
+ for(const [i,duration] of [[63,0.2],[64,0.1]])expect(p.evidence.find(e=>e.filename===`2030_${String(i).padStart(5,'0')}.MP4`)).toMatchObject({codec:'hevc',durationSeconds:duration,bitrateKbps:240});
+ expect(p.evidence.some(e=>e.codec==='h264')).toBe(true);
+ expect(Buffer.byteLength(JSON.stringify(p))).toBeLessThanOrEqual(16384);
 },240000);
 test('native budget keeps small-card all-file pairs, late short outlier and honest full inventory omission counts',()=>{
  const root=join(scratch,'budget');mkdirSync(root);for(let i=0;i<70;i++)writeFileSync(join(root,`2030_${String(i).padStart(5,'0')}.MP4`),media(i===69));

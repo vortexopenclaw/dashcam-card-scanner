@@ -727,39 +727,72 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                 if exceptional {
                     if let Some(i) = indices.iter().find(|i| !protected.contains(i)) {
                         folder.samples[*i] = sample;
+                    } else if self.reclaim_redundant_sample(folder) {
+                        // A singleton/minority stratum may need both endpoints;
+                        // borrow a redundant slot elsewhere rather than lose either.
+                        folder.samples.push(sample);
+                        self.report.sampled_files += 1;
                     }
                 }
             }
             return;
         }
-        if count == 0 && !self.sample_reclamation_exhausted {
-            // Once all retained strata are unique, no later clip can reclaim a
-            // duplicate. Avoid rescanning all prior folders for every card file.
-            self.sample_reclamation_exhausted = true;
-            // Reclaim a redundant stratum in the current or an earlier folder.
-            for f in std::iter::once(&mut *folder).chain(self.report.folders.iter_mut()) {
-                let redundant = (0..f.samples.len()).find(|&i| {
-                    (0..i).any(|j| {
-                        f.samples[i].filename_template == f.samples[j].filename_template
-                            && match (&f.samples[i].video, &f.samples[j].video) {
+        if count == 0 && self.reclaim_redundant_sample(folder) {
+            folder.samples.push(sample);
+            self.report.sampled_files += 1;
+        }
+    }
+    fn reclaim_redundant_sample(&mut self, folder: &mut Folder) -> bool {
+        if self.sample_reclamation_exhausted {
+            return false;
+        }
+        // Reclaim only a row whose stratum and duration/bitrate range survive.
+        // Search earlier folders too: the retention budget is global.
+        for f in std::iter::once(folder).chain(self.report.folders.iter_mut()) {
+            let redundant = (0..f.samples.len()).find(|&i| {
+                let s = &f.samples[i];
+                let peers: Vec<_> = f
+                    .samples
+                    .iter()
+                    .enumerate()
+                    .filter(|(j, p)| {
+                        *j != i
+                            && p.filename_template == s.filename_template
+                            && match (&p.video, &s.video) {
                                 (Some(a), Some(b)) => same_configuration(a, b),
                                 (None, None) => true,
                                 _ => false,
                             }
                     })
-                });
-                if let Some(i) = redundant {
-                    f.samples.remove(i);
-                    self.report.sampled_files -= 1;
-                    self.sample_reclamation_exhausted = false;
-                    break;
-                }
-            }
-            if self.report.sampled_files < MAX_SAMPLES {
-                folder.samples.push(sample);
-                self.report.sampled_files += 1;
+                    .map(|(_, p)| p)
+                    .collect();
+                !peers.is_empty()
+                    && s.video.as_ref().is_none_or(|v| {
+                        let duration = v.duration_seconds;
+                        let rate = v.video_bitrate.unwrap_or(0.);
+                        peers
+                            .iter()
+                            .any(|p| p.video.as_ref().unwrap().duration_seconds <= duration)
+                            && peers
+                                .iter()
+                                .any(|p| p.video.as_ref().unwrap().duration_seconds >= duration)
+                            && peers.iter().any(|p| {
+                                p.video.as_ref().unwrap().video_bitrate.unwrap_or(0.) <= rate
+                            })
+                            && peers.iter().any(|p| {
+                                p.video.as_ref().unwrap().video_bitrate.unwrap_or(0.) >= rate
+                            })
+                    })
+            });
+            if let Some(i) = redundant {
+                f.samples.remove(i);
+                self.report.sampled_files -= 1;
+                return true;
             }
         }
+        // No later retention can introduce redundancy without first freeing a slot.
+        self.sample_reclamation_exhausted = true;
+        false
     }
 }
 #[cfg(test)]

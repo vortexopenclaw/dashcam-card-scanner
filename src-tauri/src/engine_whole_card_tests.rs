@@ -195,6 +195,69 @@ fn late_unique_variant_reclaims_duplicate_intake_slot_immediately() {
         .any(|s| s.filename_template == "late-channel"));
 }
 #[test]
+fn late_minority_short_outlier_reclaims_other_stratum_redundancy() {
+    // Cover both current-folder and earlier-folder reclamation at the global cap.
+    for earlier_folder in [false, true] {
+        let cancel = AtomicBool::new(false);
+        let mut walker = Walker {
+            report: Report::default(),
+            cancel: &cancel,
+            progress: |_: Progress| {},
+            limits: Limits::default(),
+            last: Instant::now(),
+            directories: 0,
+            stopped: false,
+            next_alias: 0,
+            sample_reclamation_exhausted: false,
+        };
+        let bytes = metadata_fixture(b"avc1", 1920, 30);
+        let base = video::probe(&mut Cursor::new(&bytes), bytes.len() as u64).unwrap();
+        let clip = |name: &str, codec: &str, duration| Sample {
+            local_name: name.into(),
+            filename_template: "same-template".into(),
+            file_size_bytes: 1234,
+            video: Some(Video {
+                codec: codec.into(),
+                duration_seconds: duration,
+                video_bitrate: Some(8000.),
+                ..base.clone()
+            }),
+        };
+        let mut f = Folder::default();
+        for i in 0..63 {
+            walker.retain_sample(&mut f, clip(&format!("a-{i}.MP4"), "h264", 60.));
+        }
+        if earlier_folder {
+            walker.report.folders.push(std::mem::take(&mut f));
+        }
+        walker.retain_sample(&mut f, clip("b-long.MP4", "hevc", 60.));
+        walker.retain_sample(&mut f, clip("b-short.MP4", "hevc", 1.));
+        let samples: Vec<_> = f
+            .samples
+            .iter()
+            .chain(walker.report.folders.iter().flat_map(|f| &f.samples))
+            .collect();
+        assert_eq!(walker.report.sampled_files, MAX_SAMPLES);
+        assert_eq!(samples.len(), MAX_SAMPLES);
+        for (name, codec, duration) in [("b-long.MP4", "hevc", 60.), ("b-short.MP4", "hevc", 1.)] {
+            let row = samples
+                .iter()
+                .find(|s| s.local_name == name)
+                .expect("minority extremum retained");
+            assert_eq!(row.video.as_ref().unwrap().codec, codec);
+            assert_eq!(row.video.as_ref().unwrap().duration_seconds, duration);
+            assert_eq!(row.file_size_bytes, 1234);
+        }
+        assert_eq!(
+            samples
+                .iter()
+                .filter(|s| s.video.as_ref().unwrap().codec == "h264")
+                .count(),
+            62
+        );
+    }
+}
+#[test]
 fn paired_extrema_remain_actual_clips_without_cross_configuration_averages() {
     let base = video::probe(
         &mut Cursor::new(metadata_fixture(b"avc1", 1920, 30)),

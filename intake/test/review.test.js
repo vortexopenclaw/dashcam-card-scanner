@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 // Entirely SYNTHETIC offline data, never real cards/owners.
-import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';import {execFileSync} from 'node:child_process';import {pull} from '../review.js';import {sha256,parse} from '../schema.js';
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';import {execFileSync} from 'node:child_process';import {pull,createProposal,decideReport,reviewReport} from '../review.js';import {sha256,parse} from '../schema.js';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 async function dir(t){const d=await fs.mkdtemp(path.join(root,'.test-run-'));t.after(()=>fs.rm(d,{recursive:true,force:true}));return d;}
 async function synthetic(){const report={schemaVersion:1,owner:{manufacturer:'Synthetic',model:'Not A Real Camera',channelCount:1},evidence:[{channel:'front',mode:'normal',width:640,height:480,fps:30,bitrateKbps:1000,containerBitrateKbps:null,sizeBytes:7500000,durationSeconds:60,codec:'h264'}]};const rawJSON=JSON.stringify(report);return {id:await sha256(rawJSON),receivedAt:'2026-01-01T00:00:00Z',report,rawJSON};}
@@ -14,5 +14,20 @@ test('real CLI review/decision/proposal lifecycle; no publication; immutable pen
  const run=(...args)=>execFileSync(process.execPath,[path.join(root,'review.js'),...args],{env:{...process.env,REVIEW_DATA_DIR:d},encoding:'utf8',stdio:['ignore','pipe','pipe']});
  const reviewed=JSON.parse(run('review',r.id));assert(reviewed.flags.includes('new_model_candidate'));assert.throws(()=>run('proposal',r.id));
  for(const decision of ['needs-info','reject','duplicate','accept'])assert.match(run('decide',r.id,decision),/pending record unchanged/);
- const proposal=JSON.parse(run('proposal',r.id));assert.equal(proposal.notPublished,true);assert.equal(proposal.sourceReportHash,r.id);assert(!JSON.stringify(proposal).includes(r.receivedAt));assert.equal(await fs.readFile(f,'utf8'),before);const history=(await fs.readFile(path.join(d,'decisions.jsonl'),'utf8')).trim().split('\n').map(JSON.parse);assert.equal(history.length,4);assert.deepEqual(history.map(x=>x.decision),['needs-info','reject','duplicate','accept']);
+ const proposal=JSON.parse(run('proposal',r.id));assert.equal(proposal.notPublished,true);assert.equal(proposal.sourceReportHash,undefined);assert(!JSON.stringify(proposal).includes(r.id));assert(!JSON.stringify(proposal).includes(r.receivedAt));assert.equal(await fs.readFile(f,'utf8'),before);const history=(await fs.readFile(path.join(d,'decisions.jsonl'),'utf8')).trim().split('\n').map(JSON.parse);assert.equal(history.length,4);assert.deepEqual(history.map(x=>x.decision),['needs-info','reject','duplicate','accept']);assert(history.every(x=>x.id===r.id));
+});
+test('private envelope variants keep audit IDs private, including nested duplicate references',async t=>{
+ const d=await dir(t);await fs.mkdir(path.join(d,'pending'));await fs.writeFile(path.join(d,'snapshot.json'),JSON.stringify({commit:'synthetic-snapshot',profiles:[]}));
+ const records=[],proposals=[];
+ for(const handle of ['Private First Owner','Private Second Owner']){
+  const report=(await synthetic()).report;report.contributor={dashcamTalkUsername:handle};report.cohorts=[{id:'drive',owner:{channelCount:1},evidenceIndices:[0]}];
+  const rawJSON=JSON.stringify(report,null,records.length?2:0),r={report,rawJSON,id:await sha256(rawJSON),receivedAt:'2026-01-01T00:00:00Z'};records.push(r);
+  await fs.writeFile(path.join(d,'pending',r.id+'.json'),JSON.stringify(r));await decideReport(d,r.id,'accept');proposals.push(await createProposal(d,r.id));
+ }
+ assert.notEqual(records[0].id,records[1].id);
+ const privateReview=await reviewReport(d,records[1].id);assert(privateReview.cohortReviews[0].duplicateEvidence.some(x=>x.id===records[0].id));
+ for(const proposal of proposals){const text=JSON.stringify(proposal);for(const r of records){assert(!text.includes(r.id));assert(!text.includes(r.report.contributor.dashcamTalkUsername));}assert.equal(proposal.sourceReportHash,undefined);}
+ assert.equal(proposals[0].numericEvidenceHash,proposals[1].numericEvidenceHash);assert.deepEqual(proposals[0].scannerReportedMeasurements,proposals[1].scannerReportedMeasurements);
+ const history=(await fs.readFile(path.join(d,'decisions.jsonl'),'utf8')).trim().split('\n').map(JSON.parse);assert.deepEqual(history.map(x=>x.id),records.map(r=>r.id));
+ for(const r of records)assert.equal(JSON.parse(await fs.readFile(path.join(d,'pending',r.id+'.json'),'utf8')).rawJSON,r.rawJSON);
 });
