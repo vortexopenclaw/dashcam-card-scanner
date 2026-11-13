@@ -255,6 +255,43 @@ fn refuses_symlinked_log_file_and_every_directory_component() {
     }
 }
 #[test]
+fn log_prefix_braces_trailing_text_and_unverified_sku_are_safe() {
+    let source = "DCIM/207log/ui/ui_20300101120000_000.log";
+    let line = format!("INFO {{device.cpp:12}} response {} completed", object());
+    let rows = record(&line, source, 1).unwrap();
+    assert_eq!(rows[0].model.as_deref(), Some("Z100 Master"));
+    let mut sibling = object();
+    sibling["model"] = json!("DDPAI DZ2602_GLOBAL_Z100 Pro");
+    let rows = record(&sibling.to_string(), source, 2).unwrap();
+    assert_eq!(rows[0].model, None);
+    assert!(!rows[0].identity_established);
+    assert!(record("unrelated {source.cpp:8} message", source, 3)
+        .unwrap()
+        .is_empty());
+    assert!(record(&format!("[{}]", object()), source, 4).is_err());
+    let mut q = object();
+    q["model"] = json!("DDPAI Q5");
+    let q = record(&q.to_string(), source, 5).unwrap();
+    assert_eq!(q[0].model.as_deref(), Some("Q5"));
+}
+#[test]
+fn every_official_model_alias_matches_receiving_resolution() {
+    let cases: Vec<Value> = serde_json::from_str(include_str!(
+        "../../tests/reference/ddpai-model-matches.json"
+    ))
+    .unwrap();
+    assert!(cases.len() >= 133);
+    for case in cases {
+        let input = case["input"].as_str().unwrap();
+        assert_eq!(
+            exact_model(input).as_deref(),
+            case["model"].as_str(),
+            "{input}"
+        );
+    }
+}
+
+#[test]
 fn budget_reduces_numeric_samples_with_exact_counts_and_preserves_metadata() {
     let source = "DCIM/207log/ui/ui_20300101120000_000.log";
     let mut rows = Vec::new();
@@ -290,7 +327,7 @@ fn budget_reduces_numeric_samples_with_exact_counts_and_preserves_metadata() {
             .map(|i| Sample {
                 file_size_bytes: 1000,
                 video: Some(video.clone()),
-                local_name: format!("203001011200{i:02}_0001_0001.mp4"),
+                local_name: format!("{}_{i:02}.mp4", "x".repeat(160)),
                 filename_template: "unknown".into(),
             })
             .collect(),

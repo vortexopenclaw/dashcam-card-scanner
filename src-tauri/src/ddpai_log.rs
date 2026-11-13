@@ -55,9 +55,13 @@ static IDENTITIES: LazyLock<Vec<Identity>> = LazyLock::new(|| {
 });
 // Anchored retail/manual strings only. Never remove punctuation or guess SKU wrappers.
 fn token(s: &str) -> String {
-    let s = s.strip_prefix("DDPAI ").unwrap_or(s);
-    let s = s.strip_prefix("DZ2602_GLOBAL_").unwrap_or(s);
-    s.to_lowercase()
+    let lower = s.to_lowercase();
+    let value = lower.strip_prefix("ddpai ").unwrap_or(&lower);
+    if value == "dz2602_global_z100 master" {
+        "z100 master".to_owned()
+    } else {
+        value.to_owned()
+    }
 }
 fn candidates(s: &str) -> Vec<&'static Identity> {
     let t = token(s);
@@ -67,13 +71,19 @@ fn candidates(s: &str) -> Vec<&'static Identity> {
             c.recognition_eligible
                 && std::iter::once(&c.model)
                     .chain(&c.aliases)
-                    .any(|n| n.to_lowercase() == t)
+                    .any(|n| token(n) == t)
         })
         .collect()
 }
 fn exact_model(s: &str) -> Option<String> {
     let c = candidates(s);
-    (c.len() == 1).then(|| c[0].model.clone())
+    if c.len() != 1 {
+        return None;
+    }
+    std::iter::once(&c[0].model)
+        .chain(&c[0].aliases)
+        .find(|name| token(name) == token(s))
+        .map(|name| name.strip_prefix("DDPAI ").unwrap_or(name).to_owned())
 }
 fn safe_model(s: &str) -> bool {
     !s.is_empty()
@@ -85,7 +95,8 @@ fn safe_model(s: &str) -> bool {
 }
 fn firmware(s: &str) -> bool {
     static RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-        regex::Regex::new(r"^v?[0-9]{1,4}(?:\.[0-9]{1,4}){2,5}(?:[-_][A-Za-z0-9]{1,16})?$").unwrap()
+        regex::Regex::new(r"^[vV]?[0-9]{1,4}(?:\.[0-9]{1,6}){1,5}(?:[_+-][A-Za-z0-9.-]{1,32})?$")
+            .unwrap()
     });
     s.len() <= 64 && RE.is_match(s)
 }
@@ -144,13 +155,55 @@ impl<'de> Deserialize<'de> for Unique {
         d.deserialize_any(V)
     }
 }
+fn payload(line: &str) -> Option<&str> {
+    let (start, _) = line
+        .match_indices('{')
+        .find(|(i, _)| line[i + 1..].trim_start().starts_with('"'))?;
+    let mut enclosing_arrays = 0usize;
+    for b in line.as_bytes()[..start].iter().copied() {
+        if b == b'[' {
+            enclosing_arrays += 1;
+        } else if b == b']' {
+            enclosing_arrays = enclosing_arrays.saturating_sub(1);
+        }
+    }
+    if enclosing_arrays > 0 {
+        return None;
+    }
+    let mut depth = 0usize;
+    let mut quoted = false;
+    let mut escaped = false;
+    for (i, b) in line.as_bytes()[start..].iter().copied().enumerate() {
+        if quoted {
+            if escaped {
+                escaped = false;
+            } else if b == b'\\' {
+                escaped = true;
+            } else if b == b'"' {
+                quoted = false;
+            }
+        } else if b == b'"' {
+            quoted = true;
+        } else if b == b'{' || b == b'[' {
+            depth += 1;
+        } else if b == b'}' || b == b']' {
+            depth = depth.checked_sub(1)?;
+            if depth == 0 {
+                return Some(&line[start..start + i + 1]);
+            }
+        }
+    }
+    None
+}
 fn record(line: &str, source: &str, number: usize) -> Result<Vec<ComponentMetadata>, ()> {
-    let Some(start) = line.find('{') else {
-        return Ok(vec![]);
+    let Some(json) = payload(line) else {
+        return if line.contains("\"model\"") && line.contains("\"soft_version\"") {
+            Err(())
+        } else {
+            Ok(vec![])
+        };
     };
-    let v = serde_json::from_str::<Unique>(&line[start..])
-        .map_err(|_| ())?
-        .0;
+    let v = serde_json::from_str::<Unique>(json).map_err(|_| ())?.0;
     if !v.get("msgHdr").is_some_and(Value::is_object)
         || v.get("model").is_none()
         || v.get("soft_version").is_none()
@@ -185,7 +238,7 @@ fn record(line: &str, source: &str, number: usize) -> Result<Vec<ComponentMetada
             manufacturer: "DDPAI".into(),
             component: component.into(),
             model: model.as_deref().and_then(exact_model),
-            identity_established: model.is_some(),
+            identity_established: model.as_deref().and_then(exact_model).is_some(),
             reported_model: model,
             firmware_version: version,
             source_kind: "ddpai_ui_device_info".into(),
@@ -270,7 +323,7 @@ pub fn read(root: &Path, cancel: &AtomicBool) -> (Vec<ComponentMetadata>, Option
                 continue;
             }
         };
-        let f = match dir.open_with(&name, &opts) {
+        let mut f = match dir.open_with(&name, &opts) {
             Ok(f) if f.metadata().is_ok_and(|m| m.is_file() && !reparse(&m)) => f,
             _ => {
                 c.limited = true;
@@ -280,11 +333,22 @@ pub fn read(root: &Path, cancel: &AtomicBool) -> (Vec<ComponentMetadata>, Option
         let limit = budget.min(512 * 1024);
         let mut bytes = Vec::new();
         c.inspected_files += 1;
-        if f.take(limit as u64 + 1).read_to_end(&mut bytes).is_err() {
+        if (&mut f)
+            .take(limit as u64 + 1)
+            .read_to_end(&mut bytes)
+            .is_err()
+        {
             c.limited = true;
             continue;
         }
         budget = budget.saturating_sub(bytes.len());
+        if !f
+            .metadata()
+            .is_ok_and(|after| after.len() == m.len() && after.modified().ok() == m.modified().ok())
+        {
+            c.limited = true;
+            continue;
+        }
         if bytes.len() > limit || m.len() > limit as u64 {
             c.limited = true;
             bytes.truncate(limit);

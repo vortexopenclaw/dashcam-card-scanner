@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import {recognizedDDPAIModel} from "./ddpai-models.js";
 export const MAX_BODY = 16384;
 export const HASH = /^[a-f0-9]{64}$/;
 export function exact(o, required, optional=[]) {
@@ -81,8 +82,8 @@ function componentScan(s){
     if(e.manufacturer!=='DDPAI'||e.sourceKind!=='ddpai_ui_device_info')throw Error('invalid_component_source');
     choice(e.component,['logging_device','rear','inside']);
     for(const k of ['reportedModel','model'])if(e[k]!==null&&!safeObservedModel(e[k]))throw Error('invalid_component_model');
-    if(e.firmwareVersion!==null&&(typeof e.firmwareVersion!=='string'||e.firmwareVersion.length>64||!/^v?[0-9]{1,4}(?:\.[0-9]{1,4}){2,5}(?:[-_][A-Za-z0-9]{1,16})?$/.test(e.firmwareVersion)))throw Error('invalid_component_firmware');
-    if(typeof e.identityEstablished!=='boolean'||e.identityEstablished!==(e.reportedModel!==null)||e.reportedModel===null&&e.model!==null||e.reportedModel===null&&e.firmwareVersion===null)throw Error('invalid_component_identity');
+    if(e.firmwareVersion!==null&&(typeof e.firmwareVersion!=='string'||e.firmwareVersion.length>64||/[^\x21-\x7e]/.test(e.firmwareVersion)||!/^[vV]?[0-9]{1,4}(?:\.[0-9]{1,6}){1,5}(?:[_+-][A-Za-z0-9.-]{1,32})?$/.test(e.firmwareVersion)))throw Error('invalid_component_firmware');
+    if(typeof e.identityEstablished!=='boolean'||e.identityEstablished!==(e.model!==null)||e.model!==recognizedDDPAIModel(e.reportedModel)||e.reportedModel===null&&e.model!==null||e.reportedModel===null&&e.firmwareVersion===null)throw Error('invalid_component_identity');
     if(typeof e.sourceFile!=='string'||!/^DCIM\/207log\/ui\/ui_[0-9]{14}_[0-9]{3}\.log$/.test(e.sourceFile))throw Error('invalid_component_path');
     number(e.sourceLine,10000000,true);
   }

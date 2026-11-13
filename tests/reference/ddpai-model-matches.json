@@ -1,0 +1,1826 @@
+[
+  {
+    "input": "A2",
+    "model": "A2"
+  },
+  {
+    "input": "a2",
+    "model": "A2"
+  },
+  {
+    "input": "DDPAI A2",
+    "model": "A2"
+  },
+  {
+    "input": "九鹰A2",
+    "model": "九鹰A2"
+  },
+  {
+    "input": "九鹰a2",
+    "model": "九鹰A2"
+  },
+  {
+    "input": "DDPAI 九鹰A2",
+    "model": "九鹰A2"
+  },
+  {
+    "input": "A2 Pro",
+    "model": "A2 Pro"
+  },
+  {
+    "input": "a2 pro",
+    "model": "A2 Pro"
+  },
+  {
+    "input": "DDPAI A2 Pro",
+    "model": "A2 Pro"
+  },
+  {
+    "input": "A2S Pro",
+    "model": "A2S Pro"
+  },
+  {
+    "input": "a2s pro",
+    "model": "A2S Pro"
+  },
+  {
+    "input": "DDPAI A2S Pro",
+    "model": "A2S Pro"
+  },
+  {
+    "input": "D2",
+    "model": "D2"
+  },
+  {
+    "input": "d2",
+    "model": "D2"
+  },
+  {
+    "input": "DDPAI D2",
+    "model": "D2"
+  },
+  {
+    "input": "D5",
+    "model": "D5"
+  },
+  {
+    "input": "d5",
+    "model": "D5"
+  },
+  {
+    "input": "DDPAI D5",
+    "model": "D5"
+  },
+  {
+    "input": "D5系列",
+    "model": "D5系列"
+  },
+  {
+    "input": "d5系列",
+    "model": "D5系列"
+  },
+  {
+    "input": "DDPAI D5系列",
+    "model": "D5系列"
+  },
+  {
+    "input": "DDPAI Q5",
+    "model": "Q5"
+  },
+  {
+    "input": "ddpai q5",
+    "model": "Q5"
+  },
+  {
+    "input": "E3",
+    "model": "E3"
+  },
+  {
+    "input": "e3",
+    "model": "E3"
+  },
+  {
+    "input": "DDPAI E3",
+    "model": "E3"
+  },
+  {
+    "input": "E3Pro",
+    "model": "E3Pro"
+  },
+  {
+    "input": "e3pro",
+    "model": "E3Pro"
+  },
+  {
+    "input": "DDPAI E3Pro",
+    "model": "E3Pro"
+  },
+  {
+    "input": "E3天猫精灵版",
+    "model": "E3天猫精灵版"
+  },
+  {
+    "input": "e3天猫精灵版",
+    "model": "E3天猫精灵版"
+  },
+  {
+    "input": "DDPAI E3天猫精灵版",
+    "model": "E3天猫精灵版"
+  },
+  {
+    "input": "mola E3 天猫精灵版",
+    "model": "mola E3 天猫精灵版"
+  },
+  {
+    "input": "mola e3 天猫精灵版",
+    "model": "mola E3 天猫精灵版"
+  },
+  {
+    "input": "DDPAI mola E3 天猫精灵版",
+    "model": "mola E3 天猫精灵版"
+  },
+  {
+    "input": "E5",
+    "model": "E5"
+  },
+  {
+    "input": "e5",
+    "model": "E5"
+  },
+  {
+    "input": "DDPAI E5",
+    "model": "E5"
+  },
+  {
+    "input": "mola E5",
+    "model": "mola E5"
+  },
+  {
+    "input": "mola e5",
+    "model": "mola E5"
+  },
+  {
+    "input": "DDPAI mola E5",
+    "model": "mola E5"
+  },
+  {
+    "input": "K200 4K",
+    "model": "K200 4K"
+  },
+  {
+    "input": "k200 4k",
+    "model": "K200 4K"
+  },
+  {
+    "input": "DDPAI K200 4K",
+    "model": "K200 4K"
+  },
+  {
+    "input": "K3",
+    "model": "K3"
+  },
+  {
+    "input": "k3",
+    "model": "K3"
+  },
+  {
+    "input": "DDPAI K3",
+    "model": "K3"
+  },
+  {
+    "input": "K3系列",
+    "model": "K3系列"
+  },
+  {
+    "input": "k3系列",
+    "model": "K3系列"
+  },
+  {
+    "input": "DDPAI K3系列",
+    "model": "K3系列"
+  },
+  {
+    "input": "K5",
+    "model": "K5"
+  },
+  {
+    "input": "k5",
+    "model": "K5"
+  },
+  {
+    "input": "DDPAI K5",
+    "model": "K5"
+  },
+  {
+    "input": "K5系列",
+    "model": "K5系列"
+  },
+  {
+    "input": "k5系列",
+    "model": "K5系列"
+  },
+  {
+    "input": "DDPAI K5系列",
+    "model": "K5系列"
+  },
+  {
+    "input": "K7",
+    "model": "K7"
+  },
+  {
+    "input": "k7",
+    "model": "K7"
+  },
+  {
+    "input": "DDPAI K7",
+    "model": "K7"
+  },
+  {
+    "input": "K7系列",
+    "model": "K7系列"
+  },
+  {
+    "input": "k7系列",
+    "model": "K7系列"
+  },
+  {
+    "input": "DDPAI K7系列",
+    "model": "K7系列"
+  },
+  {
+    "input": "M4",
+    "model": "M4"
+  },
+  {
+    "input": "m4",
+    "model": "M4"
+  },
+  {
+    "input": "DDPAI M4",
+    "model": "M4"
+  },
+  {
+    "input": "M5",
+    "model": "M5"
+  },
+  {
+    "input": "m5",
+    "model": "M5"
+  },
+  {
+    "input": "DDPAI M5",
+    "model": "M5"
+  },
+  {
+    "input": "M5S",
+    "model": "M5S"
+  },
+  {
+    "input": "m5s",
+    "model": "M5S"
+  },
+  {
+    "input": "DDPAI M5S",
+    "model": "M5S"
+  },
+  {
+    "input": "M6",
+    "model": "M6"
+  },
+  {
+    "input": "m6",
+    "model": "M6"
+  },
+  {
+    "input": "DDPAI M6",
+    "model": "M6"
+  },
+  {
+    "input": "M6 Plus",
+    "model": "M6 Plus"
+  },
+  {
+    "input": "m6 plus",
+    "model": "M6 Plus"
+  },
+  {
+    "input": "DDPAI M6 Plus",
+    "model": "M6 Plus"
+  },
+  {
+    "input": "M6 plus",
+    "model": "M6 Plus"
+  },
+  {
+    "input": "DDPAI M6 plus",
+    "model": "M6 Plus"
+  },
+  {
+    "input": "M6C",
+    "model": "M6C"
+  },
+  {
+    "input": "m6c",
+    "model": "M6C"
+  },
+  {
+    "input": "DDPAI M6C",
+    "model": "M6C"
+  },
+  {
+    "input": "MINI",
+    "model": null
+  },
+  {
+    "input": "mini",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINI",
+    "model": null
+  },
+  {
+    "input": "DDPAI mini",
+    "model": null
+  },
+  {
+    "input": "MINI ONE 夜视版",
+    "model": "MINI ONE 夜视版"
+  },
+  {
+    "input": "mini one 夜视版",
+    "model": "MINI ONE 夜视版"
+  },
+  {
+    "input": "DDPAI MINI ONE 夜视版",
+    "model": "MINI ONE 夜视版"
+  },
+  {
+    "input": "mini ONE夜视版",
+    "model": "mini ONE夜视版"
+  },
+  {
+    "input": "mini one夜视版",
+    "model": "mini ONE夜视版"
+  },
+  {
+    "input": "DDPAI mini ONE夜视版",
+    "model": "mini ONE夜视版"
+  },
+  {
+    "input": "MINI Pro",
+    "model": "MINI Pro"
+  },
+  {
+    "input": "mini pro",
+    "model": "MINI Pro"
+  },
+  {
+    "input": "DDPAI MINI Pro",
+    "model": "MINI Pro"
+  },
+  {
+    "input": "MINIPro",
+    "model": "MINIPro"
+  },
+  {
+    "input": "minipro",
+    "model": "MINIPro"
+  },
+  {
+    "input": "DDPAI MINIPro",
+    "model": "MINIPro"
+  },
+  {
+    "input": "MINI2",
+    "model": "MINI2"
+  },
+  {
+    "input": "mini2",
+    "model": "MINI2"
+  },
+  {
+    "input": "DDPAI MINI2",
+    "model": "MINI2"
+  },
+  {
+    "input": "DDPAI mini2",
+    "model": "MINI2"
+  },
+  {
+    "input": "MINI2S",
+    "model": "MINI2S"
+  },
+  {
+    "input": "mini2s",
+    "model": "MINI2S"
+  },
+  {
+    "input": "DDPAI MINI2S",
+    "model": "MINI2S"
+  },
+  {
+    "input": "mini2S",
+    "model": "MINI2S"
+  },
+  {
+    "input": "DDPAI mini2S",
+    "model": "MINI2S"
+  },
+  {
+    "input": "MINI2S 变形金刚",
+    "model": "MINI2S 变形金刚"
+  },
+  {
+    "input": "mini2s 变形金刚",
+    "model": "MINI2S 变形金刚"
+  },
+  {
+    "input": "DDPAI MINI2S 变形金刚",
+    "model": "MINI2S 变形金刚"
+  },
+  {
+    "input": "mini2S 变形金刚",
+    "model": "MINI2S 变形金刚"
+  },
+  {
+    "input": "DDPAI mini2S 变形金刚",
+    "model": "MINI2S 变形金刚"
+  },
+  {
+    "input": "MINI2X",
+    "model": null
+  },
+  {
+    "input": "mini2x",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINI2X",
+    "model": null
+  },
+  {
+    "input": "MINI3",
+    "model": "MINI3"
+  },
+  {
+    "input": "mini3",
+    "model": "MINI3"
+  },
+  {
+    "input": "DDPAI MINI3",
+    "model": "MINI3"
+  },
+  {
+    "input": "MINI3 Pro",
+    "model": "MINI3 Pro"
+  },
+  {
+    "input": "mini3 pro",
+    "model": "MINI3 Pro"
+  },
+  {
+    "input": "DDPAI MINI3 Pro",
+    "model": "MINI3 Pro"
+  },
+  {
+    "input": "mini3 Pro",
+    "model": "MINI3 Pro"
+  },
+  {
+    "input": "DDPAI mini3 Pro",
+    "model": "MINI3 Pro"
+  },
+  {
+    "input": "MINI3 Pro 小鹏定制版",
+    "model": "MINI3 Pro 小鹏定制版"
+  },
+  {
+    "input": "mini3 pro 小鹏定制版",
+    "model": "MINI3 Pro 小鹏定制版"
+  },
+  {
+    "input": "DDPAI MINI3 Pro 小鹏定制版",
+    "model": "MINI3 Pro 小鹏定制版"
+  },
+  {
+    "input": "mini3 Pro 小鹏定制版",
+    "model": "MINI3 Pro 小鹏定制版"
+  },
+  {
+    "input": "DDPAI mini3 Pro 小鹏定制版",
+    "model": "MINI3 Pro 小鹏定制版"
+  },
+  {
+    "input": "MINI3 Pro 广汽埃安版",
+    "model": "MINI3 Pro 广汽埃安版"
+  },
+  {
+    "input": "mini3 pro 广汽埃安版",
+    "model": "MINI3 Pro 广汽埃安版"
+  },
+  {
+    "input": "DDPAI MINI3 Pro 广汽埃安版",
+    "model": "MINI3 Pro 广汽埃安版"
+  },
+  {
+    "input": "mini3 Pro 广汽埃安版",
+    "model": "MINI3 Pro 广汽埃安版"
+  },
+  {
+    "input": "DDPAI mini3 Pro 广汽埃安版",
+    "model": "MINI3 Pro 广汽埃安版"
+  },
+  {
+    "input": "MINI3 Ultra",
+    "model": "MINI3 Ultra"
+  },
+  {
+    "input": "mini3 ultra",
+    "model": "MINI3 Ultra"
+  },
+  {
+    "input": "DDPAI MINI3 Ultra",
+    "model": "MINI3 Ultra"
+  },
+  {
+    "input": "MINI3S",
+    "model": "MINI3S"
+  },
+  {
+    "input": "mini3s",
+    "model": "MINI3S"
+  },
+  {
+    "input": "DDPAI MINI3S",
+    "model": "MINI3S"
+  },
+  {
+    "input": "MINI3S 4K",
+    "model": "MINI3S 4K"
+  },
+  {
+    "input": "mini3s 4k",
+    "model": "MINI3S 4K"
+  },
+  {
+    "input": "DDPAI MINI3S 4K",
+    "model": "MINI3S 4K"
+  },
+  {
+    "input": "MINI3S Master",
+    "model": "MINI3S Master"
+  },
+  {
+    "input": "mini3s master",
+    "model": "MINI3S Master"
+  },
+  {
+    "input": "DDPAI MINI3S Master",
+    "model": "MINI3S Master"
+  },
+  {
+    "input": "MINI3X",
+    "model": null
+  },
+  {
+    "input": "mini3x",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINI3X",
+    "model": null
+  },
+  {
+    "input": "MINI3X 系列",
+    "model": null
+  },
+  {
+    "input": "mini3x 系列",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINI3X 系列",
+    "model": null
+  },
+  {
+    "input": "MINI3X系列",
+    "model": null
+  },
+  {
+    "input": "mini3x系列",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINI3X系列",
+    "model": null
+  },
+  {
+    "input": "MINI4",
+    "model": "MINI4"
+  },
+  {
+    "input": "mini4",
+    "model": "MINI4"
+  },
+  {
+    "input": "DDPAI MINI4",
+    "model": "MINI4"
+  },
+  {
+    "input": "MINI5",
+    "model": null
+  },
+  {
+    "input": "mini5",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINI5",
+    "model": null
+  },
+  {
+    "input": "MINI5 小鹏定制版",
+    "model": "MINI5 小鹏定制版"
+  },
+  {
+    "input": "mini5 小鹏定制版",
+    "model": "MINI5 小鹏定制版"
+  },
+  {
+    "input": "DDPAI MINI5 小鹏定制版",
+    "model": "MINI5 小鹏定制版"
+  },
+  {
+    "input": "MINI7X",
+    "model": null
+  },
+  {
+    "input": "mini7x",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINI7X",
+    "model": null
+  },
+  {
+    "input": "MINIONE",
+    "model": null
+  },
+  {
+    "input": "minione",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINIONE",
+    "model": null
+  },
+  {
+    "input": "miniONE",
+    "model": null
+  },
+  {
+    "input": "DDPAI miniONE",
+    "model": null
+  },
+  {
+    "input": "MINIPro 2K",
+    "model": null
+  },
+  {
+    "input": "minipro 2k",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINIPro 2K",
+    "model": null
+  },
+  {
+    "input": "MINIPro 3K",
+    "model": null
+  },
+  {
+    "input": "minipro 3k",
+    "model": null
+  },
+  {
+    "input": "DDPAI MINIPro 3K",
+    "model": null
+  },
+  {
+    "input": "MINISE",
+    "model": "MINISE"
+  },
+  {
+    "input": "minise",
+    "model": "MINISE"
+  },
+  {
+    "input": "DDPAI MINISE",
+    "model": "MINISE"
+  },
+  {
+    "input": "miniSE",
+    "model": "MINISE"
+  },
+  {
+    "input": "DDPAI miniSE",
+    "model": "MINISE"
+  },
+  {
+    "input": "MINI夜视",
+    "model": "MINI夜视"
+  },
+  {
+    "input": "mini夜视",
+    "model": "MINI夜视"
+  },
+  {
+    "input": "DDPAI MINI夜视",
+    "model": "MINI夜视"
+  },
+  {
+    "input": "DDPAI mini夜视",
+    "model": "MINI夜视"
+  },
+  {
+    "input": "N2",
+    "model": null
+  },
+  {
+    "input": "n2",
+    "model": null
+  },
+  {
+    "input": "DDPAI N2",
+    "model": null
+  },
+  {
+    "input": "N3",
+    "model": null
+  },
+  {
+    "input": "n3",
+    "model": null
+  },
+  {
+    "input": "DDPAI N3",
+    "model": null
+  },
+  {
+    "input": "mola N3",
+    "model": "mola N3"
+  },
+  {
+    "input": "mola n3",
+    "model": "mola N3"
+  },
+  {
+    "input": "DDPAI mola N3",
+    "model": "mola N3"
+  },
+  {
+    "input": "N3 Pro",
+    "model": null
+  },
+  {
+    "input": "n3 pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI N3 Pro",
+    "model": null
+  },
+  {
+    "input": "N4T Pro",
+    "model": null
+  },
+  {
+    "input": "n4t pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI N4T Pro",
+    "model": null
+  },
+  {
+    "input": "N4TPro",
+    "model": "N4TPro"
+  },
+  {
+    "input": "n4tpro",
+    "model": "N4TPro"
+  },
+  {
+    "input": "DDPAI N4TPro",
+    "model": "N4TPro"
+  },
+  {
+    "input": "N5 Pro",
+    "model": null
+  },
+  {
+    "input": "n5 pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI N5 Pro",
+    "model": null
+  },
+  {
+    "input": "RANGER",
+    "model": null
+  },
+  {
+    "input": "ranger",
+    "model": null
+  },
+  {
+    "input": "DDPAI RANGER",
+    "model": null
+  },
+  {
+    "input": "骑行相机",
+    "model": "骑行相机"
+  },
+  {
+    "input": "DDPAI 骑行相机",
+    "model": "骑行相机"
+  },
+  {
+    "input": "RANGER M1",
+    "model": null
+  },
+  {
+    "input": "ranger m1",
+    "model": null
+  },
+  {
+    "input": "DDPAI RANGER M1",
+    "model": null
+  },
+  {
+    "input": "S5",
+    "model": "S5"
+  },
+  {
+    "input": "s5",
+    "model": "S5"
+  },
+  {
+    "input": "DDPAI S5",
+    "model": "S5"
+  },
+  {
+    "input": "S50",
+    "model": "S50"
+  },
+  {
+    "input": "s50",
+    "model": "S50"
+  },
+  {
+    "input": "DDPAI S50",
+    "model": "S50"
+  },
+  {
+    "input": "S500 Pro",
+    "model": "S500 Pro"
+  },
+  {
+    "input": "s500 pro",
+    "model": "S500 Pro"
+  },
+  {
+    "input": "DDPAI S500 Pro",
+    "model": "S500 Pro"
+  },
+  {
+    "input": "V100",
+    "model": "V100"
+  },
+  {
+    "input": "v100",
+    "model": "V100"
+  },
+  {
+    "input": "DDPAI V100",
+    "model": "V100"
+  },
+  {
+    "input": "全景车盒V100",
+    "model": "全景车盒V100"
+  },
+  {
+    "input": "全景车盒v100",
+    "model": "全景车盒V100"
+  },
+  {
+    "input": "DDPAI 全景车盒V100",
+    "model": "全景车盒V100"
+  },
+  {
+    "input": "X1",
+    "model": "X1"
+  },
+  {
+    "input": "x1",
+    "model": "X1"
+  },
+  {
+    "input": "DDPAI X1",
+    "model": "X1"
+  },
+  {
+    "input": "X2",
+    "model": "X2"
+  },
+  {
+    "input": "x2",
+    "model": "X2"
+  },
+  {
+    "input": "DDPAI X2",
+    "model": "X2"
+  },
+  {
+    "input": "X2 Pro",
+    "model": "X2 Pro"
+  },
+  {
+    "input": "x2 pro",
+    "model": "X2 Pro"
+  },
+  {
+    "input": "DDPAI X2 Pro",
+    "model": "X2 Pro"
+  },
+  {
+    "input": "X2S",
+    "model": "X2S"
+  },
+  {
+    "input": "x2s",
+    "model": "X2S"
+  },
+  {
+    "input": "DDPAI X2S",
+    "model": "X2S"
+  },
+  {
+    "input": "X2S Pro",
+    "model": null
+  },
+  {
+    "input": "x2s pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI X2S Pro",
+    "model": null
+  },
+  {
+    "input": "X3 Pro",
+    "model": "X3 Pro"
+  },
+  {
+    "input": "x3 pro",
+    "model": "X3 Pro"
+  },
+  {
+    "input": "DDPAI X3 Pro",
+    "model": "X3 Pro"
+  },
+  {
+    "input": "X5 Pro",
+    "model": null
+  },
+  {
+    "input": "x5 pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI X5 Pro",
+    "model": null
+  },
+  {
+    "input": "X5 Race",
+    "model": "X5 Race"
+  },
+  {
+    "input": "x5 race",
+    "model": "X5 Race"
+  },
+  {
+    "input": "DDPAI X5 Race",
+    "model": "X5 Race"
+  },
+  {
+    "input": "Z30",
+    "model": "Z30"
+  },
+  {
+    "input": "z30",
+    "model": "Z30"
+  },
+  {
+    "input": "DDPAI Z30",
+    "model": "Z30"
+  },
+  {
+    "input": "Z30 4K",
+    "model": null
+  },
+  {
+    "input": "z30 4k",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z30 4K",
+    "model": null
+  },
+  {
+    "input": "Z30 4K版",
+    "model": "Z30 4K版"
+  },
+  {
+    "input": "z30 4k版",
+    "model": "Z30 4K版"
+  },
+  {
+    "input": "DDPAI Z30 4K版",
+    "model": "Z30 4K版"
+  },
+  {
+    "input": "Z30 Lite",
+    "model": "Z30 Lite"
+  },
+  {
+    "input": "z30 lite",
+    "model": "Z30 Lite"
+  },
+  {
+    "input": "DDPAI Z30 Lite",
+    "model": "Z30 Lite"
+  },
+  {
+    "input": "Z40",
+    "model": null
+  },
+  {
+    "input": "z40",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z40",
+    "model": null
+  },
+  {
+    "input": "Z45",
+    "model": "Z45"
+  },
+  {
+    "input": "z45",
+    "model": "Z45"
+  },
+  {
+    "input": "DDPAI Z45",
+    "model": "Z45"
+  },
+  {
+    "input": "ddpai z45",
+    "model": "Z45"
+  },
+  {
+    "input": "Z5",
+    "model": "Z5"
+  },
+  {
+    "input": "z5",
+    "model": "Z5"
+  },
+  {
+    "input": "DDPAI Z5",
+    "model": "Z5"
+  },
+  {
+    "input": "mola Z5",
+    "model": "mola Z5"
+  },
+  {
+    "input": "mola z5",
+    "model": "mola Z5"
+  },
+  {
+    "input": "DDPAI mola Z5",
+    "model": "mola Z5"
+  },
+  {
+    "input": "Z50",
+    "model": null
+  },
+  {
+    "input": "z50",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z50",
+    "model": null
+  },
+  {
+    "input": "Z60",
+    "model": null
+  },
+  {
+    "input": "z60",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z60",
+    "model": null
+  },
+  {
+    "input": "Z60 Pro",
+    "model": null
+  },
+  {
+    "input": "z60 pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z60 Pro",
+    "model": null
+  },
+  {
+    "input": "Z90 系列",
+    "model": null
+  },
+  {
+    "input": "z90 系列",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z90 系列",
+    "model": null
+  },
+  {
+    "input": "Z90系列",
+    "model": null
+  },
+  {
+    "input": "z90系列",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z90系列",
+    "model": null
+  },
+  {
+    "input": "mix3",
+    "model": "mix3"
+  },
+  {
+    "input": "DDPAI mix3",
+    "model": "mix3"
+  },
+  {
+    "input": "九鹰Q2",
+    "model": null
+  },
+  {
+    "input": "九鹰q2",
+    "model": null
+  },
+  {
+    "input": "DDPAI 九鹰Q2",
+    "model": null
+  },
+  {
+    "input": "九鹰Q2S",
+    "model": "九鹰Q2S"
+  },
+  {
+    "input": "九鹰q2s",
+    "model": "九鹰Q2S"
+  },
+  {
+    "input": "DDPAI 九鹰Q2S",
+    "model": "九鹰Q2S"
+  },
+  {
+    "input": "九鹰Q3",
+    "model": "九鹰Q3"
+  },
+  {
+    "input": "九鹰q3",
+    "model": "九鹰Q3"
+  },
+  {
+    "input": "DDPAI 九鹰Q3",
+    "model": "九鹰Q3"
+  },
+  {
+    "input": "五菱Q2S",
+    "model": "五菱Q2S"
+  },
+  {
+    "input": "五菱q2s",
+    "model": "五菱Q2S"
+  },
+  {
+    "input": "DDPAI 五菱Q2S",
+    "model": "五菱Q2S"
+  },
+  {
+    "input": "9 Eagles A2",
+    "model": "9 Eagles A2"
+  },
+  {
+    "input": "9 eagles a2",
+    "model": "9 Eagles A2"
+  },
+  {
+    "input": "DDPAI 9 Eagles A2",
+    "model": "9 Eagles A2"
+  },
+  {
+    "input": "K200",
+    "model": "K200"
+  },
+  {
+    "input": "k200",
+    "model": "K200"
+  },
+  {
+    "input": "DDPAI K200",
+    "model": "K200"
+  },
+  {
+    "input": "K200 2K + 1K Dash Cam",
+    "model": "K200 2K + 1K Dash Cam"
+  },
+  {
+    "input": "k200 2k + 1k dash cam",
+    "model": "K200 2K + 1K Dash Cam"
+  },
+  {
+    "input": "DDPAI K200 2K + 1K Dash Cam",
+    "model": "K200 2K + 1K Dash Cam"
+  },
+  {
+    "input": "Mini",
+    "model": null
+  },
+  {
+    "input": "DDPAI Mini",
+    "model": null
+  },
+  {
+    "input": "MINI ONE",
+    "model": "MINI ONE"
+  },
+  {
+    "input": "mini one",
+    "model": "MINI ONE"
+  },
+  {
+    "input": "DDPAI MINI ONE",
+    "model": "MINI ONE"
+  },
+  {
+    "input": "MINI Vision",
+    "model": "MINI Vision"
+  },
+  {
+    "input": "mini vision",
+    "model": "MINI Vision"
+  },
+  {
+    "input": "DDPAI MINI Vision",
+    "model": "MINI Vision"
+  },
+  {
+    "input": "MINI2X 2K Dash Cam",
+    "model": "MINI2X 2K Dash Cam"
+  },
+  {
+    "input": "mini2x 2k dash cam",
+    "model": "MINI2X 2K Dash Cam"
+  },
+  {
+    "input": "DDPAI MINI2X 2K Dash Cam",
+    "model": "MINI2X 2K Dash Cam"
+  },
+  {
+    "input": "MINI2X 2026",
+    "model": "MINI2X 2026"
+  },
+  {
+    "input": "mini2x 2026",
+    "model": "MINI2X 2026"
+  },
+  {
+    "input": "DDPAI MINI2X 2026",
+    "model": "MINI2X 2026"
+  },
+  {
+    "input": "MINI3X (V3)",
+    "model": "MINI3X (V3)"
+  },
+  {
+    "input": "mini3x (v3)",
+    "model": "MINI3X (V3)"
+  },
+  {
+    "input": "DDPAI MINI3X (V3)",
+    "model": "MINI3X (V3)"
+  },
+  {
+    "input": "MINIPRO 2K Dashcam",
+    "model": "MINIPRO 2K Dashcam"
+  },
+  {
+    "input": "minipro 2k dashcam",
+    "model": "MINIPRO 2K Dashcam"
+  },
+  {
+    "input": "DDPAI MINIPRO 2K Dashcam",
+    "model": "MINIPRO 2K Dashcam"
+  },
+  {
+    "input": "MINI PRO 3K",
+    "model": "MINI PRO 3K"
+  },
+  {
+    "input": "mini pro 3k",
+    "model": "MINI PRO 3K"
+  },
+  {
+    "input": "DDPAI MINI PRO 3K",
+    "model": "MINI PRO 3K"
+  },
+  {
+    "input": "MINIPro 4K",
+    "model": "MINIPro 4K"
+  },
+  {
+    "input": "minipro 4k",
+    "model": "MINIPro 4K"
+  },
+  {
+    "input": "DDPAI MINIPro 4K",
+    "model": "MINIPro 4K"
+  },
+  {
+    "input": "MINI PRO 4K",
+    "model": "MINI PRO 4K"
+  },
+  {
+    "input": "mini pro 4k",
+    "model": "MINI PRO 4K"
+  },
+  {
+    "input": "DDPAI MINI PRO 4K",
+    "model": "MINI PRO 4K"
+  },
+  {
+    "input": "MOLA E3 Rearview Mirror Dashcam with Navigation‌",
+    "model": "MOLA E3 Rearview Mirror Dashcam with Navigation‌"
+  },
+  {
+    "input": "mola e3 rearview mirror dashcam with navigation‌",
+    "model": "MOLA E3 Rearview Mirror Dashcam with Navigation‌"
+  },
+  {
+    "input": "DDPAI MOLA E3 Rearview Mirror Dashcam with Navigation‌",
+    "model": "MOLA E3 Rearview Mirror Dashcam with Navigation‌"
+  },
+  {
+    "input": "N1 Dual",
+    "model": "N1 Dual"
+  },
+  {
+    "input": "n1 dual",
+    "model": "N1 Dual"
+  },
+  {
+    "input": "DDPAI N1 Dual",
+    "model": "N1 Dual"
+  },
+  {
+    "input": "N1 Dual Dash Cam",
+    "model": "N1 Dual Dash Cam"
+  },
+  {
+    "input": "n1 dual dash cam",
+    "model": "N1 Dual Dash Cam"
+  },
+  {
+    "input": "DDPAI N1 Dual Dash Cam",
+    "model": "N1 Dual Dash Cam"
+  },
+  {
+    "input": "N1 Pro",
+    "model": "N1 Pro"
+  },
+  {
+    "input": "n1 pro",
+    "model": "N1 Pro"
+  },
+  {
+    "input": "DDPAI N1 Pro",
+    "model": "N1 Pro"
+  },
+  {
+    "input": "N2 2K Dash Cam",
+    "model": "N2 2K Dash Cam"
+  },
+  {
+    "input": "n2 2k dash cam",
+    "model": "N2 2K Dash Cam"
+  },
+  {
+    "input": "DDPAI N2 2K Dash Cam",
+    "model": "N2 2K Dash Cam"
+  },
+  {
+    "input": "N3 Pro (V2)",
+    "model": "N3 Pro (V2)"
+  },
+  {
+    "input": "n3 pro (v2)",
+    "model": "N3 Pro (V2)"
+  },
+  {
+    "input": "DDPAI N3 Pro (V2)",
+    "model": "N3 Pro (V2)"
+  },
+  {
+    "input": "N3 Pro GPS (Upgraded)",
+    "model": "N3 Pro GPS (Upgraded)"
+  },
+  {
+    "input": "n3 pro gps (upgraded)",
+    "model": "N3 Pro GPS (Upgraded)"
+  },
+  {
+    "input": "DDPAI N3 Pro GPS (Upgraded)",
+    "model": "N3 Pro GPS (Upgraded)"
+  },
+  {
+    "input": "N4Q",
+    "model": "N4Q"
+  },
+  {
+    "input": "n4q",
+    "model": "N4Q"
+  },
+  {
+    "input": "DDPAI N4Q",
+    "model": "N4Q"
+  },
+  {
+    "input": "N4T",
+    "model": "N4T"
+  },
+  {
+    "input": "n4t",
+    "model": "N4T"
+  },
+  {
+    "input": "DDPAI N4T",
+    "model": "N4T"
+  },
+  {
+    "input": "N5 Dual",
+    "model": "N5 Dual"
+  },
+  {
+    "input": "n5 dual",
+    "model": "N5 Dual"
+  },
+  {
+    "input": "DDPAI N5 Dual",
+    "model": "N5 Dual"
+  },
+  {
+    "input": "N5 Dual (2026)",
+    "model": "N5 Dual (2026)"
+  },
+  {
+    "input": "n5 dual (2026)",
+    "model": "N5 Dual (2026)"
+  },
+  {
+    "input": "DDPAI N5 Dual (2026)",
+    "model": "N5 Dual (2026)"
+  },
+  {
+    "input": "N5(2026)",
+    "model": "N5(2026)"
+  },
+  {
+    "input": "n5(2026)",
+    "model": "N5(2026)"
+  },
+  {
+    "input": "DDPAI N5(2026)",
+    "model": "N5(2026)"
+  },
+  {
+    "input": "N5 Dual 2026 4K Dash Cam",
+    "model": "N5 Dual 2026 4K Dash Cam"
+  },
+  {
+    "input": "n5 dual 2026 4k dash cam",
+    "model": "N5 Dual 2026 4K Dash Cam"
+  },
+  {
+    "input": "DDPAI N5 Dual 2026 4K Dash Cam",
+    "model": "N5 Dual 2026 4K Dash Cam"
+  },
+  {
+    "input": "N5 Pro (2026)",
+    "model": "N5 Pro (2026)"
+  },
+  {
+    "input": "n5 pro (2026)",
+    "model": "N5 Pro (2026)"
+  },
+  {
+    "input": "DDPAI N5 Pro (2026)",
+    "model": "N5 Pro (2026)"
+  },
+  {
+    "input": "Ranger Riding Camera",
+    "model": "Ranger Riding Camera"
+  },
+  {
+    "input": "ranger riding camera",
+    "model": "Ranger Riding Camera"
+  },
+  {
+    "input": "DDPAI Ranger Riding Camera",
+    "model": "Ranger Riding Camera"
+  },
+  {
+    "input": "Ranger 4K Riding Camera",
+    "model": "Ranger 4K Riding Camera"
+  },
+  {
+    "input": "ranger 4k riding camera",
+    "model": "Ranger 4K Riding Camera"
+  },
+  {
+    "input": "DDPAI Ranger 4K Riding Camera",
+    "model": "Ranger 4K Riding Camera"
+  },
+  {
+    "input": "RANGER M1 3K Motorcycle Dashcam",
+    "model": "RANGER M1 3K Motorcycle Dashcam"
+  },
+  {
+    "input": "ranger m1 3k motorcycle dashcam",
+    "model": "RANGER M1 3K Motorcycle Dashcam"
+  },
+  {
+    "input": "DDPAI RANGER M1 3K Motorcycle Dashcam",
+    "model": "RANGER M1 3K Motorcycle Dashcam"
+  },
+  {
+    "input": "Z100",
+    "model": "Z100"
+  },
+  {
+    "input": "z100",
+    "model": "Z100"
+  },
+  {
+    "input": "DDPAI Z100",
+    "model": "Z100"
+  },
+  {
+    "input": "Z100 Master",
+    "model": "Z100 Master"
+  },
+  {
+    "input": "z100 master",
+    "model": "Z100 Master"
+  },
+  {
+    "input": "DDPAI Z100 Master",
+    "model": "Z100 Master"
+  },
+  {
+    "input": "Z100 Pro",
+    "model": "Z100 Pro"
+  },
+  {
+    "input": "z100 pro",
+    "model": "Z100 Pro"
+  },
+  {
+    "input": "DDPAI Z100 Pro",
+    "model": "Z100 Pro"
+  },
+  {
+    "input": "Z50 Pro",
+    "model": "Z50 Pro"
+  },
+  {
+    "input": "z50 pro",
+    "model": "Z50 Pro"
+  },
+  {
+    "input": "DDPAI Z50 Pro",
+    "model": "Z50 Pro"
+  },
+  {
+    "input": "Z50 Pro (2026)",
+    "model": "Z50 Pro (2026)"
+  },
+  {
+    "input": "z50 pro (2026)",
+    "model": "Z50 Pro (2026)"
+  },
+  {
+    "input": "DDPAI Z50 Pro (2026)",
+    "model": "Z50 Pro (2026)"
+  },
+  {
+    "input": "Z60 4K Dash Cam",
+    "model": "Z60 4K Dash Cam"
+  },
+  {
+    "input": "z60 4k dash cam",
+    "model": "Z60 4K Dash Cam"
+  },
+  {
+    "input": "DDPAI Z60 4K Dash Cam",
+    "model": "Z60 4K Dash Cam"
+  },
+  {
+    "input": "Z60 (2026)",
+    "model": "Z60 (2026)"
+  },
+  {
+    "input": "z60 (2026)",
+    "model": "Z60 (2026)"
+  },
+  {
+    "input": "DDPAI Z60 (2026)",
+    "model": "Z60 (2026)"
+  },
+  {
+    "input": "Z60 Master",
+    "model": "Z60 Master"
+  },
+  {
+    "input": "z60 master",
+    "model": "Z60 Master"
+  },
+  {
+    "input": "DDPAI Z60 Master",
+    "model": "Z60 Master"
+  },
+  {
+    "input": "Z60Pro",
+    "model": "Z60Pro"
+  },
+  {
+    "input": "z60pro",
+    "model": "Z60Pro"
+  },
+  {
+    "input": "DDPAI Z60Pro",
+    "model": "Z60Pro"
+  },
+  {
+    "input": "Z60 Pro 4K Dash Cam",
+    "model": "Z60 Pro 4K Dash Cam"
+  },
+  {
+    "input": "z60 pro 4k dash cam",
+    "model": "Z60 Pro 4K Dash Cam"
+  },
+  {
+    "input": "DDPAI Z60 Pro 4K Dash Cam",
+    "model": "Z60 Pro 4K Dash Cam"
+  },
+  {
+    "input": "Z60T",
+    "model": "Z60T"
+  },
+  {
+    "input": "z60t",
+    "model": "Z60T"
+  },
+  {
+    "input": "DDPAI Z60T",
+    "model": "Z60T"
+  },
+  {
+    "input": "Z90",
+    "model": "Z90"
+  },
+  {
+    "input": "z90",
+    "model": "Z90"
+  },
+  {
+    "input": "DDPAI Z90",
+    "model": "Z90"
+  },
+  {
+    "input": "Z90 (2026)",
+    "model": "Z90 (2026)"
+  },
+  {
+    "input": "z90 (2026)",
+    "model": "Z90 (2026)"
+  },
+  {
+    "input": "DDPAI Z90 (2026)",
+    "model": "Z90 (2026)"
+  },
+  {
+    "input": "Z90 Master",
+    "model": "Z90 Master"
+  },
+  {
+    "input": "z90 master",
+    "model": "Z90 Master"
+  },
+  {
+    "input": "DDPAI Z90 Master",
+    "model": "Z90 Master"
+  },
+  {
+    "input": "Z90 Max",
+    "model": "Z90 Max"
+  },
+  {
+    "input": "z90 max",
+    "model": "Z90 Max"
+  },
+  {
+    "input": "DDPAI Z90 Max",
+    "model": "Z90 Max"
+  },
+  {
+    "input": "Z90 Pro",
+    "model": "Z90 Pro"
+  },
+  {
+    "input": "z90 pro",
+    "model": "Z90 Pro"
+  },
+  {
+    "input": "DDPAI Z90 Pro",
+    "model": "Z90 Pro"
+  },
+  {
+    "input": "Z90 Pro (New)",
+    "model": "Z90 Pro (New)"
+  },
+  {
+    "input": "z90 pro (new)",
+    "model": "Z90 Pro (New)"
+  },
+  {
+    "input": "DDPAI Z90 Pro (New)",
+    "model": "Z90 Pro (New)"
+  },
+  {
+    "input": "Z90T",
+    "model": "Z90T"
+  },
+  {
+    "input": "z90t",
+    "model": "Z90T"
+  },
+  {
+    "input": "DDPAI Z90T",
+    "model": "Z90T"
+  },
+  {
+    "input": "DDPAI DZ2602_GLOBAL_Z100 Master",
+    "model": "Z100 Master"
+  },
+  {
+    "input": "DDPAI DZ2602_GLOBAL_Z100 Pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI DZ9999_GLOBAL_Z100 Master",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z100 Master Pro",
+    "model": null
+  },
+  {
+    "input": "DDPAI Z100 MasterX",
+    "model": null
+  }
+]
