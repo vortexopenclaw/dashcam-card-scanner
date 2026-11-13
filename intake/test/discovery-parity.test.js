@@ -3,10 +3,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync,existsSync} from 'node:fs';
-import {validTechnical,validateDiscovery} from '../discovery.js';
+import {validTechnical,validateDiscovery,validDiscovery,projectDiscovery,safeDiscoveryValue} from '../discovery.js';
 const peerURL=new URL('../../../ddpai-log-offloader/workers/feedback/discovery.js',import.meta.url);
 const peer=existsSync(peerURL)?await import(peerURL):null;
 const cases=JSON.parse(readFileSync(new URL('../../tests/reference/discovery-validation-cases.json',import.meta.url)));
+test('shared receiver API preserves both caller contracts and optional legacy payloads',()=>{
+ assert.equal(validDiscovery(undefined),true);
+ assert.equal(projectDiscovery(undefined),undefined);
+ assert.equal(safeDiscoveryValue('Alpha A1','model'),true);
+ assert.equal(safeDiscoveryValue('person@example.com','model'),false);
+ assert.throws(()=>projectDiscovery({rawLine:'not technical evidence'}));
+});
 test('canonical receiving validator agrees on every portable grammar case',()=>{
  for(const c of cases)assert.equal(validTechnical(c.field,c.key,c.value),c.valid,JSON.stringify(c));
 });
