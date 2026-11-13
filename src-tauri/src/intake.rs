@@ -390,6 +390,10 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     if let Some(coverage) = &r.component_metadata_coverage {
         payload["scan"] = json!({"componentMetadata":r.component_metadata,"componentMetadataCoverage":coverage});
     }
+    if let Some(discovery) = &r.discovery {
+        if payload.get("scan").is_none() { payload["scan"] = json!({}); }
+        payload["scan"]["discovery"] = json!(discovery);
+    }
     payload["temporalEvidence"] = temporal_summary(r);
     fit_payload(&mut payload)
 }
@@ -440,6 +444,22 @@ pub(crate) fn fit_payload(payload: &mut Value) -> Result<String, String> {
             c["omittedEntries"] = json!(c["omittedEntries"].as_u64().unwrap() + 1);
             c["limited"] = json!(true);
             continue;
+        }
+        if let Some(d) = payload.get_mut("scan").and_then(|s| s.get_mut("discovery")) {
+            if d["observations"].as_array_mut().is_some_and(|rows|rows.pop().is_some()) {
+                let c = &mut d["coverage"];
+                c["retainedObservations"] = json!(c["retainedObservations"].as_u64().unwrap() - 1);
+                c["omittedObservations"] = json!(c["omittedObservations"].as_u64().unwrap() + 1);
+                c["limited"] = json!(true);
+                c["reasons"]["observation_limit"] = json!(c["reasons"]["observation_limit"].as_u64().unwrap_or(0) + 1);
+                continue;
+            }
+            if d["sources"].as_array_mut().is_some_and(|rows|rows.pop().is_some()) {
+                d["coverage"]["limited"] = json!(true);
+                let c = &mut d["coverage"]["reasons"];
+                c["observation_limit"] = json!(c["observation_limit"].as_u64().unwrap_or(0) + 1);
+                continue;
+            }
         }
         return Err("Complete intake exceeds 16 KiB. Structural totals are never truncated; export locally.".into());
     }

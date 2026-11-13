@@ -1,0 +1,13 @@
+{
+  "notice": "Synthetic generic-parser exercises, NOT historical vendor format evidence. DDPAI sanitized ANSI replay is separately retained in ddpai-ansi-framing.json.",
+  "files": [
+    {"path":"unfamiliar/location/blackvue-style-text.BIN","text":"[Camera]\nmodel=Future-BV9\nfirmware=1.2.3\nwifi_pwd=CANARY_SECRET\n"},
+    {"path":".git/temporary/viofo-style-unfamiliar.xyz","text":"[camera]\nModel=Future-VF9\nFW_Version=2.3.4\n[video]\nresolution=3840x2160\nfps=30\nowner=CANARY_CONTACT\n"},
+    {"path":"unknown/vantrue-menu-style","text":"[menu]\nModel=Future-VT9\nQuality=PlatePix\nHDR=on\nParking_Mode=motion\n[rear]\nModel=Rear-VT2\nVersion=3.4.5\n"},
+    {"path":"misc/nested.data","text":"{\"devices\":[{\"model\":\"Unknown-X9\",\"fw\":\"4.5.6\"},{\"rear_model\":\"Rear-X2\",\"hardware_version\":\"1.2\"}],\"gps\":\"CANARY_LOCATION\"}"},
+    {"path":"other/framed.opaque","text":"\u001b[32m[t] info {\"model\":\"Unknown-Log9\",\"soft_version\":\"5.6.7\"}\u001b[0m\n"},
+    {"path":"misc/duplicate","text":"{\"model\":\"Hidden-X1\",\"model\":\"Hidden-X2\"}"},
+    {"path":"misc/utf16","text":"model=Unknown-U16\nversion=6.7.8\n","encoding":"utf16le"},
+    {"path":"unknown/xml","text":"<!DOCTYPE x [<!ENTITY hidden SYSTEM 'file:///private'>]><x/ >"}
+  ]
+}

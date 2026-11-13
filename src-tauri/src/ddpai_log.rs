@@ -107,7 +107,7 @@ fn filename(s: &str) -> bool {
 }
 // Recursive duplicate rejection, including unknown nested fields. JSON Value alone
 // would silently keep the last key, allowing a hidden identity conflict.
-struct Unique(Value);
+pub(crate) struct Unique(pub(crate) Value);
 impl<'de> Deserialize<'de> for Unique {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         struct V;
@@ -178,7 +178,7 @@ fn safe_framing(text: &str) -> bool {
     }
     !text.chars().any(|c| c.is_control() && c != '\t' && c != '\x1b')
 }
-fn payload(line: &str) -> Option<&str> {
+pub(crate) fn payload(line: &str) -> Option<&str> {
     let (start, _) = line
         .match_indices('{')
         .find(|(i, _)| line[i + 1..].trim_start().starts_with('"'))?;

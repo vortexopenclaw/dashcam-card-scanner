@@ -2,6 +2,7 @@
 pub mod annotations;
 pub mod engine;
 pub mod ddpai_log;
+pub mod discovery;
 pub mod intake;
 pub mod manual_camera;
 pub mod mode_evidence;

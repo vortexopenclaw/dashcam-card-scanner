@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import {validateDiscovery} from './discovery.js';
 import {recognizedDDPAIModel} from "./ddpai-models.js";
 export const MAX_BODY = 16384;
 export const HASH = /^[a-f0-9]{64}$/;
@@ -75,7 +76,8 @@ function temporalEvidence(t){
 }
 const safeObservedModel=s=>typeof s==='string'&&s.length>0&&[...s].length<=80&&new TextEncoder().encode(s).length<=240&&s.trim()===s&&/^[\p{L}\p{N} ._()+-]+$/u.test(s);
 function componentScan(s){
-  exact(s,[],['componentMetadata','componentMetadataCoverage']);
+  exact(s,[],['componentMetadata','componentMetadataCoverage','discovery']);
+  if(s.discovery!==undefined)validateDiscovery(s.discovery);
   const rows=s.componentMetadata===undefined?[]:s.componentMetadata;array(rows,0,32);
   for(const e of rows){
     exact(e,['manufacturer','component','reportedModel','model','firmwareVersion','sourceKind','sourceFile','sourceLine','identityEstablished']);

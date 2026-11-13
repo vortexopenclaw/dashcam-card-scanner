@@ -30,8 +30,12 @@ Review/proposal retain structure, paired measurements, owner assertions separate
 
 ## Additive private camera-log observations
 
-Optional envelope `scan` accepts only optional `componentMetadata` (0–32 entries)
-and `componentMetadataCoverage`. Old reports omit it. Entries require exactly
+Optional envelope `scan` accepts optional `componentMetadata` (0–32 entries),
+`componentMetadataCoverage`, and `discovery` (v1). Old reports omit it. Generic
+private discovery uses anonymous support IDs, closed technical field/value
+grammars, unbound declarations and exact bounded coverage; see
+[generic reader and wire contract](../docs/generic-private-discovery.md).
+The legacy DDPAI entries require exactly
 `manufacturer:'DDPAI'`, `component:'logging_device'|'rear'|'inside'`, nullable
 `reportedModel`, nullable recognized retail `model`, nullable `firmwareVersion`,
 `sourceKind:'ddpai_ui_device_info'`, `sourceFile`, positive `sourceLine` and

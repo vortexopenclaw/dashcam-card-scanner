@@ -67,6 +67,8 @@ pub struct MetadataCoverage {
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Report {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub discovery: Option<crate::discovery::Discovery>,
     /// Private historical observations; anonymous exports explicitly exclude these.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub component_metadata: Vec<crate::ddpai_log::ComponentMetadata>,
@@ -390,7 +392,7 @@ fn scan_with_limits(
     let root = safe_root(root)?;
     let dir = open_dir_secure(&root)?;
     let mut walker = Walker {
-        report: Report::default(),
+        report: Report { discovery: Some(crate::discovery::Discovery::default()), ..Report::default() },
         cancel,
         progress,
         limits,
@@ -403,6 +405,7 @@ fn scan_with_limits(
     walker.visit(dir, ".".into(), 0);
     let r = &mut walker.report;
     r.inventory_complete = !r.limited && !r.cancelled;
+    if !r.inventory_complete { if let Some(d) = &mut r.discovery { d.coverage.limited = true; } }
     r.metadata_coverage.complete = r.inventory_complete
         && r.metadata_coverage.inspected_files == r.metadata_coverage.recognized_files
         && r.probe_failures == 0
@@ -464,6 +467,9 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                 return;
             }
         };
+        let mut entries: Vec<_> = entries.take(self.limits.entries.saturating_sub(self.report.entries_seen) + 1).take_while(|_| !self.cancel.load(Ordering::Relaxed)).collect();
+        if self.cancel.load(Ordering::Relaxed) { self.report.cancelled = true; return; }
+        entries.sort_by_key(|e| e.as_ref().ok().map(|e|e.file_name()));
         // Recursive depth-first enumeration retains at most MAX_DEPTH + 1 directory
         // handles/iterators, not one open handle for every child of a wide directory.
         for entry in entries {
@@ -556,6 +562,9 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                     issue(&mut self.report, "offline_placeholder_excluded", true);
                     self.report.skipped += 1;
                     continue;
+                }
+                if let Some(discovery) = &mut self.report.discovery {
+                    discovery.inspect(&dir, p, meta.len(), self.cancel);
                 }
                 self.report.scanned_files += 1;
                 folder.file_count += 1;
