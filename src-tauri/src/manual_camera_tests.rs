@@ -126,6 +126,31 @@ fn main_unit_flow_and_submission() {
     std::fs::remove_dir_all(root).unwrap();
 }
 #[test]
+fn rear_q_time_lapse_is_main_unit_and_folder_scoped() {
+    let name = "Q_20300101120100_0001_A.mp4";
+    let folder = "DCIM/200video/rear";
+    assert_eq!(crate::intake::sample_hints_for_folder(name, folder, Some(ID)), ("rear", "parking"));
+    let evidence = crate::mode_evidence::file_mode_evidence(name, folder, Some(ID));
+    assert_eq!(evidence.context, "parking");
+    assert_eq!(evidence.parking_subtype, Some("time-lapse"));
+    assert_eq!(evidence.trigger, "unknown");
+    assert_eq!(evidence.protected, None);
+    for id in [None, Some("ddpai-z100-master"), Some("ddpai-z100-pro"), Some("ddpai-z100-accessory")] {
+        assert_ne!(crate::intake::sample_hints_for_folder(name, folder, id).1, "parking");
+        assert_ne!(crate::mode_evidence::file_mode_evidence(name, folder, id).parking_subtype, Some("time-lapse"));
+    }
+    for (name, folder) in [
+        (name, "DCIM/200video/front"), (name, "DCIM/200video/inside"),
+        (name, "Other/rear"), (name, "DCIM/200video/cabin"),
+        ("Q_20300101120100.jpg", "DCIM/201photo/rear"),
+        ("20300101120100_0001_A.mp4", folder),
+        ("S_20300101120100.mp4", folder), ("q_20300101120100.mp4", folder),
+    ] {
+        assert_eq!(hints(name, folder).1, "unknown");
+        assert_ne!(crate::mode_evidence::file_mode_evidence(name, folder, Some(ID)).parking_subtype, Some("time-lapse"));
+    }
+}
+#[test]
 fn scope_negatives() {
     let name = "S_20300101120100.mp4";
     for id in [None, Some("ddpai-sibling"), Some("ddpai-z100-accessory")] {

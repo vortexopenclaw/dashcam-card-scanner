@@ -56,6 +56,9 @@ pub fn file_mode_evidence(name: &str, folder: &str, native_id: Option<&str>) -> 
         if role == "front" && mode == "parking" {
             return FileModeEvidence { context: "parking", parking_subtype: Some("time-lapse"), trigger: "unknown", protected: None, basis: "owner_confirmed_main_unit_front_s_marker" };
         }
+        if role == "rear" && mode == "parking" {
+            return FileModeEvidence { context: "parking", parking_subtype: Some("time-lapse"), trigger: "unknown", protected: None, basis: "confirmed_main_unit_rear_q_marker" };
+        }
         return unknown();
     }
     // The same bundled catalog as native recognition, with precompiled rules;

@@ -127,6 +127,67 @@ fn actual_shaped_log_normal_scan_to_review_private_only() {
     assert!(!review.submission_json.contains(t.path().to_str().unwrap()));
 }
 #[test]
+fn ansi_actual_structural_framing_retains_unmapped_observations() {
+    // Sanitized structural framing only; source paths/media names are synthetic.
+    let lines: Vec<String> = serde_json::from_str(include_str!(
+        "../../tests/reference/ddpai-ansi-framing.json"
+    )).unwrap();
+    let t = temp();
+    logs(t.path(), &lines);
+    let dir = t.path().join("DCIM/200video/front");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("20300101120000_0001_0001.mp4"), video()).unwrap();
+    let r = scan(t.path());
+    assert_eq!(r.component_metadata.len(), 6);
+    assert!(!r.component_metadata_coverage.as_ref().unwrap().limited);
+    assert!(confirmed_z100_main(&r));
+    for (i, row) in r.component_metadata.iter().enumerate() {
+        assert_eq!(row.source_line, i / 3 + 1);
+        assert_eq!(row.source_file, "DCIM/207log/ui/ui_20300101120000_000.log");
+        if row.component == "logging_device" {
+            assert_eq!(row.model.as_deref(), Some("Z100 Master"));
+            assert_eq!(row.firmware_version.as_deref(), Some("8.0.0.23"));
+        } else {
+            assert_eq!(row.reported_model.as_deref(), Some("DDPAI DR4004"));
+            assert_eq!(row.firmware_version.as_deref(), Some("v9.0.0.17"));
+            assert_eq!(row.model, None);
+            assert!(!row.identity_established);
+        }
+    }
+    let review = crate::annotations::prepare(&r, &labels(), &Default::default()).unwrap();
+    let body: Value = serde_json::from_str(&review.submission_json).unwrap();
+    assert_eq!(body["owner"]["firmware"], "owner-current");
+    assert_eq!(body["owner"]["channelCount"], 4);
+    assert!(!review.public_json.contains("DR4004"));
+    assert!(!review.public_json.contains("20300101"));
+}
+#[test]
+fn ansi_only_outside_json_preserves_structural_and_value_guards() {
+    let source = "DCIM/207log/ui/ui_20300101120000_000.log";
+    let good = object().to_string();
+    assert_eq!(record(&format!("\x1b[32m{good}\x1b[m"), source, 1).unwrap().len(), 3);
+    for line in [
+        format!("\x1b[32m[{good}]\x1b[m"),
+        format!("\x1b[2J{good}"), format!("{good}\x1b["), format!("{good}\x07"),
+        good.replace("Z100 Master", "Z100\x1b[32m Master"),
+        good.replace("Z100 Master", "Z100\\u001b[32m Master"),
+        "\x1b[32m{\"msgHdr\":{},\"model\":\"Z100 Master\",\"model\":\"Z100 Pro\",\"soft_version\":\"8.0\"}\x1b[m".into(),
+        "\x1b[32m{\"msgHdr\":{\"x\":1,\"x\":2},\"model\":\"Z100 Master\",\"soft_version\":\"8.0\"}\x1b[m".into(),
+    ] {
+        assert!(record(&line, source, 1).is_err());
+        let t = temp();
+        logs(t.path(), &[line]);
+        let (rows, coverage) = read(t.path(), &AtomicBool::new(false));
+        assert!(rows.is_empty());
+        assert!(coverage.unwrap().limited);
+    }
+    let nested = format!("\x1b[32m{{\"outer\":{good}}}\x1b[m");
+    assert!(record(&nested, source, 1).unwrap().is_empty());
+    let mut unknown = object();
+    unknown["unretained"] = json!("\x1b[32m");
+    assert_eq!(record(&unknown.to_string(), source, 1).unwrap().len(), 3);
+}
+#[test]
 fn catalog_exact_sibling_unknown_revision_and_region_negatives() {
     assert_eq!(
         exact_model("DDPAI DZ2602_GLOBAL_Z100 Master").as_deref(),

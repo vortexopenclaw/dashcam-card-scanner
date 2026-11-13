@@ -155,12 +155,41 @@ impl<'de> Deserialize<'de> for Unique {
         d.deserialize_any(V)
     }
 }
+// Only CSI SGR (digits/semicolons followed by m) is logger framing.
+// Never apply this to JSON: controls in payloads must retain their meaning/fail.
+fn sgr_len(bytes: &[u8]) -> Option<usize> {
+    if !bytes.starts_with(b"\x1b[") {
+        return None;
+    }
+    let end = bytes[2..]
+        .iter()
+        .position(|b| !b.is_ascii_digit() && *b != b';')? + 2;
+    (bytes[end] == b'm').then_some(end + 1)
+}
+fn safe_framing(text: &str) -> bool {
+    let mut bytes = text.as_bytes();
+    while !bytes.is_empty() {
+        if bytes[0] == 0x1b {
+            let Some(n) = sgr_len(bytes) else { return false };
+            bytes = &bytes[n..];
+        } else {
+            bytes = &bytes[1..];
+        }
+    }
+    !text.chars().any(|c| c.is_control() && c != '\t' && c != '\x1b')
+}
 fn payload(line: &str) -> Option<&str> {
     let (start, _) = line
         .match_indices('{')
         .find(|(i, _)| line[i + 1..].trim_start().starts_with('"'))?;
     let mut enclosing_arrays = 0usize;
-    for b in line.as_bytes()[..start].iter().copied() {
+    let mut prefix = &line.as_bytes()[..start];
+    while let Some((&b, rest)) = prefix.split_first() {
+        if b == 0x1b {
+            prefix = &prefix[sgr_len(prefix)?..];
+            continue;
+        }
+        prefix = rest;
         if b == b'[' {
             enclosing_arrays += 1;
         } else if b == b']' {
@@ -189,6 +218,9 @@ fn payload(line: &str) -> Option<&str> {
         } else if b == b'}' || b == b']' {
             depth = depth.checked_sub(1)?;
             if depth == 0 {
+                if !safe_framing(&line[..start]) || !safe_framing(&line[start + i + 1..]) {
+                    return None;
+                }
                 return Some(&line[start..start + i + 1]);
             }
         }
@@ -197,7 +229,8 @@ fn payload(line: &str) -> Option<&str> {
 }
 fn record(line: &str, source: &str, number: usize) -> Result<Vec<ComponentMetadata>, ()> {
     let Some(json) = payload(line) else {
-        return if line.contains("\"model\"") && line.contains("\"soft_version\"") {
+        return if !safe_framing(line)
+            || (line.contains("\"model\"") && line.contains("\"soft_version\"")) {
             Err(())
         } else {
             Ok(vec![])
@@ -368,7 +401,7 @@ pub fn read(root: &Path, cancel: &AtomicBool) -> (Vec<ComponentMetadata>, Option
                 c.limited = true;
                 break;
             }
-            if line.len() > 16384 || line.chars().any(|x| x.is_control() && x != '\t') {
+            if line.len() > 16384 || line.chars().any(|x| x.is_control() && x != '\t' && x != '\x1b') {
                 c.limited = true;
                 continue;
             }

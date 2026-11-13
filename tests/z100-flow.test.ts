@@ -14,7 +14,7 @@ beforeAll(()=>{
  // Resolve the OS temp alias in the test harness, not in the secure scanner.
  scratch=realpathSync(mkdtempSync(join(tmpdir(),'scanner-z100-flow-')));
  for(const folder of ['front','inside','rear'])mkdirSync(join(scratch,'DCIM/200video',folder),{recursive:true});
- for(const folder of ['front','inside','rear'])writeFileSync(join(scratch,'DCIM/200video',folder,'S_20300101120100_0001_0001.mp4'),'synthetic header-unavailable video');
+ for(const folder of ['front','inside','rear'])writeFileSync(join(scratch,'DCIM/200video',folder,`${folder==='rear'?'Q':'S'}_20300101120100_0001_0001.mp4`),'synthetic header-unavailable video');
  native=JSON.parse(execFileSync('cargo',['run','--quiet','--manifest-path','src-tauri/Cargo.toml','--example','scan_fixture','--',scratch,'--z100'],{encoding:'utf8',timeout:240000}));
 },240000);
 afterAll(()=>{if(scratch)rmSync(scratch,{recursive:true,force:true});});
@@ -56,7 +56,9 @@ test('native submission survives actual gateway admission and stored-record read
 });
 test('real native submission retains physical channel and parking context without inventing cadence or exposing source',()=>{
  const body=JSON.parse(native.review.submissionJson);expect(validate(body)).toBe(body);
- expect(body.evidence).toEqual(expect.arrayContaining([expect.objectContaining({channel:'front',mode:'parking'}),expect.objectContaining({channel:'telephoto',mode:'unknown'}),expect.objectContaining({channel:'rear',mode:'unknown'})]));
+ expect(body.evidence).toEqual(expect.arrayContaining([expect.objectContaining({channel:'front',mode:'parking'}),expect.objectContaining({channel:'telephoto',mode:'unknown'}),expect.objectContaining({channel:'rear',mode:'parking'})]));
+ expect(native.mainContext.reviewSamples.find((s:any)=>s.roleHint==='rear').modeEvidence).toMatchObject({context:'parking',parkingSubtype:'time-lapse',trigger:'unknown',protected:null});
+ expect(native.genericContext.reviewSamples.every((s:any)=>s.modeEvidence.parkingSubtype!=='time-lapse')).toBe(true);
  expect(body.owner.channelCount).toBe(4);expect(native.mainContext.channelEvidence.count).toBe(3);expect(body.owner.timeLapseFps).toBeUndefined();expect(native.review.submissionJson).not.toContain(scratch);expect(native.review.submissionJson).toContain('20300101');expect(native.review.publicJson).not.toContain('20300101');
  expect(body.structure.folders.some((f:any)=>f.components.includes('inside'))).toBe(true);
 });

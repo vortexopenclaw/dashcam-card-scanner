@@ -41,7 +41,8 @@ pub fn hints(name: &str, folder: &str) -> (&'static str, &'static str) {
         "dcim/201photo/rear" if photo => "rear",
         _ => "unknown",
     };
-    let mode = if video && channel == "front" && name.starts_with("S_") {
+    let mode = if video && ((channel == "front" && name.starts_with("S_"))
+        || (channel == "rear" && name.starts_with("Q_"))) {
         "parking"
     } else {
         "unknown"
