@@ -1,5 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
+
+fn physical_tempdir() -> tempfile::TempDir {
+    // macOS temp-directory ancestors can be symlinks. Keep fixtures physical
+    // without relaxing production's no-symlink source admission.
+    tempfile::Builder::new()
+        .tempdir_in(std::env::temp_dir().canonicalize().unwrap())
+        .unwrap()
+}
+
 #[test]
 fn portable_technical_cases() {
     let cases: Value = serde_json::from_str(include_str!("../../tests/reference/discovery-validation-cases.json")).unwrap();
@@ -19,7 +28,7 @@ fn document_location_and_mixed_record_ids_are_honest() {
 #[test]
 fn no_fact_sources_and_oversize_media_do_not_starve_late_facts() {
     for (count, size, suffix) in [(256,65537,"mp4"),(128,3,"jpg")] {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = physical_tempdir();
         for i in 0..count { std::fs::write(temp.path().join(format!("a{i:03}.{suffix}")), if size == 3 { vec![255,216,255] } else { vec![0;size] }).unwrap(); }
         std::fs::write(temp.path().join("zz-unknown.ext"), "model=FutureCam X9").unwrap();
         let r = crate::engine::scan(temp.path(), &AtomicBool::new(false), |_| {}).unwrap();
@@ -30,7 +39,7 @@ fn no_fact_sources_and_oversize_media_do_not_starve_late_facts() {
         assert_eq!(d.coverage.uninspected_files, if size == 3 {0} else {count});
     }
     // Exercise reclamation directly, independently of traversal prioritization.
-    let temp = tempfile::tempdir().unwrap();
+    let temp = physical_tempdir();
     std::fs::write(temp.path().join("image"), [255,216,255]).unwrap();
     std::fs::write(temp.path().join("fact"), "model=FutureCam X9").unwrap();
     let root = crate::engine::safe_root(temp.path()).unwrap();
@@ -52,7 +61,7 @@ fn parse(s: &str) -> Discovery {
     d
 }
 fn inspect(bytes: &[u8]) -> Discovery {
-    let temp = tempfile::tempdir().unwrap();
+    let temp = physical_tempdir();
     std::fs::write(temp.path().join("unknown"), bytes).unwrap();
     let root = crate::engine::safe_root(temp.path()).unwrap();
     let dir = crate::engine::open_dir_secure(&root).unwrap();
@@ -222,7 +231,7 @@ fn payload_fitting_discloses_omissions_and_keeps_conflict_sticky() {
 }
 #[test]
 fn inventory_size_byte_file_source_caps_and_cancellation() {
-    let temp = tempfile::tempdir().unwrap();
+    let temp = physical_tempdir();
     let root = crate::engine::safe_root(temp.path()).unwrap();
     let dir = crate::engine::open_dir_secure(&root).unwrap();
     std::fs::write(root.join("file"), b"model=Future-X1\n").unwrap();
@@ -271,7 +280,7 @@ fn inventory_size_byte_file_source_caps_and_cancellation() {
 }
 #[test]
 fn mutation_and_cancellation_during_read_discard_observations() {
-    let temp = tempfile::tempdir().unwrap();
+    let temp = physical_tempdir();
     let root = crate::engine::safe_root(temp.path()).unwrap();
     let p = root.join("file");
     std::fs::write(&p, b"model=Future-X1\n").unwrap();
@@ -303,7 +312,7 @@ fn mutation_and_cancellation_during_read_discard_observations() {
 fn walker_inventory_continues_after_limits_and_selection_is_deterministic() {
     let mut snapshots = Vec::new();
     for reverse in [false, true] {
-        let temp = tempfile::tempdir().unwrap();
+        let temp = physical_tempdir();
         let root = crate::engine::safe_root(temp.path()).unwrap();
         for j in 0..260 {
             let i = if reverse { 259 - j } else { j };
@@ -330,7 +339,7 @@ fn walker_inventory_continues_after_limits_and_selection_is_deterministic() {
 }
 #[test]
 fn unknown_paths_extensions_symlinks_and_changed_size() {
-    let temp = tempfile::tempdir().unwrap();
+    let temp = physical_tempdir();
     let root = crate::engine::safe_root(temp.path()).unwrap();
     std::fs::create_dir_all(root.join(".git/deep/tmp")).unwrap();
     std::fs::write(
