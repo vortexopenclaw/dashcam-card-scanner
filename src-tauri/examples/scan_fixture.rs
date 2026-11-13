@@ -29,6 +29,9 @@ fn main() {
         labels.channel_setup = "front + telephoto + rear + separate cabin".into();
         labels.channel_count = 4; // Owner-confirmed system, distinct from observed main-card roles.
     }
+    if let Some(path) = std::env::var_os("SCANNER_FIXTURE_LABELS") {
+        labels = serde_json::from_slice(&std::fs::read(path).expect("labels file")).expect("labels JSON");
+    }
     let contextual = scanner::manual_camera::apply(&report, z100);
     let mut review = payload::prepare(&contextual, &labels).expect("review failed");
     review.payload_hash = intake::hash(review.submission_json.as_bytes());

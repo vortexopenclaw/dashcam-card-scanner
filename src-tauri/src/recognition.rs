@@ -433,7 +433,7 @@ mod tests {
     }
     #[test]
     fn catalog_is_bounded_and_public() {
-        assert_eq!(catalog().len(), 103);
+        assert_eq!(catalog().len(), 105);
         let text = serde_json::to_string(catalog()).unwrap();
         assert!(!text.contains("/Volumes/") && !text.contains("sourceSha256"));
         for c in catalog() {

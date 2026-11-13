@@ -102,14 +102,21 @@ pub fn selected_samples(r: &Report) -> Vec<(usize, &crate::engine::Sample)> {
             row
         })
         .collect();
+    // Measurements take priority over unmeasured photos/unsupported files. A
+    // photo-heavy card must not spend the private evidence budget before videos.
     let mut out = Vec::new();
-    for round in 0..64 {
-        for (index, row) in ordered.iter().enumerate() {
-            if let Some(s) = row.get(round) {
-                if out.len() == 24 {
-                    return out;
+    for measured in [true, false] {
+        for round in 0..64 {
+            for (index, row) in ordered.iter().enumerate() {
+                if let Some(s) = row.get(round) {
+                    if s.video.is_some() != measured {
+                        continue;
+                    }
+                    if out.len() == 24 {
+                        return out;
+                    }
+                    out.push((index, *s));
                 }
-                out.push((index, *s));
             }
         }
     }
@@ -419,6 +426,22 @@ pub(crate) fn fit_payload(payload: &mut Value) -> Result<String, String> {
             } else { payload.as_object_mut().unwrap().remove("temporalEvidence"); }
             continue;
         }
+        if let Some(d) = payload.get_mut("scan").and_then(|s| s.get_mut("discovery")) {
+            if d["observations"].as_array_mut().is_some_and(|rows|rows.pop().is_some()) {
+                let c = &mut d["coverage"];
+                c["retainedObservations"] = json!(c["retainedObservations"].as_u64().unwrap() - 1);
+                c["omittedObservations"] = json!(c["omittedObservations"].as_u64().unwrap() + 1);
+                c["limited"] = json!(true);
+                c["reasons"]["observation_limit"] = json!(c["reasons"]["observation_limit"].as_u64().unwrap_or(0) + 1);
+                continue;
+            }
+            if d["sources"].as_array_mut().is_some_and(|rows|rows.pop().is_some()) {
+                d["coverage"]["limited"] = json!(true);
+                let c = &mut d["coverage"]["reasons"];
+                c["observation_limit"] = json!(c["observation_limit"].as_u64().unwrap_or(0) + 1);
+                continue;
+            }
+        }
         if payload["evidence"].as_array_mut().expect("evidence").pop().is_some() {
             let n = payload["evidence"].as_array().unwrap().len();
             let ids = payload["evidence"].as_array().unwrap().iter().filter(|e| e.get("filename").is_some()).count();
@@ -444,22 +467,6 @@ pub(crate) fn fit_payload(payload: &mut Value) -> Result<String, String> {
             c["omittedEntries"] = json!(c["omittedEntries"].as_u64().unwrap() + 1);
             c["limited"] = json!(true);
             continue;
-        }
-        if let Some(d) = payload.get_mut("scan").and_then(|s| s.get_mut("discovery")) {
-            if d["observations"].as_array_mut().is_some_and(|rows|rows.pop().is_some()) {
-                let c = &mut d["coverage"];
-                c["retainedObservations"] = json!(c["retainedObservations"].as_u64().unwrap() - 1);
-                c["omittedObservations"] = json!(c["omittedObservations"].as_u64().unwrap() + 1);
-                c["limited"] = json!(true);
-                c["reasons"]["observation_limit"] = json!(c["reasons"]["observation_limit"].as_u64().unwrap_or(0) + 1);
-                continue;
-            }
-            if d["sources"].as_array_mut().is_some_and(|rows|rows.pop().is_some()) {
-                d["coverage"]["limited"] = json!(true);
-                let c = &mut d["coverage"]["reasons"];
-                c["observation_limit"] = json!(c["observation_limit"].as_u64().unwrap_or(0) + 1);
-                continue;
-            }
         }
         return Err("Complete intake exceeds 16 KiB. Structural totals are never truncated; export locally.".into());
     }

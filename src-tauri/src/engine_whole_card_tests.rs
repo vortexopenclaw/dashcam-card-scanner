@@ -167,6 +167,7 @@ fn late_unique_variant_reclaims_duplicate_intake_slot_immediately() {
         stopped: false,
         next_alias: 0,
         sample_reclamation_exhausted: false,
+        unmeasured_reclamation_exhausted: false,
     };
     let mut f = Folder::default();
     for i in 0..32 {
@@ -209,6 +210,7 @@ fn late_minority_short_outlier_reclaims_other_stratum_redundancy() {
             stopped: false,
             next_alias: 0,
             sample_reclamation_exhausted: false,
+        unmeasured_reclamation_exhausted: false,
         };
         let bytes = metadata_fixture(b"avc1", 1920, 30);
         let base = video::probe(&mut Cursor::new(&bytes), bytes.len() as u64).unwrap();
