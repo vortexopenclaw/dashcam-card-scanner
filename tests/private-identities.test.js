@@ -67,8 +67,12 @@ test('unknown safe grammars accepted; unsafe original names and partial/mismatch
  for(const mutate of [p=>delete p.evidence[0].filename,p=>p.evidence[0].folder='DCIM',p=>p.evidence[1].sourceIdentifier=p.evidence[0].sourceIdentifier,p=>p.retention.omittedIdentities++,p=>p.evidence[0].sourceIdentifier='/host/path']){const p=JSON.parse(native.review.submissionJson);mutate(p);expect(()=>validate(p)).toThrow();}
  const legacy=JSON.parse(native.review.submissionJson);delete legacy.retention;for(const e of legacy.evidence)for(const k of ['filename','folder','sourceIdentifier'])delete e[k];expect(validate(legacy)).toBe(legacy);
 });
-test('native unsafe original names remain anonymous with explicit counts, never normalized',()=>{
- const root=join(scratch,'unsafe');mkdirSync(root);writeFileSync(join(root,'unsafe\n2030.MP4'),media());
+// Win32 cannot create a filename containing an ASCII newline. Exercise that
+// case on Unix, plus C1-control and bidi-format names on every platform; all
+// cases must be rejected unchanged by both native and receiving validators.
+const unsafeFilesystemNames=['unsafe\u00852030.MP4','unsafe\u202e2030.MP4',...(process.platform==='win32'?[]:['unsafe\n2030.MP4'])];
+test.each(unsafeFilesystemNames)('native unsafe original name %j remains anonymous with explicit counts, never normalized',name=>{
+ const root=join(scratch,'unsafe-'+unsafeFilesystemNames.indexOf(name));mkdirSync(root);writeFileSync(join(root,name),media());
  const p=validate(JSON.parse(scan(root).review.submissionJson));expect(p.evidence[0]).toMatchObject({durationSeconds:0.2,bitrateKbps:240});expect(p.evidence[0].filename).toBeUndefined();expect(p.retention).toMatchObject({inventoriedIdentities:1,retainedIdentities:0,omittedIdentities:1,measuredFiles:1,retainedMeasurements:1,omittedMeasurements:0});
 });
 test('intake-unavailable structural budgets keep linked private local evidence rather than silently dropping names',()=>{
