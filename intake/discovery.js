@@ -6,6 +6,7 @@ function exact(value,required,optional=[]){
 }
 const groups={manufacturer:'manufacturer make vendor brand',model:'model model_name camera_model device_model product_model dev_model rear_model inside_model front_model rc_model',firmware:'firmware firmware_version fw_version fw soft_version software_version rear_version inside_version micom_version',build:'build build_version version hardware_version',setting:'resolution width height fps frame_rate bitrate quality hdr parking_mode time_lapse codec'};
 export const discoveryReasons=['file_limit','byte_limit','oversize','unsupported_format','invalid_encoding','malformed','unsafe_value','read_error','changed_source','observation_limit'];
+export function safeDiscoveryValue(value,key){const field=Object.keys(groups).find(f=>groups[f].split(' ').includes(key));return Boolean(field&&validTechnical(field,key,value));}
 export function validTechnical(field,key,s){
  if(typeof s!=='string'||!s.length||s.length>80||s.trim()!==s||/[^\x20-\x7e]/.test(s)||!groups[field]?.split(' ').includes(key))return false;
  const lower=s.toLowerCase();
@@ -24,6 +25,9 @@ export function validTechnical(field,key,s){
  return ({quality:['low','normal','medium','high','maximum','extreme'],hdr:['on','off','auto','0','1'],parking_mode:['on','off','buffered','time-lapse','low-bitrate','motion','impact','radar'],codec:['h264','h265','hevc','av1','mjpeg','mpeg4']}[key]||[]).includes(lower);
 }
 const count=(n,max=10000000)=>{if(!Number.isSafeInteger(n)||n<0||n>max)throw Error('invalid_discovery_count');};
+// Validate before projection: no raw/support-path extensions survive this boundary.
+export function validDiscovery(value){if(value===undefined)return true;try{validateDiscovery(value);return true;}catch{return false;}}
+export function projectDiscovery(value){if(value===undefined)return undefined;validateDiscovery(value);return JSON.parse(JSON.stringify(value));}
 export function validateDiscovery(d){
  exact(d,['version','sources','observations','coverage']);if(d.version!==1)throw Error('invalid_discovery_version');
  for(const a of [d.sources,d.observations])if(!Array.isArray(a)||a.length>128)throw Error('invalid_discovery_array');
