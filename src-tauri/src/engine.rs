@@ -401,6 +401,7 @@ fn scan_with_limits(
         stopped: false,
         next_alias: 0,
         sample_reclamation_exhausted: false,
+        unmeasured_reclamation_exhausted: false,
     };
     walker.visit(dir, ".".into(), 0);
     let r = &mut walker.report;
@@ -430,6 +431,9 @@ fn scan_with_limits(
         walker.report.component_metadata = metadata;
         walker.report.component_metadata_coverage = coverage;
         if cancel.load(Ordering::Relaxed) { walker.report.cancelled = true; }
+        if crate::ddpai_log::recognition(&walker.report).is_some_and(|v| v["model"] == "MINI3X") {
+            walker.report.recognized_camera_id = Some("ddpai-mini3x".into());
+        }
         if crate::ddpai_log::confirmed_z100_main(&walker.report) {
             walker.report.recognized_camera_id = Some(crate::manual_camera::ID.into());
         }
@@ -446,6 +450,7 @@ struct Walker<'a, F> {
     stopped: bool,
     next_alias: usize,
     sample_reclamation_exhausted: bool,
+    unmeasured_reclamation_exhausted: bool,
 }
 impl<F: FnMut(Progress)> Walker<'_, F> {
     fn visit(&mut self, dir: Dir, path: String, depth: usize) {
@@ -711,6 +716,16 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
             self.report.sampled_files += 1;
             return;
         }
+        // Unmeasured/photo identities must not evict actual measured pairs.
+        if sample.video.is_some() {
+            for f in std::iter::once(&mut *folder).chain(self.report.folders.iter_mut()) {
+                if let Some(i) = f.samples.iter().position(|s| s.video.is_none()) {
+                    f.samples.remove(i);
+                    folder.samples.push(sample);
+                    return;
+                }
+            }
+        }
         if count > 0 {
             // Keep exact linked short/outlier pairs after the native retention cap.
             let indices: Vec<_> = folder
@@ -756,7 +771,7 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                 if exceptional {
                     if let Some(i) = indices.iter().find(|i| !protected.contains(i)) {
                         folder.samples[*i] = sample;
-                    } else if self.reclaim_redundant_sample(folder) {
+                    } else if self.reclaim_redundant_sample(folder, sample.video.is_some()) {
                         // A singleton/minority stratum may need both endpoints;
                         // borrow a redundant slot elsewhere rather than lose either.
                         folder.samples.push(sample);
@@ -766,13 +781,13 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
             }
             return;
         }
-        if count == 0 && self.reclaim_redundant_sample(folder) {
+        if count == 0 && self.reclaim_redundant_sample(folder, sample.video.is_some()) {
             folder.samples.push(sample);
             self.report.sampled_files += 1;
         }
     }
-    fn reclaim_redundant_sample(&mut self, folder: &mut Folder) -> bool {
-        if self.sample_reclamation_exhausted {
+    fn reclaim_redundant_sample(&mut self, folder: &mut Folder, allow_measured: bool) -> bool {
+        if self.sample_reclamation_exhausted || (!allow_measured && self.unmeasured_reclamation_exhausted) {
             return false;
         }
         // Reclaim only a row whose stratum and duration/bitrate range survive.
@@ -780,6 +795,7 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
         for f in std::iter::once(folder).chain(self.report.folders.iter_mut()) {
             let redundant = (0..f.samples.len()).find(|&i| {
                 let s = &f.samples[i];
+                if !allow_measured && s.video.is_some() { return false; }
                 let peers: Vec<_> = f
                     .samples
                     .iter()
@@ -820,7 +836,8 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
             }
         }
         // No later retention can introduce redundancy without first freeing a slot.
-        self.sample_reclamation_exhausted = true;
+        if allow_measured { self.sample_reclamation_exhausted = true; }
+        else { self.unmeasured_reclamation_exhausted = true; }
         false
     }
 }

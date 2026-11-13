@@ -170,7 +170,7 @@ export async function decideReport(local,id,decision,details){
 export function anonymousProposal(value, privateIdentity=JSON.stringify(value).includes('"sourceIdentifier"'), aliases=new Map()) {
  if(Array.isArray(value))return value.map(v=>anonymousProposal(v,privateIdentity,aliases));
  if(!value||typeof value!=='object')return value;
- if(value.sourceKind==='ddpai_ui_device_info'||(value.scope==='unbound'&&typeof value.sourceId==='string'&&value.sourceId.startsWith('support-'))||(value.version===1&&value.coverage&&Array.isArray(value.observations)&&Array.isArray(value.sources)))return null;
+ if(['ddpai_ui_device_info','ddpai_product_info'].includes(value.sourceKind)||(value.scope==='unbound'&&typeof value.sourceId==='string'&&value.sourceId.startsWith('support-'))||(value.version===1&&value.coverage&&Array.isArray(value.observations)&&Array.isArray(value.sources)))return null;
  const components=v=>v.map(s=>{if(!aliases.has(s))aliases.set(s,'folder-'+(aliases.size+1));return aliases.get(s);});
  return Object.fromEntries(Object.entries(value).filter(([k])=>!['discovery','componentMetadata','componentMetadataCoverage','sourceIdentifier','filename','folder','sourceReportHash','duplicateEvidence','possibleConflicts','wholeReportDuplicateEvidence'].includes(k)).map(([k,v])=>[k,
   privateIdentity&&k==='components'&&Array.isArray(v)?components(v):

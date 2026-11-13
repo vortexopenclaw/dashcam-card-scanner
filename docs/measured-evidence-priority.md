@@ -1,0 +1,11 @@
+# Bounded measured evidence priority
+
+The native 64-row sample budget and private 24-row/16 KiB envelope limits are unchanged. Measured videos now take precedence over unmeasured photo identities, both during native retention and private selection. Unmeasured strata can reclaim redundant unmeasured rows, but cannot replace measured pairs. Separate exhausted-search guards bound repeated reclamation work.
+
+When the envelope is too large, optional temporal and generic discovery observations are reduced before linked measured rows. Discovery coverage records omissions; the existing retention counts report any remaining hard-cap measurement/identity omissions. Structural totals are never truncated. Codec, size, duration, resolution, FPS and bitrate stay attached to each private source identity. Public exports remain anonymous aggregates.
+
+`tests/measured-priority.test.js` creates a photo-heavy synthetic card with 23 different HEVC measurements, traverses the real editable frontend and native serializer, then exercises the production receiver handler using local transactional storage and exact stored-byte readback. It compares all 23 numeric occurrences as a multiset and verifies unique private identities. Explicit private acceptance can select an authorized card using `SCANNER_PRIVATE_CARD` and save the source/payload/record parity receipt using `SCANNER_PRIVATE_OUTPUT`. No real source path, filename or receipt belongs in git. The test never contacts a production endpoint.
+
+The embedded catalog is generated from committed Offloader `6673d592bb41f775e0c4aae6ae55f140bf67b265` and canonical profiles `32137d9edc95902a63aac82b287f3793b0d6e486`: 105 identities, 60 executable/native profiles and 45 selector-only entries. MINI3X remains `ddpai-mini3x`, separate from V3 references. Its exact owner-confirmed logging SKU does not establish a retail revision, mounting role, recording mode or current owner firmware. Component firmware observations remain historical component metadata.
+
+The receiver must support the optional MINI3X structured component record before releasing a new client. Local receiving-handler parity is not proof of deployed production compatibility. Existing OCR, updater signing, archive checks and ad-hoc macOS preview distribution policy are unchanged.

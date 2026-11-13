@@ -71,10 +71,12 @@ test('unknown safe grammars accepted; unsafe original names and partial/mismatch
 // case on Unix, plus C1-control and bidi-format names on every platform; all
 // cases must be rejected unchanged by both native and receiving validators.
 const unsafeFilesystemNames=['unsafe\u00852030.MP4','unsafe\u202e2030.MP4',...(process.platform==='win32'?[]:['unsafe\n2030.MP4'])];
+// Each case launches the real native scanner. Allow runner scheduling and
+// process startup overhead without weakening any filename/retention assertions.
 test.each(unsafeFilesystemNames)('native unsafe original name %j remains anonymous with explicit counts, never normalized',name=>{
  const root=join(scratch,'unsafe-'+unsafeFilesystemNames.indexOf(name));mkdirSync(root);writeFileSync(join(root,name),media());
  const p=validate(JSON.parse(scan(root).review.submissionJson));expect(p.evidence[0]).toMatchObject({durationSeconds:0.2,bitrateKbps:240});expect(p.evidence[0].filename).toBeUndefined();expect(p.retention).toMatchObject({inventoriedIdentities:1,retainedIdentities:0,omittedIdentities:1,measuredFiles:1,retainedMeasurements:1,omittedMeasurements:0});
-});
+},30000);
 test('intake-unavailable structural budgets keep linked private local evidence rather than silently dropping names',()=>{
  const root=join(scratch,'many-folders');mkdirSync(root);for(let i=0;i<33;i++){const folder=join(root,'synthetic-'+i);mkdirSync(folder);writeFileSync(join(folder,'new-camera2030.MP4'),media());}
  const review=scan(root).review;expect(review.submissionJson).toBe('');const local=JSON.parse(review.privateJson);expect(local.privateEvidence).toHaveLength(24);expect(local.privateEvidence.every(e=>e.filename==='new-camera2030.MP4'&&e.folder.startsWith('folder-')&&e.sourceIdentifier)).toBe(true);expect(local.privateRetention).toMatchObject({inventoriedIdentities:33,retainedIdentities:24,omittedIdentities:9,retainedMeasurements:24,omittedMeasurements:9});expect(review.publicJson).not.toContain('new-camera2030');

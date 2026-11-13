@@ -1,17 +1,6 @@
 {
   "cameras": [
     {
-      "id": "ddpai-z100-master-main",
-      "manufacturer": "DDPAI",
-      "model": "Z100 Master - Main Unit",
-      "channelCount": 3,
-      "channelSetup": "front + telephoto + optional rear (main-unit card; 4CH system includes separate cabin-camera card)",
-      "selectorOnly": true,
-      "manualOnly": true,
-      "patterns": [],
-      "folders": []
-    },
-    {
       "channelCount": 2,
       "channelSetup": "front + rear",
       "folders": [
@@ -492,6 +481,46 @@
       "model": "Road Scout",
       "patterns": [],
       "sourceSha256": "e4d2674b3e03824b2e7c1e141fe93503b3dff0a124c44481f8a8946a05ab8eba"
+    },
+    {
+      "channelCount": 1,
+      "channelSetup": "unknown",
+      "folders": [
+        "DCIM/200video",
+        "DCIM/201photo",
+        "DCIM/202thumb",
+        "DCIM/207log"
+      ],
+      "id": "ddpai-mini3x",
+      "manufacturer": "DDPAI",
+      "model": "MINI3X",
+      "patterns": [],
+      "sourceSha256": "84df3eb0b7f0dc894d438f75a0cdc1ebb4e62f5d40498937d08e6913246c04d8"
+    },
+    {
+      "channelCount": 0,
+      "channelSetup": "",
+      "folders": [],
+      "id": "ddpai-z100-master",
+      "manufacturer": "DDPAI",
+      "model": "Z100 Master",
+      "patterns": [],
+      "selectorOnly": true,
+      "sourceSha256": "f317beb0b9d12098113beda87513cf4c705548ee4ae7be858c95da3f8095995d"
+    },
+    {
+      "channelCount": 3,
+      "channelSetup": "front + telephoto + rear",
+      "folders": [
+        "DCIM/200video",
+        "DCIM/201photo",
+        "DCIM/202thumb"
+      ],
+      "id": "ddpai-z100-master-main",
+      "manufacturer": "DDPAI",
+      "model": "Z100 Master (Main Unit)",
+      "patterns": [],
+      "sourceSha256": "66b24029a0f302936bd4af81e47c63794acf7829b5a8c223671cf4c07e14e00f"
     },
     {
       "channelCount": 1,
@@ -1238,18 +1267,38 @@
           "pattern": "^(\\\\d{8})_(\\\\d{6})_(\\\\d{5})_([NPET])_([A])\\\\.(MP4|JPG)$"
         }
       ],
-      "sourceSha256": "5de98ff578efa1b2012d5ec865a63d6292809d8b1368faf4e64efea364eb24fa"
+      "sourceSha256": "f66c222dd6881a47a52692911ea9a7c795a65d9f9c87bc03a6e1f5f5519189ab"
     },
     {
       "channelCount": 1,
       "channelSetup": "front",
-      "folders": [],
+      "folders": [
+        "Normal",
+        "Parking",
+        "Event",
+        "Photo",
+        "GPS"
+      ],
       "id": "vantrue-e1-pro-s",
       "manufacturer": "Vantrue",
       "model": "E1 Pro S",
-      "patterns": [],
-      "selectorOnly": true,
-      "sourceSha256": "6b87f6325039d4951b5fb061f52ddde329902604df72585b0962adad58cab1d7"
+      "patterns": [
+        {
+          "channel_group": 5,
+          "channels": {
+            "A": "front"
+          },
+          "mode_group": 4,
+          "modes": {
+            "E": "event",
+            "N": "normal",
+            "P": "parking",
+            "T": "timelapse"
+          },
+          "pattern": "^(\\\\d{8})_(\\\\d{6})_(\\\\d{5})_([NPET])_([A])\\\\.(MP4|JPG)$"
+        }
+      ],
+      "sourceSha256": "c98fd73f5a854378ddc0eb89bd31326d406df754abdb7c79ff1b3639cdfe6d0c"
     },
     {
       "channelCount": 3,
@@ -1774,7 +1823,7 @@
           "pattern": "^(\\d{4})_(\\d{4})_(\\d{6})_(\\d+)(F|R|T|PF|PR|PT)\\.JPG$"
         }
       ],
-      "sourceSha256": "43ffe30f771aea09c0c00e5106778401cef32cd680c2761870e81f5c7f7fce61"
+      "sourceSha256": "49b8685dfd0b19f1c4a83d06524924abbac04646979c1368300696811f81f357"
     },
     {
       "channelCount": 3,
@@ -1981,9 +2030,9 @@
       "sourceSha256": "9c68ed935d103cfcb9d667fc3db7d5310a5057d57ad59c016129b2694308b29b"
     }
   ],
-  "commit": "2ce0121c3294ea437d277e9c1db9e88a0cfc27cf",
+  "commit": "6673d592bb41f775e0c4aae6ae55f140bf67b265",
   "identitySource": {
-    "commit": "0f12fbdc415a0141b1341a6b20debbf45fba84b9",
+    "commit": "32137d9edc95902a63aac82b287f3793b0d6e486",
     "source": "https://github.com/vortexopenclaw/dashcam-camera-profiles"
   },
   "license": "AGPL-3.0-only",

@@ -81,12 +81,15 @@ function componentScan(s){
   const rows=s.componentMetadata===undefined?[]:s.componentMetadata;array(rows,0,32);
   for(const e of rows){
     exact(e,['manufacturer','component','reportedModel','model','firmwareVersion','sourceKind','sourceFile','sourceLine','identityEstablished']);
-    if(e.manufacturer!=='DDPAI'||e.sourceKind!=='ddpai_ui_device_info')throw Error('invalid_component_source');
+    if(e.manufacturer!=='DDPAI'||!['ddpai_ui_device_info','ddpai_product_info'].includes(e.sourceKind))throw Error('invalid_component_source');
     choice(e.component,['logging_device','rear','inside']);
     for(const k of ['reportedModel','model'])if(e[k]!==null&&!safeObservedModel(e[k]))throw Error('invalid_component_model');
     if(e.firmwareVersion!==null&&(typeof e.firmwareVersion!=='string'||e.firmwareVersion.length>64||/[^\x21-\x7e]/.test(e.firmwareVersion)||!/^[vV]?[0-9]{1,4}(?:\.[0-9]{1,6}){1,5}(?:[_+-][A-Za-z0-9.-]{1,32})?$/.test(e.firmwareVersion)))throw Error('invalid_component_firmware');
-    if(typeof e.identityEstablished!=='boolean'||e.identityEstablished!==(e.model!==null)||e.model!==recognizedDDPAIModel(e.reportedModel)||e.reportedModel===null&&e.model!==null||e.reportedModel===null&&e.firmwareVersion===null)throw Error('invalid_component_identity');
-    if(typeof e.sourceFile!=='string'||!/^DCIM\/207log\/ui\/ui_[0-9]{14}_[0-9]{3}\.log$/.test(e.sourceFile))throw Error('invalid_component_path');
+    const expectedModel=e.reportedModel==='DDPAI DM003_Overseas_V2'?'MINI3X':recognizedDDPAIModel(e.reportedModel);
+    if(typeof e.identityEstablished!=='boolean'||e.identityEstablished!==(e.model!==null)||e.model!==expectedModel||e.reportedModel===null&&e.model!==null||e.reportedModel===null&&e.firmwareVersion===null)throw Error('invalid_component_identity');
+    const sourcePattern=e.sourceKind==='ddpai_product_info'?/^DCIM\/207log\/[0-9]{14}_[0-9]{3}\.log$/:/^DCIM\/207log\/ui\/ui_[0-9]{14}_[0-9]{3}\.log$/;
+    if(e.sourceKind==='ddpai_product_info'&&e.component!=='logging_device')throw Error('invalid_component_source');
+    if(typeof e.sourceFile!=='string'||!sourcePattern.test(e.sourceFile)||e.sourceFile.includes('\n'))throw Error('invalid_component_path');
     number(e.sourceLine,10000000,true);
   }
   unique(rows.map(e=>[e.component,e.sourceFile,e.sourceLine]));
