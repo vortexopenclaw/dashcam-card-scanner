@@ -3,13 +3,14 @@
 // Native integration fixture: parent must run this under the shared heavy-job gate.
 import {test,expect} from 'vitest';
 import {execFileSync} from 'node:child_process';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,realpathSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,realpathSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import worker,{IntakeGate} from '../intake/worker.js';
 import {Storage} from '../intake/test/storage.js';
 import {checkRecord,anonymousProposal} from '../intake/review.js';
 import {validate} from '../intake/schema.js';
+import {validateDiscovery} from '../intake/discovery.js';
 import {mount} from '../src/ui';
 import {webcrypto} from 'node:crypto';
 function box(tag,body){const size=Buffer.alloc(4);size.writeUInt32BE(body.length+8);return Buffer.concat([size,Buffer.from(tag),body]);}
@@ -23,6 +24,13 @@ test('generic native discovery -> editable review -> HTTP admission -> exact sto
   writeFileSync(join(root,'recording.mp4'),video());
   const native=JSON.parse(execFileSync('cargo',['run','--quiet','--manifest-path','src-tauri/Cargo.toml','--example','scan_fixture','--',root],{encoding:'utf8',timeout:240000}));
   const d=native.report.discovery;expect(d.coverage.inventoriedCandidates).toBe(corpus.files.length+1);expect(d.coverage.inspectedFiles).toBe(corpus.files.length+1);expect(d.coverage.multipleModelValues).toBe(true);
+  validateDiscovery(d);
+  const peerPath=join(process.cwd(),'../ddpai-log-offloader/workers/feedback/discovery.js');
+  if(existsSync(peerPath)){
+   // Node loads the actual second receiver, not a duplicated test implementation.
+   execFileSync(process.execPath,['--input-type=module','-e',`import {validateDiscovery} from ${JSON.stringify(peerPath)};validateDiscovery(JSON.parse(process.argv[1]));`,JSON.stringify(d)]);
+  }
+  if(process.env.SCANNER_DISCOVERY_FIXTURE)writeFileSync(process.env.SCANNER_DISCOVERY_FIXTURE,JSON.stringify(d));
   for(const value of ['Future-BV9','Future-VF9','Future-VT9','Rear-VT2','Unknown-X9','Rear-X2','Unknown-Log9','Unknown-U16'])expect(d.observations.some(o=>o.value===value)).toBe(true);
   expect(d.observations.some(o=>o.value==='Hidden-X1'||o.value==='Hidden-X2'||o.value==='PlatePix')).toBe(false);
   expect(d.observations.filter(o=>['version','hardware_version'].includes(o.key)).every(o=>o.field==='build'&&o.scope==='unbound')).toBe(true);

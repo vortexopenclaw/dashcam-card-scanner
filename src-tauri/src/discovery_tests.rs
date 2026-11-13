@@ -1,5 +1,45 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use super::*;
+#[test]
+fn portable_technical_cases() {
+    let cases: Value = serde_json::from_str(include_str!("../../tests/reference/discovery-validation-cases.json")).unwrap();
+    for c in cases.as_array().unwrap() {
+        assert_eq!(valid_value(c["field"].as_str().unwrap(), c["key"].as_str().unwrap(), c["value"].as_str().unwrap()), c["valid"].as_bool().unwrap(), "{c}");
+    }
+}
+#[test]
+fn document_location_and_mixed_record_ids_are_honest() {
+    let d = parse("{\n\"model\":\"Alpha A1\",\n\"rear\":{\"model\":\"FutureCam X9\"}\n}");
+    assert!(d.observations.iter().all(|o| o.line == 0));
+    assert_ne!(d.observations[0].record, d.observations[1].record);
+    let d = parse("model=Alpha A1\n{\"model\":\"FutureCam X9\"}\nmodel=Rear X2");
+    assert_eq!(d.observations.len(),3);
+    assert_eq!(d.observations.iter().map(|o|o.record).collect::<BTreeSet<_>>().len(),3);
+}
+#[test]
+fn no_fact_sources_and_oversize_media_do_not_starve_late_facts() {
+    for (count, size, suffix) in [(256,65537,"mp4"),(128,3,"jpg")] {
+        let temp = tempfile::tempdir().unwrap();
+        for i in 0..count { std::fs::write(temp.path().join(format!("a{i:03}.{suffix}")), if size == 3 { vec![255,216,255] } else { vec![0;size] }).unwrap(); }
+        std::fs::write(temp.path().join("zz-unknown.ext"), "model=FutureCam X9").unwrap();
+        let r = crate::engine::scan(temp.path(), &AtomicBool::new(false), |_| {}).unwrap();
+        let d = r.discovery.unwrap();
+        assert!(d.observations.iter().any(|o| o.value == "FutureCam X9"));
+        assert_eq!(d.coverage.inventoried_candidates, count+1);
+        assert_eq!(d.coverage.inspected_files, if size == 3 {count+1} else {1});
+        assert_eq!(d.coverage.uninspected_files, if size == 3 {0} else {count});
+    }
+    // Exercise reclamation directly, independently of traversal prioritization.
+    let temp = tempfile::tempdir().unwrap();
+    std::fs::write(temp.path().join("image"), [255,216,255]).unwrap();
+    std::fs::write(temp.path().join("fact"), "model=FutureCam X9").unwrap();
+    let root = crate::engine::safe_root(temp.path()).unwrap();
+    let dir = crate::engine::open_dir_secure(&root).unwrap();
+    let mut d = Discovery::default();
+    for _ in 0..128 { d.inspect(&dir,Path::new("image"),3,&AtomicBool::new(false)); }
+    d.inspect(&dir,Path::new("fact"),18,&AtomicBool::new(false));
+    assert!(d.observations.iter().any(|o|o.value=="FutureCam X9"));
+}
 fn parse(s: &str) -> Discovery {
     let mut d = Discovery::default();
     d.sources.push(Source {
@@ -162,7 +202,7 @@ fn observation_limit_sticky_model_conflict_and_no_dangling_sources() {
 fn payload_fitting_discloses_omissions_and_keeps_conflict_sticky() {
     let mut text = String::new();
     for _ in 0..128 {
-        text.push_str("model=Future-XXXXXXXXXXXXXX Proto-XXXXXXXXXXXXXX Pro-XXXXXXXXXXXXXX\n")
+        text.push_str("model=Future-X9XXXXXXXXXXXX Proto-XXXXXXXXXXXXXX Pro-XXXXXXXXXXXXXX\n")
     }
     text.push_str("rear_model=Rear-X2\n");
     let d = parse(&text);

@@ -87,7 +87,9 @@ fn field(key: &str) -> Option<&'static str> {
     })
 }
 // Closed technical grammars, not a redaction-based permission to publish text.
-pub fn valid_value(field: &str, key: &str, s: &str) -> bool {
+pub fn valid_value(kind: &str, key: &str, s: &str) -> bool {
+    if field(key) != Some(kind) { return false; }
+    let field = kind;
     if s.is_empty() || s.len() > 80 || s.trim() != s || !s.is_ascii() {
         return false;
     }
@@ -114,6 +116,8 @@ pub fn valid_value(field: &str, key: &str, s: &str) -> bool {
         "longitude",
         "address",
         "credential",
+        "canary",
+        "email",
     ]
     .iter()
     .any(|x| lower.contains(x))
@@ -121,10 +125,8 @@ pub fn valid_value(field: &str, key: &str, s: &str) -> bool {
         return false;
     }
     // Network identifiers, phone-like long numbers, UUIDs and long opaque identifiers.
-    if matches(
-        r"(?:[0-9]{7,}|[A-Fa-f0-9]{12,}|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+)",
-        s,
-    ) {
+    if matches!(field, "model" | "manufacturer") && matches(r"(?:[0-9]{7,}|[A-Fa-f0-9]{12,})", s) { return false; }
+    if matches(r"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+", s) {
         // Four-part dotted application versions are allowed only in version fields.
         if !matches!(field, "firmware" | "build") {
             return false;
@@ -132,14 +134,14 @@ pub fn valid_value(field: &str, key: &str, s: &str) -> bool {
     }
     match field {
         "manufacturer" => matches(
-            r"^[A-Za-z][A-Za-z0-9_-]{1,31}(?: [A-Za-z][A-Za-z0-9_-]{0,15})?$",
+            r"^[A-Za-z][A-Za-z0-9_-]{1,31}$",
             s,
         ),
         "model" => {
             matches(
                 r"^[A-Za-z0-9][A-Za-z0-9._()+-]{0,31}(?: [A-Za-z0-9][A-Za-z0-9._()+-]{0,23}){0,3}$",
                 s,
-            ) && s.chars().any(|c| c.is_ascii_alphabetic())
+            ) && s.split(' ').any(|t| t.chars().any(|c| c.is_ascii_alphabetic()) && t.chars().any(|c| c.is_ascii_digit()))
         }
         "firmware" | "build" => matches(
             r"^[vV]?[0-9]{1,4}(?:\.[0-9]{1,6}){1,5}(?:[_+-][A-Za-z0-9.-]{1,32})?$",
@@ -157,6 +159,7 @@ pub fn valid_value(field: &str, key: &str, s: &str) -> bool {
             }
             "hdr" => ["on", "off", "auto", "0", "1"].contains(&lower.as_str()),
             "parking_mode" => [
+                "on",
                 "off",
                 "buffered",
                 "time-lapse",
@@ -236,7 +239,8 @@ impl Discovery {
             return "xml".into();
         }
         if let Ok(v) = serde_json::from_str::<crate::ddpai_log::Unique>(t) {
-            self.json(id, &v.0, 1, &mut 0);
+            // Whole JSON is located at document granularity: zero means no exact line.
+            self.json(id, &v.0, 0, &mut 0);
             return "json".into();
         }
         let array_json = t.strip_prefix('[').is_some_and(|rest| {
@@ -267,6 +271,7 @@ impl Discovery {
                 if let Some(payload) = crate::ddpai_log::payload(line) {
                     match serde_json::from_str::<crate::ddpai_log::Unique>(payload) {
                         Ok(v) => {
+                            if !seen.is_empty() { record += 1; seen.clear(); }
                             self.json(id, &v.0, i + 1, &mut record);
                             format = "framed_json";
                         }
@@ -335,7 +340,7 @@ impl Discovery {
         }
         self.coverage.inspected_files += 1;
         self.coverage.uninspected_files -= 1;
-        let id = format!("support-{}", self.coverage.inspected_files);
+        let id = format!("support-{}", self.coverage.inventoried_candidates);
         let mut options = OpenOptions::new();
         options.read(true).follow(FollowSymlinks::No).nonblock(true);
         let result = (|| {
@@ -392,6 +397,13 @@ impl Discovery {
         {
             format = "binary".into();
             encoding = "binary"
+        }
+        // Retain facts preferentially; no-fact format representatives cannot starve them.
+        if self.sources.len() >= 128 {
+            if let Some(i) = self.sources.iter().position(|s| !self.observations.iter().any(|o| o.source_id == s.id)) {
+                self.sources.remove(i);
+                self.reason("observation_limit");
+            }
         }
         if self.sources.len() < 128 {
             self.sources.push(Source {

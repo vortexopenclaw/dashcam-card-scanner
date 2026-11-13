@@ -469,7 +469,13 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
         };
         let mut entries: Vec<_> = entries.take(self.limits.entries.saturating_sub(self.report.entries_seen) + 1).take_while(|_| !self.cancel.load(Ordering::Relaxed)).collect();
         if self.cancel.load(Ordering::Relaxed) { self.report.cancelled = true; return; }
-        entries.sort_by_key(|e| e.as_ref().ok().map(|e|e.file_name()));
+        entries.sort_by_key(|e| e.as_ref().ok().map(|e| {
+            let name = e.file_name();
+            let lower = name.to_string_lossy().to_ascii_lowercase();
+            let ext = Path::new(&lower).extension().and_then(|x| x.to_str()).unwrap_or("");
+            let rank = if ["ini", "cfg", "conf", "json", "log", "txt", "xml"].contains(&ext) || ["device", "config", "settings"].iter().any(|s| lower.contains(s)) { 0 } else if ["mp4", "mov", "ts", "avi", "jpg", "jpeg", "png"].contains(&ext) { 2 } else { 1 };
+            (rank, name)
+        }));
         // Recursive depth-first enumeration retains at most MAX_DEPTH + 1 directory
         // handles/iterators, not one open handle for every child of a wide directory.
         for entry in entries {

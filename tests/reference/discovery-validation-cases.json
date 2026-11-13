@@ -1,0 +1,324 @@
+[
+  {"field":"setting","key":"bitrate","value":"1000000000","valid":true},
+  {"field":"setting","key":"bitrate","value":"1000000001","valid":false},
+
+  {"field":"model","key":"model","value":"Canary X1","valid":false},
+  {
+    "field": "model",
+    "key": "model",
+    "value": "Alpha A1",
+    "valid": true
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "FutureCam X9",
+    "valid": true
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "DDPAIDZ2602",
+    "valid": true
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "Rear-X2",
+    "valid": true
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "Unknown-U16",
+    "valid": true
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "Call Alice at home",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "John Smith",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "AB12CD34EF56",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "123456789",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "alice@example.org",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "https://camera.example",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "AA:BB:CC:DD:EE:FF",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "Camera XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "X1234567",
+    "valid": false
+  },
+  {
+    "field": "manufacturer",
+    "key": "manufacturer",
+    "value": "DDPAI",
+    "valid": true
+  },
+  {
+    "field": "manufacturer",
+    "key": "manufacturer",
+    "value": "FutureCam",
+    "valid": true
+  },
+  {
+    "field": "manufacturer",
+    "key": "manufacturer",
+    "value": "John Smith",
+    "valid": false
+  },
+  {
+    "field": "manufacturer",
+    "key": "manufacturer",
+    "value": "Call Alice at home",
+    "valid": false
+  },
+  {
+    "field": "manufacturer",
+    "key": "manufacturer",
+    "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "valid": false
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "8.0.0.23",
+    "valid": true
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "1.2.3",
+    "valid": true
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "v1.2.3-build9",
+    "valid": true
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "127.0.0.1",
+    "valid": false
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "10.1.2.3",
+    "valid": false
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "169.254.1.2",
+    "valid": false
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "192.168.1.1",
+    "valid": false
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "172.16.1.2",
+    "valid": false
+  },
+  {
+    "field": "firmware",
+    "key": "fw",
+    "value": "172.31.2.3",
+    "valid": false
+  },
+  {
+    "field": "build",
+    "key": "build",
+    "value": "2026.11.12",
+    "valid": true
+  },
+  {
+    "field": "build",
+    "key": "build",
+    "value": "1.202611",
+    "valid": true
+  },
+  {
+    "field": "build",
+    "key": "build",
+    "value": "192.168.0.1",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "parking_mode",
+    "value": "on",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "parking_mode",
+    "value": "off",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "parking_mode",
+    "value": "buffered",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "parking_mode",
+    "value": "enabled",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "codec",
+    "value": "av1",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "codec",
+    "value": "h264",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "codec",
+    "value": "HEVC",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "codec",
+    "value": "VP9",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "30",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "2.5",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "1e2",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "+30",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "0",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "241",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "NaN",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "fps",
+    "value": "inf",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "width",
+    "value": "16384",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "width",
+    "value": "+1920",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "width",
+    "value": "16385",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "width",
+    "value": "1.0",
+    "valid": false
+  },
+  {
+    "field": "setting",
+    "key": "resolution",
+    "value": "3840x2160",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "resolution",
+    "value": "4K",
+    "valid": false
+  }
+]
