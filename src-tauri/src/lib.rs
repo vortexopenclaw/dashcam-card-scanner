@@ -156,7 +156,7 @@ async fn scan_source(
             let _ = app.emit("scan-progress", serde_json::json!({"phase":"Reading camera model", "entries":result.entries_seen,"files":result.scanned_files,"probed":result.probe_attempts}));
         });
         if cancel.load(Ordering::SeqCst) { result.cancelled = true; }
-        result.recognized_camera_id = if ddpai_log::confirmed_z100_main(&result) { Some(manual_camera::ID.into()) } else { camera.map(|camera| camera.id.clone()) };
+        result.recognized_camera_id = if ddpai_log::confirmed_z100_main(&result) { Some(manual_camera::ID.into()) } else if ddpai_log::recognition(&result).is_some_and(|v| v["model"] == "MINI3X") { Some("ddpai-mini3x".into()) } else { camera.map(|camera| camera.id.clone()) };
         let channel_evidence = observed_channels::observed_channels(&result, result.recognized_camera_id.as_deref());
         let parking_evidence = mode_evidence::parking_evidence(&result, result.recognized_camera_id.as_deref());
         Ok::<_, String>((result, camera_recognition, channel_evidence, parking_evidence))

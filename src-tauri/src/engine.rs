@@ -430,6 +430,9 @@ fn scan_with_limits(
         walker.report.component_metadata = metadata;
         walker.report.component_metadata_coverage = coverage;
         if cancel.load(Ordering::Relaxed) { walker.report.cancelled = true; }
+        if crate::ddpai_log::recognition(&walker.report).is_some_and(|v| v["model"] == "MINI3X") {
+            walker.report.recognized_camera_id = Some("ddpai-mini3x".into());
+        }
         if crate::ddpai_log::confirmed_z100_main(&walker.report) {
             walker.report.recognized_camera_id = Some(crate::manual_camera::ID.into());
         }

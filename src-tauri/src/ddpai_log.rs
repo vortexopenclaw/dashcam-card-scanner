@@ -64,6 +64,17 @@ fn token(s: &str) -> String {
     }
 }
 fn candidates(s: &str) -> Vec<&'static Identity> {
+    // The exact observed product SKU establishes MINI3X, not a hardware revision.
+    static MINI3X: LazyLock<Identity> = LazyLock::new(|| Identity {
+        id: "ddpai-mini3x".into(),
+        model: "MINI3X".into(),
+        region: "Overseas".into(),
+        aliases: vec![],
+        recognition_eligible: true,
+    });
+    if s == "DDPAI DM003_Overseas_V2" {
+        return vec![&MINI3X];
+    }
     let t = token(s);
     IDENTITIES
         .iter()
@@ -76,6 +87,9 @@ fn candidates(s: &str) -> Vec<&'static Identity> {
         .collect()
 }
 fn exact_model(s: &str) -> Option<String> {
+    if s == "DDPAI DM003_Overseas_V2" {
+        return Some("MINI3X".into());
+    }
     let c = candidates(s);
     if c.len() != 1 {
         return None;
@@ -163,20 +177,25 @@ fn sgr_len(bytes: &[u8]) -> Option<usize> {
     }
     let end = bytes[2..]
         .iter()
-        .position(|b| !b.is_ascii_digit() && *b != b';')? + 2;
+        .position(|b| !b.is_ascii_digit() && *b != b';')?
+        + 2;
     (bytes[end] == b'm').then_some(end + 1)
 }
 fn safe_framing(text: &str) -> bool {
     let mut bytes = text.as_bytes();
     while !bytes.is_empty() {
         if bytes[0] == 0x1b {
-            let Some(n) = sgr_len(bytes) else { return false };
+            let Some(n) = sgr_len(bytes) else {
+                return false;
+            };
             bytes = &bytes[n..];
         } else {
             bytes = &bytes[1..];
         }
     }
-    !text.chars().any(|c| c.is_control() && c != '\t' && c != '\x1b')
+    !text
+        .chars()
+        .any(|c| c.is_control() && c != '\t' && c != '\x1b')
 }
 pub(crate) fn payload(line: &str) -> Option<&str> {
     let (start, _) = line
@@ -228,15 +247,54 @@ pub(crate) fn payload(line: &str) -> Option<&str> {
     None
 }
 fn record(line: &str, source: &str, number: usize) -> Result<Vec<ComponentMetadata>, ()> {
+    let product = source
+        .strip_prefix("DCIM/207log/")
+        .is_some_and(|n| filename(&format!("ui_{n}")));
+    if product && !line.contains("WEBGetProductInfo[") {
+        return Ok(vec![]);
+    }
     let Some(json) = payload(line) else {
-        return if !safe_framing(line)
-            || (line.contains("\"model\"") && line.contains("\"soft_version\"")) {
+        return if (product && line.contains("pJsonData")) || !safe_framing(line)
+            || (line.contains("\"model\"") && line.contains("\"soft_version\""))
+        {
             Err(())
         } else {
             Ok(vec![])
         };
     };
     let v = serde_json::from_str::<Unique>(json).map_err(|_| ())?.0;
+    if source
+        .strip_prefix("DCIM/207log/")
+        .is_some_and(|n| filename(&format!("ui_{n}")))
+    {
+        static PRODUCT: LazyLock<regex::Regex> = LazyLock::new(|| {
+            regex::Regex::new(r"WEBGetProductInfo\[[0-9]+\]:pJsonData=$").unwrap()
+        });
+        if !PRODUCT.is_match(line.split_once('{').map(|x| x.0).unwrap_or("")) {
+            return Ok(vec![]);
+        }
+        let model = v
+            .get("model")
+            .and_then(Value::as_str)
+            .filter(|s| safe_model(s))
+            .ok_or(())?;
+        let version = v
+            .get("version")
+            .and_then(Value::as_str)
+            .filter(|s| firmware(s))
+            .ok_or(())?;
+        return Ok(vec![ComponentMetadata {
+            manufacturer: "DDPAI".into(),
+            component: "logging_device".into(),
+            reported_model: Some(model.into()),
+            model: exact_model(model),
+            firmware_version: Some(version.into()),
+            source_kind: "ddpai_product_info".into(),
+            source_file: source.into(),
+            source_line: number,
+            identity_established: exact_model(model).is_some(),
+        }]);
+    }
     if !v.get("msgHdr").is_some_and(Value::is_object)
         || v.get("model").is_none()
         || v.get("soft_version").is_none()
@@ -301,13 +359,43 @@ fn reparse(m: &cap_std::fs::Metadata) -> bool {
     }
 }
 pub fn read(root: &Path, cancel: &AtomicBool) -> (Vec<ComponentMetadata>, Option<Coverage>) {
+    let (mut rows, a) = read_directory(root, cancel, false);
+    let (extra, b) = read_directory(root, cancel, true);
+    if a.is_none() && b.is_none() {
+        return (rows, None);
+    }
+    let mut c = a.unwrap_or_default();
+    let b = b.unwrap_or_default();
+    c.inspected_files += b.inspected_files;
+    c.limited |= b.limited;
+    c.omitted_entries += b.omitted_entries;
+    for row in extra {
+        if rows.len() < 32 {
+            rows.push(row);
+        } else {
+            c.omitted_entries += 1;
+            c.limited = true;
+        }
+    }
+    c.retained_entries = rows.len();
+    (rows, Some(c))
+}
+fn read_directory(
+    root: &Path,
+    cancel: &AtomicBool,
+    product: bool,
+) -> (Vec<ComponentMetadata>, Option<Coverage>) {
     let mut rows = Vec::new();
     let mut c = Coverage::default();
     let Ok(mut dir) = crate::engine::open_dir_secure(root) else {
         c.limited = true;
         return (rows, Some(c));
     };
-    for name in ["DCIM", "207log", "ui"] {
+    for name in if product {
+        &["DCIM", "207log"][..]
+    } else {
+        &["DCIM", "207log", "ui"][..]
+    } {
         match child(&dir, name) {
             Ok(next) => dir = next,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (rows, None),
@@ -329,7 +417,13 @@ pub fn read(root: &Path, cancel: &AtomicBool) -> (Vec<ComponentMetadata>, Option
         }
         match entry {
             Ok(e) => {
-                if let Some(n) = e.file_name().to_str().filter(|n| filename(n)) {
+                if let Some(n) = e.file_name().to_str().filter(|n| {
+                    if product {
+                        filename(&format!("ui_{n}"))
+                    } else {
+                        filename(n)
+                    }
+                }) {
                     names.push(n.to_owned());
                 }
             }
@@ -391,17 +485,39 @@ pub fn read(root: &Path, cancel: &AtomicBool) -> (Vec<ComponentMetadata>, Option
                 continue;
             }
         }
+        if product {
+            // Fixed-size logger buffers may end with NUL padding only. Embedded
+            // NUL followed by nonzero bytes is corruption, not a line separator.
+            if let Some(end) = bytes.iter().position(|b| *b == 0) {
+                // This logger reserves its final eight bytes as an opaque trailer.
+                // Never decode it. All intervening fixed-buffer padding must be zero.
+                let padding_end = if bytes.len() == 512000 { bytes.len() - 8 } else { bytes.len() };
+                if end > padding_end || bytes[end..padding_end].iter().any(|b| *b != 0) {
+                    c.limited = true;
+                    continue;
+                }
+                bytes.truncate(end);
+            }
+        }
         let Ok(text) = std::str::from_utf8(&bytes) else {
             c.limited = true;
             continue;
         };
-        let source = format!("DCIM/207log/ui/{name}");
+        let source = if product {
+            format!("DCIM/207log/{name}")
+        } else {
+            format!("DCIM/207log/ui/{name}")
+        };
         for (i, line) in text.lines().enumerate() {
             if cancel.load(Ordering::Relaxed) {
                 c.limited = true;
                 break;
             }
-            if line.len() > 16384 || line.chars().any(|x| x.is_control() && x != '\t' && x != '\x1b') {
+            if line.len() > 16384
+                || line
+                    .chars()
+                    .any(|x| x.is_control() && x != '\t' && x != '\x1b')
+            {
                 c.limited = true;
                 continue;
             }
@@ -468,3 +584,6 @@ pub fn confirmed_z100_main(r: &crate::engine::Report) -> bool {
 #[cfg(test)]
 #[path = "ddpai_log_tests.rs"]
 mod tests;
+#[cfg(test)]
+#[path = "mini3x_tests.rs"]
+mod mini3x_tests;
