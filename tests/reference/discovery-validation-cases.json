@@ -1,8 +1,22 @@
 [
-  {"field":"setting","key":"bitrate","value":"1000000000","valid":true},
-  {"field":"setting","key":"bitrate","value":"1000000001","valid":false},
-
-  {"field":"model","key":"model","value":"Canary X1","valid":false},
+  {
+    "field": "setting",
+    "key": "bitrate",
+    "value": "1000000000",
+    "valid": true
+  },
+  {
+    "field": "setting",
+    "key": "bitrate",
+    "value": "1000000001",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "Canary X1",
+    "valid": false
+  },
   {
     "field": "model",
     "key": "model",
@@ -319,6 +333,18 @@
     "field": "setting",
     "key": "resolution",
     "value": "4K",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "A1-B2-C3-D4-E5-F6",
+    "valid": false
+  },
+  {
+    "field": "model",
+    "key": "model",
+    "value": "AA-BB-CC-DD-EE-FF",
     "valid": false
   }
 ]

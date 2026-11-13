@@ -125,7 +125,7 @@ pub fn valid_value(kind: &str, key: &str, s: &str) -> bool {
         return false;
     }
     // Network identifiers, phone-like long numbers, UUIDs and long opaque identifiers.
-    if matches!(field, "model" | "manufacturer") && matches(r"(?:[0-9]{7,}|[A-Fa-f0-9]{12,})", s) { return false; }
+    if matches!(field, "model" | "manufacturer") && matches(r"(?:[0-9]{7,}|[A-Fa-f0-9]{12,}|^(?:[A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$)", s) { return false; }
     if matches(r"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+", s) {
         // Four-part dotted application versions are allowed only in version fields.
         if !matches!(field, "firmware" | "build") {

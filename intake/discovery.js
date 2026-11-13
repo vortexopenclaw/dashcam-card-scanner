@@ -12,7 +12,7 @@ export function validTechnical(field,key,s){
  const lower=s.toLowerCase();
  if(/^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2[0-9]|3[01])\.)[0-9.]+$/.test(s))return false;
  if(['password','passwd','secret','token','@','http','www.','wifi','ssid','gps','serial','latitude','longitude','address','credential','canary','email'].some(x=>lower.includes(x)))return false;
- if(['model','manufacturer'].includes(field)&&/(?:[0-9]{7,}|[A-Fa-f0-9]{12,})/.test(s))return false;
+ if(['model','manufacturer'].includes(field)&&/(?:[0-9]{7,}|[A-Fa-f0-9]{12,}|^(?:[A-Fa-f0-9]{2}[:-]){5}[A-Fa-f0-9]{2}$)/.test(s))return false;
  if(/[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/.test(s)&&!['firmware','build'].includes(field))return false;
  if(field==='manufacturer')return /^[A-Za-z][A-Za-z0-9_-]{1,31}$/.test(s);
  if(field==='model')return /^[A-Za-z0-9][A-Za-z0-9._()+-]{0,31}(?: [A-Za-z0-9][A-Za-z0-9._()+-]{0,23}){0,3}$/.test(s)&&s.split(' ').some(t=>/[A-Za-z]/.test(t)&&/[0-9]/.test(t));
