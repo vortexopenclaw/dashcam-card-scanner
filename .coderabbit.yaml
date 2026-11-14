@@ -1,0 +1,6 @@
+# Keep ineligible repositories quiet; manual @coderabbitai review remains available.
+reviews:
+  review_status: false
+  auto_review:
+    enabled: false
+    auto_incremental_review: false
