@@ -2030,7 +2030,7 @@
       "sourceSha256": "9c68ed935d103cfcb9d667fc3db7d5310a5057d57ad59c016129b2694308b29b"
     }
   ],
-  "commit": "f6ab238c99902fa201e12361efa6064b68871f93",
+  "commit": "4cb36727dcf70afa5847a74db77ecf31139389c0",
   "identitySource": {
     "commit": "cc91a34bd8075df6db8771aaca12e021ae38da3c",
     "source": "https://github.com/vortexopenclaw/dashcam-camera-profiles"
