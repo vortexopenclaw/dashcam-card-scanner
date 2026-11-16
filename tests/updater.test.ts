@@ -83,9 +83,13 @@ test('check errors and no-update remain actionable without automatic repeat chec
  invoke.mockImplementation(async()=>null);ui.updateAction.click();await settle();expect(ui.updateStatus.textContent).toBe('No update available.');expect(ui.updateAction.textContent).toBe('Check for updates');close();ui.settingsButton.click();await settle();expect(invoke.mock.calls.filter(c=>c[0]==='check_update')).toHaveLength(2);
 });
 test('active scan prevents checks and installs; updater activity prevents scans',async()=>{
+ // Keep the 500ms startup check from racing the explicit post-scan click when
+ // the host is busy. Advance only the scan/check microtasks, not wall time.
+ vi.useFakeTimers();
  const {ui,invoke}=setup();const scan=deferred<unknown>();invoke.mockImplementation(async(cmd)=>cmd==='choose_source'?'/card':cmd==='scan_source'?scan.promise:cmd==='check_update'?'0.1.3':null);
- ui.select.click();await settle();ui.settingsButton.click();expect(ui.updateAction.disabled).toBe(true);expect(invoke.mock.calls.some(c=>c[0]==='check_update')).toBe(false);ui.updateAction.click();expect(invoke.mock.calls.some(c=>c[0]==='check_update')).toBe(false);
- scan.resolve({scannedFiles:1,folders:[],probeAttempts:0,probeFailures:0});await settle();ui.updateAction.click();await settle();expect(ui.updateAction.textContent).toBe('Update to 0.1.3');
+ ui.select.click();await vi.advanceTimersByTimeAsync(0);ui.settingsButton.click();expect(ui.updateAction.disabled).toBe(true);expect(invoke.mock.calls.some(c=>c[0]==='check_update')).toBe(false);ui.updateAction.click();expect(invoke.mock.calls.some(c=>c[0]==='check_update')).toBe(false);
+ scan.resolve({scannedFiles:1,folders:[],probeAttempts:0,probeFailures:0});await vi.advanceTimersByTimeAsync(0);ui.updateAction.click();await vi.advanceTimersByTimeAsync(0);expect(ui.updateAction.textContent).toBe('Update to 0.1.3');
+ expect(commandCalls(invoke,'check_update')).toHaveLength(1);expect(commandCalls(invoke,'install_update')).toHaveLength(0);
 });
 test('one Update click installs and restarts with unsent report and edited camera fields, without discard confirmation',async()=>{
  const {ui,invoke,root}=setup();ui.select.click();await settle();ui.fields.model.value='Unsent camera';ui.fields.model.dispatchEvent(new Event('input',{bubbles:true}));ui.settingsButton.click();await settle();expect(ui.updateStatus.textContent).toContain('any unsent report will be cleared');ui.updateAction.click();await settle();expect(commandCalls(invoke,'install_update')).toEqual([['install_update',{version:'0.1.3',consent:true}]]);expect(commandCalls(invoke,'restart_app')).toEqual([['restart_app',{consent:true}]]);expect(ui.bannerAction.textContent).toBe('Restarting…');expect(root.textContent).not.toContain('Restart anyway');
