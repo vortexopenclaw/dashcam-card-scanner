@@ -70,10 +70,19 @@ for(const capability of fixedSingleCapabilities){
 /** Retain native IDs/exact report strings for canonical identities and verified
  * same-manufacturer aliases. Never copy native maximum counts or setup strings. */
 export function mergeModelOptions(native:Pick<ModelOption,'id'|'manufacturer'|'model'>[]):ModelOption[]{
- const result=new Map(modelOptions.map(c=>[identity(c),{...c}]));
+ const result=new Map(modelOptions.map(c=>[c.id,{...c}]));
  const canonical=new Map<string,string>();
- for(const c of modelOptions){const key=identity(c);canonical.set(key,key);for(const model of c.aliases||[])canonical.set(identity({...c,model}),key);}
- for(const c of native){const key=canonical.get(identity(c))||identity(c);const previous=result.get(key);result.set(key,{...previous,id:c.id,manufacturer:c.manufacturer,model:c.model,provenance:previous?.provenance||'native-catalog'});}
+ for(const c of modelOptions){canonical.set(identity(c),c.id);for(const model of c.aliases||[])canonical.set(identity({...c,model}),c.id);}
+ const nativeIds=new Set<string>();
+ for(const c of native){
+  // A stable native ID survives display-label changes. Text/verified aliases
+  // replace only UI fallbacks, never another distinct native identity.
+  const fallback=canonical.get(identity(c));
+  const key=result.has(c.id)?c.id:fallback&&!nativeIds.has(fallback)?fallback:c.id;
+  const previous=result.get(key);if(key!==c.id)result.delete(key);
+  result.set(c.id,{...previous,id:c.id,manufacturer:c.manufacturer,model:c.model,provenance:previous?.provenance||'native-catalog'});
+  nativeIds.add(c.id);
+ }
  return [...result.values()];
 }
 export function modelOptionLabel(c:ModelOption):string{return c.model;}

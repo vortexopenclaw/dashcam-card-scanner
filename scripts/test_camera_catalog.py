@@ -14,7 +14,7 @@ SCRIPT = ROOT / 'scripts/generate-camera-catalog.py'
 
 
 class CameraCatalogTests(unittest.TestCase):
-    def generate(self, aliases=''):
+    def generate(self, aliases='', pattern=r'^SYNTHETIC_[A-Z]\.mp4$'):
         # Keep all disposable files inside this worktree's ignored build tree.
         target = ROOT / 'src-tauri/target'
         target.mkdir(exist_ok=True)
@@ -40,7 +40,7 @@ detection:
   high_confidence:
     - path: CONFIG/config.bin
       contains: DO_NOT_COPY_CONFIG_DETECTION
-''' + aliases)
+'''.replace(r'^SYNTHETIC_[A-Z]\.mp4$', pattern) + aliases)
             for profile in [
                 {'id': 'vueroid-h1', 'manufacturer': 'Vueroid', 'model': 'H1 QHD Infinite'},
                 {'id': 'synthetic-selector', 'manufacturer': 'Synthetic', 'model': 'Selector'},
@@ -69,6 +69,15 @@ detection:
         self.assertEqual(selector['folders'], [])
         self.assertNotIn('DO_NOT_COPY_CONFIG_DETECTION', json.dumps(data))
         self.assertNotIn('CONFIG/config.bin', json.dumps(data))
+
+    def test_filename_escapes_survive_yaml_to_json_once(self):
+        pattern = r'^(\d{8})_(\d{6})_(\d{5})_([NPET])_([A])\.(MP4|JPG)$'
+        self.assertEqual(self.generate(pattern=pattern)['cameras'][1]['patterns'][0]['pattern'], pattern)
+
+    def test_overescaped_filename_patterns_fail_generation(self):
+        for pattern in (r'^\\d{8}\\.MP4$', r'^(\\d{4})_(\\d+)\\.(MP4)$'):
+            with self.subTest(pattern=pattern), self.assertRaisesRegex(ValueError, 'Overescaped filename pattern'):
+                self.generate(pattern=pattern)
 
     def test_explicit_catalog_aliases_are_carried_and_validated(self):
         h1 = next(c for c in self.generate('aliases: [H1, H1 QHD, H1-QHD]\n')['cameras'] if c['id'] == 'vueroid-h1')

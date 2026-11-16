@@ -10,11 +10,17 @@ pub fn hash(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 fn label(s: &str, max: usize) -> bool {
+    label_with_parentheses(s, max, false)
+}
+fn label_with_parentheses(s: &str, max: usize, parentheses: bool) -> bool {
     !s.is_empty()
         && s.len() <= max
         && s.as_bytes()[0].is_ascii_alphanumeric()
-        && s.bytes()
-            .all(|c| c.is_ascii_alphanumeric() || b" ._-".contains(&c))
+        && s.bytes().all(|c| {
+            c.is_ascii_alphanumeric()
+                || b" ._-".contains(&c)
+                || (parentheses && b"()".contains(&c))
+        })
 }
 fn media_type(ext: &str) -> &'static str {
     match ext.to_ascii_lowercase().as_str() {
@@ -295,7 +301,7 @@ pub(crate) fn reviewed_retention(r: &Report) -> Value {
 pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
     l.validate()?;
     if !label(l.manufacturer.trim(), 64)
-        || !label(l.model.trim(), 64)
+        || !label_with_parentheses(l.model.trim(), 64, true)
         || (!l.firmware.trim().is_empty() && !label(l.firmware.trim(), 32))
         || !(1..=8).contains(&l.channel_count)
     {

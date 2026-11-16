@@ -280,6 +280,86 @@ fn recognize_metadata_with_catalog<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn e1_sibling_filename_hints_match_without_resolving_shared_identity() {
+        use crate::engine::{Folder, Sample};
+        for id in ["vantrue-e1-pro", "vantrue-e1-pro-s"] {
+            let camera = catalog().iter().find(|c| c.id == id).unwrap();
+            for (token, mode) in [
+                ("N", "normal"),
+                ("P", "parking"),
+                ("E", "event"),
+                ("T", "timelapse"),
+            ] {
+                for extension in ["MP4", "JPG"] {
+                    let name = format!("20300101_120000_00001_{token}_A.{extension}");
+                    assert_eq!(
+                        sample_hints(camera, &name),
+                        (Some("front".into()), Some(mode.into())),
+                        "{id}"
+                    );
+                }
+            }
+            for name in [
+                "20300101_120000_00001_X_A.MP4",
+                "20300101_120000_00001_N_B.MP4",
+                "20300101_120000_00001_N_AxMP4",
+                "20300101_120000_00001_N_A.MP4.extra",
+            ] {
+                assert_eq!(sample_hints(camera, name), (None, None));
+            }
+        }
+        let report = Report {
+            folders: vec![Folder {
+                path: "Normal".into(),
+                samples: vec![Sample {
+                    local_name: "20300101_120000_00001_N_A.MP4".into(),
+                    ..Sample::default()
+                }],
+                ..Folder::default()
+            }],
+            ..Report::default()
+        };
+        let (value, camera) = recognize_metadata(Path::new("Untitled"), &report);
+        assert!(camera.is_none());
+        assert!(value.get("model").is_none());
+        for id in ["vantrue-e1-pro", "vantrue-e1-pro-s"] {
+            assert!(value["candidates"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["id"] == id));
+        }
+    }
+    #[test]
+    fn rove_filename_hints_use_valid_grammar_not_a_literal_backslash() {
+        let camera = catalog().iter().find(|c| c.id == "rove-r2-4k-pro").unwrap();
+        assert_eq!(
+            sample_hints(camera, "2030_0101_120000_001.MP4"),
+            (Some("front".into()), None)
+        );
+        for name in [
+            "2030_0101_120000_001xMP4",
+            "2030_0101_120000_001.MP4.extra",
+            "2030_0101_120000_001.JPG",
+        ] {
+            assert_eq!(sample_hints(camera, name), (None, None));
+        }
+    }
+    #[test]
+    fn malformed_patterns_are_not_silently_repaired_at_runtime() {
+        let mut camera = catalog()
+            .iter()
+            .find(|c| c.id == "vantrue-e1-pro")
+            .unwrap()
+            .clone();
+        camera.patterns[0].pattern =
+            r"^(\\d{8})_(\\d{6})_(\\d{5})_([NPET])_([A])\\.(MP4|JPG)$".into();
+        assert_eq!(
+            sample_hints(&camera, "20300101_120000_00001_N_A.MP4"),
+            (None, None)
+        );
+    }
     // Synthetic future native profile, never inserted into the embedded catalog.
     fn h1_fixture() -> Vec<Camera> {
         let mut cameras: Vec<_> = catalog()

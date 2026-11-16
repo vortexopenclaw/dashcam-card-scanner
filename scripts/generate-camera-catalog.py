@@ -43,6 +43,10 @@ for path in sorted((root / 'profiles').glob('*.yaml')):
     for p in d.get('filename_patterns', []):
         if not isinstance(p, dict) or not p.get('pattern'):
             continue
+        # YAML single quotes preserve backslashes. JSON serialization escapes
+        # them for storage; never pre-escape regex syntax or silently repair it.
+        if re.search(r'\\\\(?:[dDsSwW]|\.)', p['pattern']):
+            raise ValueError(f'Overescaped filename pattern: {path.name}')
         patterns.append({k: int(p[k]) if k.endswith('_group') else p[k] for k in ['pattern', 'channel_group', 'mode_group', 'channels', 'modes'] if k in p})
     folders = [f['path'] for f in d.get('folders', []) if isinstance(f, dict) and isinstance(f.get('path'), str)]
     records.append(dict(id=d.get('id', path.stem), manufacturer=d.get('manufacturer', d.get('brand', path.stem.split('-')[0].title())), model=d.get('model', path.stem), channelCount=len(roles), channelSetup=' + '.join(roles), patterns=patterns, folders=folders, sourceSha256=hashlib.sha256(raw).hexdigest()))

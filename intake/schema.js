@@ -6,7 +6,7 @@ export const HASH = /^[a-f0-9]{64}$/;
 export function exact(o, required, optional=[]) {
   if (!o || typeof o !== 'object' || Array.isArray(o) || required.some(k=>!Object.hasOwn(o,k)) || Object.keys(o).some(k=>![...required,...optional].includes(k))) throw Error('invalid_schema');
 }
-function label(s,n) { if(typeof s!=='string'||s.length>n||! /^[A-Za-z0-9]/.test(s)||/[^A-Za-z0-9 ._-]/.test(s)) throw Error('invalid_label'); }
+function label(s,n,parentheses=false) { if(typeof s!=='string'||s.length>n||! /^[A-Za-z0-9]/.test(s)||(parentheses?/[^A-Za-z0-9 ._()-]/:/[^A-Za-z0-9 ._-]/).test(s)) throw Error('invalid_label'); }
 function number(n,max,integer=false) { if(typeof n!=='number'||!Number.isFinite(n)||n<=0||n>max||(integer&&!Number.isInteger(n))) throw Error('invalid_number'); }
 function choice(s,values) { if(!values.includes(s)) throw Error('invalid_enum'); }
 const CHANNELS=['front','rear','interior','telephoto','left','right','unknown'];
@@ -49,7 +49,7 @@ function structure(s){
 }
 function settings(o,identity=false) {
   exact(o,identity?['manufacturer','model','channelCount']:['channelCount'],['firmware','quality','qualityLabel','parkingMode','parkingModeLabel','timeLapseFps','suggestedFields']);
-  if(identity){label(o.manufacturer,64);label(o.model,64);}number(o.channelCount,8,true);
+  if(identity){label(o.manufacturer,64);label(o.model,64,true);}number(o.channelCount,8,true);
   if(o.firmware!==undefined)label(o.firmware,32);
   if(o.quality!==undefined)choice(o.quality,['low','normal','medium','high','maximum','extreme','other','unknown']);
   if(o.parkingMode!==undefined)choice(o.parkingMode,['off','buffered','time-lapse','low-bitrate','motion','impact','low-power-impact','radar','other','unknown']);
