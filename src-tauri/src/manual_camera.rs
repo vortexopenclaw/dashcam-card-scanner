@@ -7,7 +7,8 @@ mod tests;
 pub const ID: &str = "ddpai-z100-master-main";
 pub const MODEL: &str = "Z100 Master - Main Unit";
 pub fn selected(labels: &Labels) -> bool {
-    labels.manufacturer.trim().eq_ignore_ascii_case("DDPAI") && labels.model.trim() == MODEL
+    labels.manufacturer.trim().eq_ignore_ascii_case("DDPAI")
+        && matches!(labels.model.trim(), MODEL | "Z100 Master (Main Unit)")
 }
 /// A private working clone only. The original scan retains its native identity.
 /// Existing evidence adapters accept this explicitly confirmed unit context too.

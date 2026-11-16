@@ -35,7 +35,7 @@ test('actual native preview drives editable picker, observed channels, mode revi
  ui.scan.click();await settle();expect(ui.choices.channelCount.value).toBe('3');
  change(ui.choices.channelCount,'4');ui.scan.click();await settle();expect(ui.choices.channelCount.value).toBe('4');
  ui.submit.click();await settle();expect(invoke.mock.calls.some(c=>c[0]==='submit_review')).toBe(true);
- const outgoing=invoke.mock.calls.filter(c=>c[0]==='prepare_review').at(-1)![1];expect(outgoing.labels).toMatchObject({manufacturer:'DDPAI',model:'Z100 Master - Main Unit',channelCount:4,timeLapseFps:null});
+ const outgoing=invoke.mock.calls.filter(c=>c[0]==='prepare_review').at(-1)![1];expect(outgoing.labels).toMatchObject({manufacturer:'DDPAI',model:'Z100 Master (Main Unit)',channelCount:4,timeLapseFps:null});
  change(ui.modelPick,'other');await settle();expect(ui.fields.channelSetup.value).toBe('');expect(ui.choices.channelCount.value).toBe('4');
  change(ui.modelPick,'ddpai-z100-master-main');await settle();change(ui.choices.channelCount,'4');ui.fields.channelSetup.value='Owner custom setup';ui.fields.channelSetup.dispatchEvent(new Event('input',{bubbles:true}));
  change(ui.manufacturerPick,'other');await settle();expect(ui.choices.channelCount.value).toBe('4');expect(ui.fields.channelSetup.value).toBe('Owner custom setup');

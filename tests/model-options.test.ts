@@ -93,6 +93,29 @@ test('merge deduplicates native identities case-insensitively, retains native ID
  expect(merged.filter(c=>c.model==='E1 Pro')).toHaveLength(1);expect(merged.find(c=>c.model==='E1 Pro')).toMatchObject({id:'native-single',manufacturer:'VANTRUE',fixedSingleChannel:true});
  expect(merged.find(c=>c.id==='native-multi')?.fixedSingleChannel).toBe(false);
 });
+test('stable native IDs win over changed Z100 labels and repeated IPC rows',async()=>{
+ const native={id:'ddpai-z100-master-main',manufacturer:'DDPAI',model:'Z100 Master (Main Unit)',channelCount:3,channelSetup:'front + telephoto + rear'};
+ const merged=mergeModelOptions([native,native]);
+ expect(new Set(merged.map(c=>c.id)).size).toBe(merged.length);
+ expect(merged.filter(c=>c.id===native.id)).toEqual([expect.objectContaining({id:native.id,model:native.model,provenance:'owner-confirmed'})]);
+ const {ui,invoke}=setup(undefined,[native]);await settle();ui.select.click();await settle();change(ui.manufacturerPick,'DDPAI');pickModel(ui,native.model);
+ expect([...ui.modelPick.options].filter(o=>o.value===native.id)).toHaveLength(1);
+ expect(ui.fields.model.value).toBe(native.model);expect(ui.choices.channelCount.value).toBe('Select count');
+ change(ui.choices.channelCount,'2');input(ui.fields.channelSetup,'owner channels');ui.scan.click();await settle();ui.prepare.click();await settle();
+ expect(prepared(invoke).labels).toMatchObject({model:native.model,channelCount:2,channelSetup:'owner channels'});
+});
+test('distinct native IDs with identical labels remain distinct options',()=>{
+ const native=[{id:'native-one',manufacturer:'Vantrue',model:'E1 Pro'},{id:'native-two',manufacturer:'Vantrue',model:'E1 Pro'}];
+ const merged=mergeModelOptions(native);
+ for(const c of native)expect(merged.find(option=>option.id===c.id)).toMatchObject(c);
+ expect(new Set(merged.map(c=>c.id)).size).toBe(merged.length);
+});
+test('every embedded native identity has exactly one option and exact native strings',()=>{
+ const cameras=JSON.parse(readFileSync('src-tauri/assets/camera-catalog.json','utf8')).cameras;
+ const merged=mergeModelOptions(cameras);
+ expect(new Set(merged.map(c=>c.id)).size).toBe(merged.length);
+ for(const c of cameras)expect(merged.filter(option=>option.id===c.id)).toEqual([expect.objectContaining({id:c.id,manufacturer:c.manufacturer,model:c.model})]);
+});
 test('Rove R2-4K Pro prefills one front channel',async()=>{
  const {ui}=setup();await settle();ui.select.click();await settle();change(ui.manufacturerPick,'Rove');pickModel(ui,'R2-4K Pro');expect(ui.choices.channelCount.value).toBe('1');expect(ui.fields.channelSetup.value).toBe('front');
 });

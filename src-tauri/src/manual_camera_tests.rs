@@ -60,6 +60,15 @@ fn main_unit_flow_and_submission() {
         suggested_fields: vec![],
     };
     assert!(selected(&labels));
+    for model in ["Z100 Master - Main Unit", "Z100 Master (Main Unit)"] {
+        let mut owner = labels.clone();
+        owner.model = model.into();
+        assert!(selected(&owner), "{model}");
+        let review = crate::annotations::prepare(&apply(&report, selected(&owner)), &owner, &Default::default()).unwrap();
+        let envelope: serde_json::Value = serde_json::from_str(&review.submission_json).unwrap();
+        assert_eq!(envelope["owner"]["model"], model);
+        assert!(envelope["evidence"].as_array().unwrap().iter().any(|e| e["channel"] == "telephoto"));
+    }
     let contextual = apply(&report, selected(&labels));
     let review = crate::annotations::prepare(&contextual, &labels, &Default::default()).unwrap();
     let envelope: serde_json::Value = serde_json::from_str(&review.submission_json).unwrap();

@@ -94,7 +94,7 @@ export function mount(root:HTMLElement,bridge:Bridge) {
   element('p','Model choices are owner-report labels, not a list of models the scanner can recognize. Channel count stays unknown unless observed, confirmed by you, or suggested for a verified fixed single-channel model.',cameraHelp);
   element('p','These settings are owner-reported, not proof that every recording used the same settings. Normal, parking, and event recordings from one setup need only the fields above. Use optional multiple recording setups only if you changed cameras or settings on this card.',cameraHelp);
   let manualContext=false;let contextRevision=0;
-  const isMainUnit=()=>fields.manufacturer.value.trim().toLowerCase()==='ddpai'&&fields.model.value.trim()==='Z100 Master - Main Unit';
+  const isMainUnit=()=>fields.manufacturer.value.trim().toLowerCase()==='ddpai'&&['Z100 Master - Main Unit','Z100 Master (Main Unit)'].includes(fields.model.value.trim());
   const refreshManualContext=async()=>{
     const selected=isMainUnit();if(!report||(!selected&&!manualContext))return;
     const revision=++contextRevision;manualContext=selected;

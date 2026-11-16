@@ -207,21 +207,34 @@ fn late_unsampled_modes_prevent_global_parking_prefill() {
     assert!(e.samples.len() <= crate::engine::MAX_SAMPLES);
 }
 #[test]
-fn source_catalog_defects_are_not_silently_repaired_into_recognition_rules() {
-    // Reviewed source has double-escaped regexes; fixed single-model defaults
-    // belong to the UI catalog, not guessed observed filename authority here.
-    for (id, name, folder) in [
-        ("vantrue-e1-pro", "20300101_120000_00001_P_A.MP4", "Parking"),
-        ("rove-r2-4k-pro", "2030_0101_120000_000001.MP4", "Video"),
+fn corrected_source_patterns_supply_only_documented_hints() {
+    // Source patterns are now repaired explicitly, not normalized at runtime.
+    // Shared E1 grammar remains ambiguous identity; Rove has no mode token.
+    for (id, name, folder, context) in [
+        (
+            "vantrue-e1-pro",
+            "20300101_120000_00001_P_A.MP4",
+            "Parking",
+            "parking",
+        ),
+        (
+            "vantrue-e1-pro-s",
+            "20300101_120000_00001_P_A.MP4",
+            "Parking",
+            "parking",
+        ),
+        (
+            "rove-r2-4k-pro",
+            "2030_0101_120000_000001.MP4",
+            "Video",
+            "unknown",
+        ),
     ] {
-        assert_eq!(
-            file_mode_evidence(name, folder, Some(id)).context,
-            "unknown"
-        );
+        assert_eq!(file_mode_evidence(name, folder, Some(id)).context, context);
         assert_eq!(
             observed_channels::observed_channels(&scan(&[&format!("{folder}/{name}")]), Some(id))
                 .count,
-            None
+            Some(1)
         );
     }
 }
