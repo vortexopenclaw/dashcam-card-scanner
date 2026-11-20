@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import {MAX_BODY,HASH,exact,validate,sha256,admissionHash,readBytes,parse} from './schema.js';
+import {MAX_BODY,HASH,exact,validate,sha256,admissionHash,readBytes,parse,bearerMatches} from './schema.js';
 const TTL=300000;
 const reply=(data,status=200)=>Response.json(data,{status,headers:{'cache-control':'no-store','referrer-policy':'no-referrer','x-content-type-options':'nosniff'}});
 function configured(e,legacy=false){return e.ENABLED==='true'&&e.PENDING&&e.GATE&&e.IP_SALT?.length>=32&&(!legacy||(e.TURNSTILE_SECRET&&/^[A-Za-z0-9_-]+$/.test(e.TURNSTILE_SITE_KEY||'')))&&/^https:\/\/[a-z0-9.-]+$/.test(e.ORIGIN||'')&&Number.isInteger(+e.MAX_RECORDS)&&+e.MAX_RECORDS>0&&+e.MAX_RECORDS<=10000&&Number.isInteger(+e.MAX_STORED_BYTES)&&+e.MAX_STORED_BYTES>=MAX_BODY&&+e.MAX_STORED_BYTES<=100000000;}
@@ -95,7 +95,7 @@ export class IntakeGate {
  // No public Worker route forwards this header or these operations. This second
  // boundary protects accidental binding exposure; the key is admin-only.
  if(admin&&(!this.env.ADMIN_CONTROL_KEY||this.env.ADMIN_CONTROL_KEY.length<32||
-    req.headers.get('authorization')!=='Bearer '+this.env.ADMIN_CONTROL_KEY))return reply({error:'forbidden'},403);
+    !bearerMatches(req.headers.get('authorization'),this.env.ADMIN_CONTROL_KEY)))return reply({error:'forbidden'},403);
  const out=await this.state.storage.transaction(async tx=>{
   const hour=Math.floor(now/3600000);
   let s=await tx.get('control')||{hour,attempts:0,rawAttempts:0,rates:{},tickets:{},records:0,bytes:0};

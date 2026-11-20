@@ -22,8 +22,17 @@ export function sanitizeFolderComponents(components,aliases=new Map()) {
   if(!Array.isArray(components)||components.length>8)throw Error('invalid_components');
   return components.map(s=>{if(typeof s!=='string'||!s||/[\/\\\x00-\x1f]/.test(s)||s==='.'||s==='..')throw Error('invalid_component');if(FOLDERS.has(s.toLowerCase()))return s;if(!aliases.has(s)){if(aliases.size>=256)throw Error('alias_capacity');aliases.set(s,'folder-'+(aliases.size+1));}return aliases.get(s);});
 }
+// Constant-time bearer check: compare every byte of the expected value so the
+// response time doesn't reveal how much of a guessed key matched.
+export function bearerMatches(header,key){
+  if(typeof header!=='string'||typeof key!=='string')return false;
+  const a=new TextEncoder().encode(header),b=new TextEncoder().encode('Bearer '+key);
+  let diff=a.length^b.length;
+  for(let i=0;i<b.length;i++)diff|=(a[i]??0)^b[i];
+  return diff===0;
+}
 export function safeMediaName(s) {
-  return typeof s==='string' && new TextEncoder().encode(s).length<=256 && s.trim()===s && !s.startsWith('.') && !/[\/\\:\x00-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/u.test(s) && /\.(?:mp4|mov|m4v|avi|ts|mkv|jpg|jpeg|png)$/i.test(s);
+  return typeof s==='string' && new TextEncoder().encode(s).length<=256 && s.trim()===s && !s.startsWith('.') && !/[\/\\:\x00-\x1f\x7f-\x9f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u2069\ufeff]/u.test(s) && /\.(?:mp4|mov|m4v|avi|ts|mkv|jpg|jpeg|png)$/i.test(s);
 }
 export function generalizeFilename(name) {
   if(typeof name!=='string'||name.length>256)return 'unknown';
