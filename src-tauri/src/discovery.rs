@@ -481,3 +481,11 @@ fn same(a: &cap_std::fs::Metadata, b: &cap_std::fs::Metadata) -> bool {
     }
     a.is_file() == b.is_file() && a.len() == b.len() && a.modified().ok() == b.modified().ok()
 }
+/// Test-only entry point for the security-review harness in `hostile_tests.rs`.
+#[cfg(test)]
+pub(crate) fn fuzz_parse(text: &str) -> Discovery {
+    let mut d = Discovery::default();
+    d.sources.push(Source { id: "support-1".into(), format: "unknown".into(), encoding: "utf8".into(), size_bytes: text.len() as u64 });
+    d.parse("support-1", text);
+    d
+}

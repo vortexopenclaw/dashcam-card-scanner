@@ -120,6 +120,13 @@ fn tiny_exceptional_guards_have_distinct_counted_reasons() {
             },
             "directory_depth_limit",
         ),
+        (
+            Limits {
+                dir_entries: 1,
+                ..Limits::default()
+            },
+            "directory_entry_limit",
+        ),
     ] {
         let r = scan_with_limits(t.path(), &cancel, |_| {}, limits).unwrap();
         assert!(r.limited && !r.inventory_complete);

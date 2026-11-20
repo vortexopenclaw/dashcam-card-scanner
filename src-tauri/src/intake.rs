@@ -37,9 +37,13 @@ pub(crate) fn safe_media_name(name: &str) -> bool {
         && !name.starts_with('.')
         && !name.contains(['/', '\\', ':'])
         && !name.chars().any(|c| {
+            // Controls, bidi controls and invisible/format characters (zero-width, BOM,
+            // line/paragraph separators) that could disguise a name in review tooling.
             c.is_control()
-                || ('\u{202a}'..='\u{202e}').contains(&c)
-                || ('\u{2066}'..='\u{2069}').contains(&c)
+                || matches!(c, '\u{00ad}' | '\u{061c}' | '\u{180e}' | '\u{feff}')
+                || ('\u{200b}'..='\u{200f}').contains(&c)
+                || ('\u{2028}'..='\u{202e}').contains(&c)
+                || ('\u{2060}'..='\u{2069}').contains(&c)
         })
         && name
             .rsplit_once('.')

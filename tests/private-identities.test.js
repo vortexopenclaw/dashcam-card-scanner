@@ -61,7 +61,7 @@ test('actual direct intake validation and immutable exact-key storage retain eve
 });
 test('unknown safe grammars accepted; unsafe original names and partial/mismatched/duplicate identities rejected; legacy accepted',()=>{
  for(const name of ['new vendor+token2030.MP4','S_20300115_A.MP4','fresh-pattern.M4V','照片2030.jpg'])expect(safeMediaName(name)).toBe(true);
- for(const name of ['/host/a.MP4','../a.MP4','a\\b.MP4','a\nb.MP4','a\u0085b.MP4','a\u202eb.MP4','a:stream.MP4','._a.MP4','settings.ini','GPS.txt','x'.repeat(257)+'.MP4']){
+ for(const name of ['/host/a.MP4','../a.MP4','a\\b.MP4','a\nb.MP4','a\u0085b.MP4','a\u202eb.MP4','a:stream.MP4','._a.MP4','settings.ini','GPS.txt','x'.repeat(257)+'.MP4','a\u200bb.MP4','\ufeffa.MP4','a\u2028b.MP4','a\u061cb.MP4','a\u200fb.MP4','a\u2060b.MP4']){
   expect(safeMediaName(name)).toBe(false);const p=JSON.parse(native.review.submissionJson);p.evidence[0].filename=name;expect(()=>validate(p)).toThrow();
  }
  for(const mutate of [p=>delete p.evidence[0].filename,p=>p.evidence[0].folder='DCIM',p=>p.evidence[1].sourceIdentifier=p.evidence[0].sourceIdentifier,p=>p.retention.omittedIdentities++,p=>p.evidence[0].sourceIdentifier='/host/path']){const p=JSON.parse(native.review.submissionJson);mutate(p);expect(()=>validate(p)).toThrow();}

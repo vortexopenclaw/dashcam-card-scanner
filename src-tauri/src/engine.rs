@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 use crate::video::{self, Video};
-use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt};
+use cap_fs_ext::{DirExt, FollowSymlinks, OpenOptionsFollowExt, OpenOptionsSyncExt};
 use cap_std::{
     ambient_authority,
     fs::{Dir, OpenOptions},
@@ -15,6 +15,8 @@ use std::{
 };
 pub const MAX_ENTRIES: usize = 10_000_000;
 pub const MAX_DIRS: usize = 16_384;
+/// One folder's listing is held in memory to sort it, so cap it separately from the card total.
+pub const MAX_DIR_ENTRIES: usize = 262_144;
 pub const MAX_DEPTH: usize = 32;
 pub const MAX_SAMPLES: usize = 64;
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
@@ -307,6 +309,7 @@ const MAX_COHORTS: usize = 8192;
 #[derive(Clone, Copy)]
 struct Limits {
     entries: usize,
+    dir_entries: usize,
     directories: usize,
     depth: usize,
     cohorts: usize,
@@ -315,6 +318,7 @@ impl Default for Limits {
     fn default() -> Self {
         Self {
             entries: MAX_ENTRIES,
+            dir_entries: MAX_DIR_ENTRIES,
             directories: MAX_DIRS,
             depth: MAX_DEPTH,
             cohorts: MAX_COHORTS,
@@ -472,8 +476,14 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                 return;
             }
         };
-        let mut entries: Vec<_> = entries.take(self.limits.entries.saturating_sub(self.report.entries_seen) + 1).take_while(|_| !self.cancel.load(Ordering::Relaxed)).collect();
+        let take = (self.limits.entries.saturating_sub(self.report.entries_seen) + 1)
+            .min(self.limits.dir_entries.saturating_add(1));
+        let mut entries: Vec<_> = entries.take(take).take_while(|_| !self.cancel.load(Ordering::Relaxed)).collect();
         if self.cancel.load(Ordering::Relaxed) { self.report.cancelled = true; return; }
+        if entries.len() > self.limits.dir_entries {
+            issue(&mut self.report, "directory_entry_limit", true);
+            entries.truncate(self.limits.dir_entries);
+        }
         entries.sort_by_key(|e| e.as_ref().ok().map(|e| {
             let name = e.file_name();
             let lower = name.to_string_lossy().to_ascii_lowercase();
@@ -615,7 +625,8 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                 let result = if matches!(lower.as_str(), "mp4" | "mov" | "m4v") {
                     self.report.probe_attempts += 1;
                     let mut options = OpenOptions::new();
-                    options.read(true).follow(FollowSymlinks::No);
+                    // Non-blocking open: an entry swapped for a FIFO mid-scan must not hang the scan thread.
+                    options.read(true).follow(FollowSymlinks::No).nonblock(true);
                     match dir.open_with(p, &options) {
                         Ok(mut f) => match f.metadata() {
                             Ok(m)

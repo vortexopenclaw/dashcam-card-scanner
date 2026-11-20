@@ -24,6 +24,8 @@ use std::{
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 mod ipc;
+#[cfg(test)]
+mod hostile_tests;
 mod observed_channels;
 use tauri_plugin_updater::UpdaterExt;
 #[derive(Default)]
