@@ -22,6 +22,21 @@ fn label_with_parentheses(s: &str, max: usize, parentheses: bool) -> bool {
                 || (parentheses && b"()".contains(&c))
         })
 }
+/// Validated reserved slots for `ext`, clamped to the inventoried count.
+fn reserved_for(f: &crate::engine::Folder, ext: &str, count: u64) -> u64 {
+    if !crate::reserved_slot::is_photo_ext(&ext.to_ascii_lowercase()) {
+        return 0;
+    }
+    f.reserved_slots.get(ext).copied().unwrap_or(0).min(count)
+}
+/// Image/video media in one folder, excluding validated empty reserved slots.
+pub(crate) fn folder_media_count(f: &crate::engine::Folder) -> u64 {
+    f.extensions
+        .iter()
+        .filter(|(ext, _)| media_type(ext) != "other")
+        .map(|(ext, n)| n - reserved_for(f, ext, *n))
+        .sum()
+}
 fn media_type(ext: &str) -> &'static str {
     match ext.to_ascii_lowercase().as_str() {
         "mp4" | "mov" | "m4v" | "avi" | "ts" | "mkv" => "video",
@@ -280,13 +295,7 @@ pub(crate) fn reviewed_evidence(r: &Report) -> Vec<Value> {
 }
 pub(crate) fn reviewed_retention(r: &Report) -> Value {
     let evidence = reviewed_evidence(r);
-    let total_media: u64 = r
-        .folders
-        .iter()
-        .flat_map(|f| f.extensions.iter())
-        .filter(|(ext, _)| media_type(ext) != "other")
-        .map(|(_, n)| *n)
-        .sum();
+    let total_media: u64 = r.folders.iter().map(folder_media_count).sum();
     let retained_identities = evidence
         .iter()
         .filter(|e| e.get("filename").is_some())
@@ -360,9 +369,17 @@ pub fn envelope(r: &Report, l: &Labels) -> Result<String, String> {
                     | "nmea"
                     | "srt"
             );
-            *counts
-                .entry(if known { ext.clone() } else { "unknown".into() })
-                .or_default() += count;
+            // Validated empty reserved slots are structure, not image media: the
+            // strict schema has no slot type, so they are counted as "unknown"/other.
+            let slots = reserved_for(f, ext, *count);
+            if slots > 0 {
+                *counts.entry("unknown".into()).or_default() += slots;
+            }
+            if count - slots > 0 {
+                *counts
+                    .entry(if known { ext.clone() } else { "unknown".into() })
+                    .or_default() += count - slots;
+            }
         }
         if counts.len() > 16 {
             return Err("Too many extension groups for intake. Export locally.".into());
@@ -610,6 +627,50 @@ mod tests {
         }
         assert_eq!(chosen[0].1.filename_template, "SEQUENCEF.MP4");
         assert_eq!(chosen[8].1.filename_template, "SEQUENCER.MP4");
+    }
+    #[test]
+    fn reserved_slots_stay_structural_but_leave_image_media_in_strict_shape() {
+        use crate::engine::Folder;
+        let report = Report {
+            scanned_files: 6,
+            folders: vec![Folder {
+                path: "DCIM".into(),
+                file_count: 6,
+                extensions: [("mp4".into(), 1), ("jpg".into(), 4), ("txt".into(), 1)].into(),
+                // Imported/forged counts above the inventory are clamped.
+                reserved_slots: [("jpg".into(), 3), ("mp4".into(), 9)].into(),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+        let labels = Labels {
+            manufacturer: "Owner".into(),
+            model: "Unverified".into(),
+            channel_setup: "front".into(),
+            firmware: String::new(),
+            settings: String::new(),
+            channel_count: 1,
+            quality: "unknown".into(),
+            quality_label: None,
+            parking_mode_label: None,
+            parking_mode: "unknown".into(),
+            time_lapse_fps: None,
+            suggested_fields: vec![],
+        };
+        let v: Value = serde_json::from_str(&envelope(&report, &labels).unwrap()).unwrap();
+        let f = &v["structure"]["folders"][0];
+        let ext: Vec<(String, String, u64)> = f["extensions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| (e["extension"].as_str().unwrap().into(), e["mediaType"].as_str().unwrap().into(), e["count"].as_u64().unwrap()))
+            .collect();
+        // Slots only ever apply to photo extensions: a forged mp4 claim is ignored.
+        assert_eq!(ext, vec![("jpg".into(), "image".into(), 1), ("mp4".into(), "video".into(), 1), ("txt".into(), "other".into(), 1), ("unknown".into(), "other".into(), 3)]);
+        assert_eq!(f["fileCount"], 6);
+        assert_eq!(f["mediaCount"], 2);
+        assert_eq!(v["structure"]["mediaCount"], 2);
+        assert_eq!(v["retention"]["inventoriedIdentities"], 2);
     }
     #[test]
     fn native_recognition_context_reaches_intake_without_crossing_json_boundaries() {

@@ -8,6 +8,7 @@ pub mod manual_camera;
 pub mod mode_evidence;
 pub mod payload;
 pub mod recognition;
+pub mod reserved_slot;
 pub mod video;
 pub mod volumes;
 /// Compiled release policy; renderer input and environment overrides cannot enable OCR.
