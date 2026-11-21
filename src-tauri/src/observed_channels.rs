@@ -227,7 +227,10 @@ pub(crate) fn media_count(folder: &crate::engine::Folder) -> u64 {
         .extensions
         .iter()
         .filter(|(ext, _)| is_media(&format!("x.{ext}")))
-        .map(|(_, n)| *n)
+        .map(|(ext, n)| {
+            let photo = crate::reserved_slot::is_photo_ext(&ext.to_ascii_lowercase());
+            n - if photo { folder.reserved_slots.get(ext).copied().unwrap_or(0).min(*n) } else { 0 }
+        })
         .sum()
 }
 // These are generalized templates, NOT original basenames. A template is usable

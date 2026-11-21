@@ -165,6 +165,7 @@ fn cohort_resource_guard_does_not_abort_header_or_inventory_coverage() {
 fn late_unique_variant_reclaims_duplicate_intake_slot_immediately() {
     let cancel = AtomicBool::new(false);
     let mut walker = Walker {
+        slot_meter: Default::default(),
         report: Report::default(),
         cancel: &cancel,
         progress: |_: Progress| {},
@@ -208,6 +209,7 @@ fn late_minority_short_outlier_reclaims_other_stratum_redundancy() {
     for earlier_folder in [false, true] {
         let cancel = AtomicBool::new(false);
         let mut walker = Walker {
+            slot_meter: Default::default(),
             report: Report::default(),
             cancel: &cancel,
             progress: |_: Progress| {},

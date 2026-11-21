@@ -45,6 +45,15 @@ pub struct Folder {
     /// Streaming, anonymous configuration evidence, independent of private intake samples.
     #[serde(default)]
     pub metadata_cohorts: Vec<MetadataCohort>,
+    /// Validated empty reserved photo slots per extension (subset of `extensions`).
+    /// Structural inventory only; never image media or samples.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub reserved_slots: BTreeMap<String, u64>,
+}
+impl Folder {
+    pub fn reserved_slot_count(&self) -> u64 {
+        self.reserved_slots.values().sum()
+    }
 }
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -99,6 +108,9 @@ pub struct Report {
     pub issues: BTreeMap<String, u64>,
     #[serde(default)]
     pub metadata_coverage: MetadataCoverage,
+    /// Aggregate reserved-slot verification counts; no names, paths or hashes.
+    #[serde(default)]
+    pub reserved_slot_coverage: crate::reserved_slot::Coverage,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -313,6 +325,7 @@ struct Limits {
     directories: usize,
     depth: usize,
     cohorts: usize,
+    reserved_slots: crate::reserved_slot::Budget,
 }
 impl Default for Limits {
     fn default() -> Self {
@@ -322,6 +335,7 @@ impl Default for Limits {
             directories: MAX_DIRS,
             depth: MAX_DEPTH,
             cohorts: MAX_COHORTS,
+            reserved_slots: crate::reserved_slot::Budget::default(),
         }
     }
 }
@@ -395,7 +409,9 @@ fn scan_with_limits(
 ) -> Result<Report, String> {
     let root = safe_root(root)?;
     let dir = open_dir_secure(&root)?;
+    let slot_meter = crate::reserved_slot::Meter { budget: limits.reserved_slots, ..Default::default() };
     let mut walker = Walker {
+        slot_meter,
         report: Report { discovery: Some(crate::discovery::Discovery::default()), ..Report::default() },
         cancel,
         progress,
@@ -445,6 +461,7 @@ fn scan_with_limits(
     Ok(walker.report)
 }
 struct Walker<'a, F> {
+    slot_meter: crate::reserved_slot::Meter,
     report: Report,
     cancel: &'a AtomicBool,
     progress: F,
@@ -607,7 +624,13 @@ impl<F: FnMut(Progress)> Walker<'_, F> {
                     }
                 }
                 if !media {
-                    if matches!(lower.as_str(), "jpg" | "jpeg" | "png") {
+                    if crate::reserved_slot::is_photo_ext(&lower) {
+                        let check = crate::reserved_slot::check(&dir, p, &meta, &mut self.slot_meter);
+                        self.report.reserved_slot_coverage.record(check);
+                        if check == crate::reserved_slot::Check::Reserved {
+                            *folder.reserved_slots.entry(ext.clone()).or_default() += 1;
+                            continue;
+                        }
                         self.retain_sample(
                             &mut folder,
                             Sample {
