@@ -6,15 +6,20 @@
   "license": "AGPL-3.0-only",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc && vite build",
+    "build": "tsc && vite build && node scripts/sentry-sourcemaps.mjs",
     "test": "vitest run",
     "test:intake": "npm --prefix intake test",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "sentry:debug-files": "node scripts/sentry-debug-files.mjs",
+    "tauri:build:sentry": "node scripts/sentry-release-build.mjs"
   },
   "dependencies": {
-    "@tauri-apps/api": "^2.0.0"
+    "@sentry/browser": "^11.16.0",
+    "@tauri-apps/api": "^2.0.0",
+    "tauri-plugin-sentry-api": "^0.9.0"
   },
   "devDependencies": {
+    "@sentry/cli": "^3.8.2",
     "@tauri-apps/cli": "^2.0.0",
     "ajv": "^8.17.1",
     "jsdom": "^26.0.0",

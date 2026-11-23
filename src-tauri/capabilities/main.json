@@ -1,11 +1,12 @@
 {
   "identifier": "main",
-  "description": "Local UI only; no filesystem, shell, HTTP or updater renderer permissions. All sensitive operations are Rust commands.",
+  "description": "Local UI only; no filesystem, shell, HTTP or updater renderer permissions. All sensitive operations are Rust commands. sentry:default only forwards scrubbed crash-report envelopes/breadcrumbs to Rust.",
   "windows": [
     "main"
   ],
   "permissions": [
     "core:event:allow-listen",
-    "core:event:allow-unlisten"
+    "core:event:allow-unlisten",
+    "sentry:default"
   ]
 }
