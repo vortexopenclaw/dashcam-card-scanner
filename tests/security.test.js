@@ -6,7 +6,7 @@ import {spawnSync} from 'node:child_process';
 const read=p=>readFileSync(p,'utf8');
 test('renderer has no fetch, HTML interpolation, filesystem, shell or updater authority',()=>{
  const ui=read('src/ui.ts')+read('src/main.ts');expect(ui).not.toMatch(/\bfetch\s*\(|innerHTML|outerHTML|insertAdjacentHTML|eval\s*\(/);
- const cap=JSON.parse(read('src-tauri/capabilities/main.json'));expect(cap.permissions).toEqual(['core:event:allow-listen','core:event:allow-unlisten']);
+ const cap=JSON.parse(read('src-tauri/capabilities/main.json'));expect(cap.permissions).toEqual(['core:event:allow-listen','core:event:allow-unlisten','sentry:default']);
  const c=JSON.parse(read('src-tauri/tauri.conf.json'));expect(c.app.security.csp).toContain('connect-src ipc: http://ipc.localhost');expect(c.app.security.csp).not.toContain('https:');expect(c.app.security.csp).not.toContain('unsafe-inline');
 });
 test('release is manual, main-only, environment-gated; no PR privileged entry point',()=>{

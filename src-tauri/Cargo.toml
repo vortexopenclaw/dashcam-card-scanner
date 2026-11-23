@@ -25,6 +25,11 @@ sha2 = "0.10"
 cap-std = "3"
 cap-fs-ext = "3"
 uuid = { version = "1", features = ["v4"] }
+# Crash/error reporting. rustls only (no native-tls), no minidump crash-reporter process.
+sentry = { version = "0.49.6", default-features = false, features = ["backtrace", "contexts", "debug-images", "panic", "logs", "release-health", "reqwest", "rustls-no-provider"] }
+# Explicit ring provider for the Sentry transport (avoids the aws-lc C toolchain).
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+tauri-plugin-sentry = { version = "0.9", default-features = false, features = ["wry"] }
 
 [dev-dependencies]
 tempfile = "3"
@@ -34,3 +39,10 @@ tempfile = "3"
 glib = { path = "vendor/glib-0.18.5" }
 glib-macros = { path = "vendor/glib-macros-0.18.5" }
 gtk3-macros = { path = "vendor/gtk3-macros-0.18.2" }
+
+# Line tables in a separate debug file (macOS .dSYM, Linux .dwp, Windows .pdb)
+# so Sentry can show Rust file:line after `npm run sentry:debug-files`. The
+# shipped binary does not grow; debug files are never bundled.
+[profile.release]
+debug = "line-tables-only"
+split-debuginfo = "packed"

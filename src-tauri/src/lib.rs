@@ -25,6 +25,7 @@ use std::{
 use tauri::{Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 mod ipc;
+pub mod telemetry;
 #[cfg(test)]
 mod hostile_tests;
 mod observed_channels;
@@ -126,6 +127,9 @@ async fn discover_cards() -> Result<Vec<volumes::Card>, String> {
 }
 #[tauri::command]
 async fn select_discovered_card(id: String, s: State<'_, AppState>) -> Result<String, String> {
+    telemetry::command_result("select_discovered_card", select_discovered_card_inner(id, s).await)
+}
+async fn select_discovered_card_inner(id: String, s: State<'_, AppState>) -> Result<String, String> {
     let _busy = begin(&s)?;
     let path = tauri::async_runtime::spawn_blocking(move || volumes::select(&id))
         .await
@@ -139,6 +143,12 @@ async fn select_discovered_card(id: String, s: State<'_, AppState>) -> Result<St
 }
 #[tauri::command]
 async fn scan_source(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+) -> Result<serde_json::Value, String> {
+    telemetry::command_result("scan_source", scan_source_inner(app, s).await)
+}
+async fn scan_source_inner(
     app: tauri::AppHandle,
     s: State<'_, AppState>,
 ) -> Result<serde_json::Value, String> {
@@ -293,6 +303,14 @@ async fn export_review(
     kind: String,
     s: State<'_, AppState>,
 ) -> Result<bool, String> {
+    telemetry::command_result("export_review", export_review_inner(app, token, kind, s).await)
+}
+async fn export_review_inner(
+    app: tauri::AppHandle,
+    token: String,
+    kind: String,
+    s: State<'_, AppState>,
+) -> Result<bool, String> {
     let _busy = begin(&s)?;
     let (r, source) = reviewed(&s, &token)?;
     let text = match kind.as_str() {
@@ -362,6 +380,13 @@ fn submission_rejection(status: u16, bytes: &[u8]) -> &'static str {
 }
 #[tauri::command]
 async fn submit_review(
+    token: String,
+    consent: bool,
+    s: State<'_, AppState>,
+) -> Result<String, String> {
+    telemetry::command_result("submit_review", submit_review_inner(token, consent, s).await)
+}
+async fn submit_review_inner(
     token: String,
     consent: bool,
     s: State<'_, AppState>,
@@ -464,6 +489,11 @@ fn update_error(error: &tauri_plugin_updater::Error) -> &'static str {
     }
 }
 
+/// Hidden verification trigger for the webview (`DASHCAM_SCANNER_SENTRY_TEST`).
+#[tauri::command]
+fn sentry_test_trigger() -> Option<String> {
+    telemetry::test_trigger()
+}
 #[tauri::command]
 fn app_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
@@ -515,6 +545,12 @@ async fn check_update(
     app: tauri::AppHandle,
     s: State<'_, AppState>,
 ) -> Result<Option<String>, String> {
+    telemetry::command_result("check_update", check_update_inner(app, s).await)
+}
+async fn check_update_inner(
+    app: tauri::AppHandle,
+    s: State<'_, AppState>,
+) -> Result<Option<String>, String> {
     let _busy = begin(&s)?;
     if !lock(&s)?.begin_update_check() {
         return Ok(None);
@@ -548,6 +584,14 @@ async fn check_update(
 }
 #[tauri::command]
 async fn install_update(
+    app: tauri::AppHandle,
+    version: String,
+    consent: bool,
+    s: State<'_, AppState>,
+) -> Result<(), String> {
+    telemetry::command_result("install_update", install_update_inner(app, version, consent, s).await)
+}
+async fn install_update_inner(
     app: tauri::AppHandle,
     version: String,
     consent: bool,
@@ -601,7 +645,19 @@ async fn install_update(
     Ok(())
 }
 pub fn run() {
-    tauri::Builder::default()
+    // Webview events are forwarded over IPC; the JS SDK is bundled by Vite
+    // (src/telemetry.ts) rather than injected, so it gets real source maps.
+    let sentry_plugin = tauri_plugin_sentry::Sentry::with_options(tauri_plugin_sentry::Options {
+        javascript: tauri_plugin_sentry::JavaScriptOptions::no_injection(),
+        ..Default::default()
+    });
+    let sentry_guard = telemetry::init(&sentry_plugin);
+    if sentry_guard.is_some() {
+        telemetry::run_startup_test_triggers();
+    }
+    let builder = tauri::Builder::default();
+    let builder = if sentry_guard.is_some() { builder.plugin(sentry_plugin) } else { builder };
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState::default())
@@ -631,12 +687,20 @@ pub fn run() {
                 check_update,
                 install_update,
                 app_version,
-                restart_app
+                restart_app,
+                sentry_test_trigger
             ];
             handler(invoke)
         })
-        .run(tauri::generate_context!())
-        .expect("Application runtime failed");
+        .build(tauri::generate_context!())
+        .expect("Application runtime failed")
+        .run(move |_app, event| {
+            if let tauri::RunEvent::Exit = event {
+                if sentry_guard.is_some() {
+                    telemetry::flush();
+                }
+            }
+        });
 }
 #[cfg(test)]
 mod tests {
