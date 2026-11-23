@@ -63,6 +63,15 @@ jobs:
         with: { node-version: '24', cache: npm }
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249
         with: { targets: '${{ matrix.target }}' }
+      # Same remap as `npm run tauri:build:sentry`: keep the runner home and checkout
+      # paths out of compiled debug info, because Sentry adds DWARF/PDB paths during
+      # server-side symbolication, after client scrubbing. Set for the whole job so
+      # cargo test and the tauri build share one compilation cache.
+      - name: Remap build paths out of Rust debug info
+        shell: bash
+        run: |
+          REMAP=$(node -e 'const os=require("os"),p=require("path");console.log(`--remap-path-prefix=${os.homedir()}=~ --remap-path-prefix=${p.resolve(".")}=.`)')
+          echo "RUSTFLAGS=${RUSTFLAGS:+$RUSTFLAGS }$REMAP" >> "$GITHUB_ENV"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
         with:
           workspaces: src-tauri -> target
@@ -100,6 +109,24 @@ jobs:
           updaterJsonPreferNsis: true
           uploadPlainBinary: false
           args: --ci --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      # Rust debug files (never bundled) for file:line native frames. A failed upload
+      # marks this step failed for visibility but does not block the release build.
+      - name: Upload Rust debug files to Sentry
+        continue-on-error: true
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_UPLOAD_REQUIRED: '1'
+        run: |
+          OUT='src-tauri/target/${{ matrix.target }}/release'
+          case '${{ runner.os }}' in
+            macOS) FILES=("$OUT/dashcam-card-scanner.dSYM") ;;
+            Windows) FILES=("$OUT/dashcam_card_scanner.pdb") ;;
+            *) FILES=("$OUT/dashcam-card-scanner" "$OUT/dashcam-card-scanner.dwp") ;;
+          esac
+          if [ -z "$SENTRY_AUTH_TOKEN" ]; then echo "::warning::SENTRY_AUTH_TOKEN missing; Rust debug files not uploaded"; exit 0; fi
+          for f in "${FILES[@]}"; do [ -e "$f" ] || { echo "::warning::Missing Rust debug file $f"; exit 1; }; done
+          node scripts/sentry-debug-files.mjs "${FILES[@]}" || { echo "::warning::Sentry Rust debug file upload failed"; exit 1; }
       - name: Verify actual macOS DMG and updater bundle integrity
         if: runner.os == 'macOS'
         run: |
